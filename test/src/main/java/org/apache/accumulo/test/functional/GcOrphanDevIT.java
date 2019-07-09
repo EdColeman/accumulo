@@ -16,6 +16,17 @@
  */
 package org.apache.accumulo.test.functional;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertTrue;
+
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
@@ -48,27 +59,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 /**
- * IT Tests for development of an orphan file check that looks for files
- * not being removed by the Accumulo SimpleGarbageCollector.
+ * IT Tests for development of an orphan file check that looks for files not being removed by the
+ * Accumulo SimpleGarbageCollector.
  */
 public class GcOrphanDevIT extends AccumuloClusterHarness {
 
@@ -112,6 +105,41 @@ public class GcOrphanDevIT extends AccumuloClusterHarness {
     return 4 * 60;
   }
 
+  private static class CollisionDet {
+
+    private final Set<String> dirs = new HashSet<>();
+    private int refCount = 0;
+
+    public boolean contains(final String candidate){
+      return dirs.contains(candidate);
+    }
+
+    public int size(){
+      return dirs.size();
+    }
+
+    public int add(final String dir){
+      boolean present = dirs.add(dir);
+      if(present){
+        refCount++;
+      }
+
+      return dirs.size();
+    }
+
+    public int getRefCount(){
+      return refCount;
+    }
+
+    @Override
+    public String toString() {
+      final StringBuilder sb = new StringBuilder("CollisionDet{");
+      sb.append("dirs=").append(dirs);
+      sb.append(", refCount=").append(refCount);
+      sb.append('}');
+      return sb.toString();
+    }
+  }
   /**
    * Validate that {@code TableOperations} online operation does not block when table is already
    * online and fate transaction lock is held by other operations. The test creates, populates a
@@ -131,7 +159,7 @@ public class GcOrphanDevIT extends AccumuloClusterHarness {
     Scanner scanner = connector.createScanner("accumulo.metadata", new Authorizations());
     // scanner.fetchColumnFamily(new Text("file"));
 
-    for(Map.Entry<Key,Value> entry : scanner) {
+    for (Map.Entry<Key,Value> entry : scanner) {
       Key key = entry.getKey();
       Text row = entry.getKey().getRow();
       Value value = entry.getValue();
@@ -148,26 +176,47 @@ public class GcOrphanDevIT extends AccumuloClusterHarness {
 
     log.debug("---- after compaction ----");
 
+    Map<String,CollisionDet> fileMap = new HashMap<>(100_000);
+
     scanner = connector.createScanner("accumulo.metadata", new Authorizations());
     scanner.fetchColumnFamily(new Text("file"));
 
     Pattern p = Pattern.compile("(.+)/accumulo/tables/(.+)/(.*)/+(.+)");
 
-    for(Map.Entry<Key,Value> entry : scanner) {
+    for (Map.Entry<Key,Value> entry : scanner) {
       Key key = entry.getKey();
       Text row = entry.getKey().getRow();
       Value value = entry.getValue();
 
       Matcher m = p.matcher(entry.getKey().getColumnQualifier().toString());
-      if(m.matches()){
+      if (m.matches()) {
         log.debug("match");
         log.debug("root: {}", m.group(1));
         log.debug("table id: {}", m.group(2));
         log.debug("dir: {}", m.group(3));
         log.debug("file: {}", m.group(4));
+
+        String filename = m.group(4);
+        String dir = m.group(3);
+
+        CollisionDet dirInfo;
+
+        if(fileMap.containsKey(filename)){
+           dirInfo = fileMap.get(filename);
+           dirInfo.add(dir);
+           fileMap.put(filename, dirInfo);
+        } else {
+          dirInfo = new CollisionDet();
+          dirInfo.add(dir);
+          fileMap.put(filename,dirInfo);
+        }
+
       }
-      log.debug("k:\'{}\', cq: \'{}\', v:\'{}\'", key.getRow(), entry.getKey().getColumnQualifier(), value);
+      log.debug("k:\'{}\', cq: \'{}\', v:\'{}\'", key.getRow(), entry.getKey().getColumnQualifier(),
+          value);
     }
+
+    log.info("R: {}", fileMap);
 
   }
 
@@ -203,8 +252,8 @@ public class GcOrphanDevIT extends AccumuloClusterHarness {
    */
   private Future<?> startCompactTask() {
     Future<?> compactTask = pool.submit(new SlowCompactionRunner(tableName));
-    //assertTrue("verify that compaction running and fate transaction exists",
-    //    blockUntilCompactionRunning(tableName));
+    // assertTrue("verify that compaction running and fate transaction exists",
+    // blockUntilCompactionRunning(tableName));
     return compactTask;
   }
 
