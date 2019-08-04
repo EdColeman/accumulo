@@ -1,10 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.accumulo.shell.commands;
 
 import jline.console.ConsoleReader;
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.admin.TableOperations;
 import org.apache.accumulo.shell.Shell;
-import org.apache.accumulo.shell.ShellOptions;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -13,17 +28,15 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 import static org.junit.Assert.*;
 
-public class ListTabletsTest {
+public class ListTabletsCommandTest {
 
     @Test public void mockTest() throws Exception {
 
-        ListTablets cmd = new ListTablets();
+        ListTabletsCommand cmd = new ListTabletsCommand();
 
         Connector conn = EasyMock.createMock(Connector.class);
         TableOperations tableOps = EasyMock.createMock(TableOperations.class);
@@ -57,9 +70,9 @@ public class ListTabletsTest {
     @Test
     public void defaultBuilderTest(){
 
-        ListTablets.TabletInfo.Builder builder = new ListTablets.TabletInfo.Builder("aName");
+        ListTabletsCommand.TabletInfo.Builder builder = new ListTabletsCommand.TabletInfo.Builder("aName");
 
-        ListTablets.TabletInfo info = builder.build();
+        ListTabletsCommand.TabletInfo info = builder.build();
 
         assertEquals("aName", info.getTableName());
         assertEquals(0, info.getNumFiles());
@@ -77,11 +90,11 @@ public class ListTabletsTest {
     @Test
     public void builderTest(){
 
-        ListTablets.TabletInfo.Builder builder = new ListTablets.TabletInfo.Builder("aName")
+        ListTabletsCommand.TabletInfo.Builder builder = new ListTabletsCommand.TabletInfo.Builder("aName")
                 .numFiles(1).numWalLogs(2).numEntries(3).size(4).status("status").location("loc")
                 .tableId("123").endRow("end").tableExists(true);
 
-        ListTablets.TabletInfo info = builder.build();
+        ListTabletsCommand.TabletInfo info = builder.build();
 
         assertEquals("aName", info.getTableName());
         assertEquals(1, info.getNumFiles());

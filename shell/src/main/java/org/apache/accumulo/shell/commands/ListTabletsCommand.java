@@ -18,15 +18,26 @@ package org.apache.accumulo.shell.commands;
 
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.Instance;
+import org.apache.accumulo.core.client.Scanner;
+import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.impl.Namespaces;
+import org.apache.accumulo.core.data.Key;
+import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.metadata.schema.MetadataSchema;
+import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.shell.Shell;
 import org.apache.accumulo.shell.Shell.Command;
 import org.apache.accumulo.shell.ShellOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.io.Text;
 
+import java.math.BigInteger;
+import java.text.ParseException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 /**
  * Copied from ACCUMULO-2873
@@ -46,7 +57,7 @@ import java.util.*;
  * could look into using a CSV library.   It would be nice to design the utility so
  * that columns can be added in future versions w/o impacting current scripts that use the utility.
  */
-public class ListTablets extends Command {
+public class ListTabletsCommand extends Command {
 
     private Option outputFileOpt;
     private Option optTablePattern;
@@ -100,10 +111,16 @@ public class ListTablets extends Command {
 
             // String valueFormat = prettyPrint ? "%9s" : "%,24d";
 
+//            List<String> lines = new ArrayList<>();
+//
+//            lines.add("NO TABLE ????");
+
             for (TabletInfo tabletInfo : getTabletInfo(tables, shellState.getConnector())) {
                 shellState.getReader()
-                        .println(String.format(tabletInfo.tableName));
+                        .println(String.format(tabletInfo.toString()));
             }
+
+//            shellState.printLines(lines.iterator(), false);
 
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -113,22 +130,88 @@ public class ListTablets extends Command {
 
     private List<TabletInfo> getTabletInfo(SortedSet<String> tables, final Connector connector) {
 
+        System.out.println("Looks:");
+
+        for (String e : tables) {
+            System.out.println("L: " + e);
+        }
+
         Map<String, String> nameIdMap = connector.tableOperations().tableIdMap();
 
+        for (Map.Entry<String, String> e : nameIdMap.entrySet()) {
+            System.out.println("N: " + e.getKey() + ": " + e.getValue());
+        }
+
+        Authorizations auth = new Authorizations();
         List<TabletInfo> tablets = new ArrayList(tables.size());
 
         for (String tableName : tables) {
 
-            TabletInfo.Builder builder = new TabletInfo.Builder(tableName);
+            System.out.println("LT: " + tableName);
 
             String id = nameIdMap.get(tableName);
+
+            System.out.println("LT ID: " + id);
+
             if (id == null) {
+                TabletInfo.Builder builder = new TabletInfo.Builder(tableName);
                 tablets.add(builder.build());
                 continue;
             }
 
-            builder.tableId(id);
+            try (Scanner scanner = connector.createScanner("accumulo.metadata", auth)) {
 
+                System.out.println(String.format("SCANNER: %s - %s - R: %s", tableName, id, MetadataSchema.TabletsSection.getRange(id).toString()));
+
+                scanner.setRange(MetadataSchema.TabletsSection.getRange(id));
+
+                for (Text cf : TabletInfo.COL_FAMS) {
+                    scanner.fetchColumnFamily(cf);
+                }
+
+                Text currentRow = new Text("");
+                TabletInfo.Builder builder = null;
+
+                for (Map.Entry<Key, Value> entry : scanner) {
+
+                    Text row = entry.getKey().getRow();
+                    Value value = entry.getValue();
+
+                    if(row.compareTo(currentRow) != 0){
+                        currentRow = row;
+
+                        if(builder != null) {
+                            tablets.add(builder.build());
+                        }
+
+                        builder = new TabletInfo.Builder(tableName);
+                        builder.tableId(id);
+                        builder.tableExists(true);
+                        builder.updateInfo(entry.getKey(), value);
+
+                    } else {
+                        builder.updateInfo(entry.getKey(), value);
+                    }
+                }
+                // emit last row
+                if(builder != null){
+                    tablets.add(builder.build());
+                }
+
+            } catch (TableNotFoundException ex) {
+                ex.printStackTrace();
+                TabletInfo.Builder builder = new TabletInfo.Builder(tableName);
+                builder.tableId(id);
+                builder.tableExists(false);
+                tablets.add(builder.build());
+                continue;
+            }
+
+        }
+
+        System.out.println("founds:");
+        for (TabletInfo e : tablets) {
+            System.out.println("F: " + e);
         }
 
         return tablets;
@@ -147,6 +230,8 @@ public class ListTablets extends Command {
         private final String tableId;
         private final String endRow;
         private final boolean tableExists;
+
+        private final BigInteger tag = new BigInteger(32, ThreadLocalRandom.current());
 
         private TabletInfo(String tableName, int numFiles, int numWalLogs, long numEntries, long size, String status, String location, String tableId, String endRow, boolean tableExists) {
             this.tableName = tableName;
@@ -201,10 +286,18 @@ public class ListTablets extends Command {
             return tableExists;
         }
 
+        static Text fileCf = MetadataSchema.TabletsSection.DataFileColumnFamily.NAME;
+        static Text locCf = MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME;
+        static Text logCf = MetadataSchema.TabletsSection.LogColumnFamily.NAME;
+        static Text tabCf = MetadataSchema.TabletsSection.TabletColumnFamily.NAME;
+
+        static Text[] COL_FAMS = {fileCf, locCf, logCf, tabCf};
+
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder("TabletInfo{");
-            sb.append("tableName='").append(tableName).append('\'');
+            sb.append("tag=\'").append(String.format("%08x", tag)).append('\'');
+            sb.append(", tableName='").append(tableName).append('\'');
             sb.append(", numFiles=").append(numFiles);
             sb.append(", numWalLogs=").append(numWalLogs);
             sb.append(", numEntries=").append(numEntries);
@@ -229,6 +322,8 @@ public class ListTablets extends Command {
             String tableId = "";
             String endRow = "";
             boolean tableExists = false;
+            int parseErrors = 0;
+            List<Throwable> exceptions = new ArrayList<>();
 
             public Builder(final String tableName) {
                 this.tableName = tableName;
@@ -276,6 +371,38 @@ public class ListTablets extends Command {
 
             public Builder tableExists(boolean tableExists) {
                 this.tableExists = tableExists;
+                return this;
+            }
+
+            public Builder updateInfo(final Key key, final Value value) {
+                Text cf = key.getColumnFamily();
+
+                try {
+                    if (cf.compareTo(fileCf) == 0) {
+                        numFiles += 1;
+                        String[] tokens = value.toString().split(",");
+                        if (tokens.length == 2) {
+                            size += Long.parseLong(tokens[0]);
+                            numEntries += Long.parseLong(tokens[1]);
+                        }
+                        return this;
+                    }
+
+                    if (cf.compareTo(locCf) == 0) {
+                        location = value.toString();
+                        return this;
+                    }
+
+                    if (cf.compareTo(logCf) == 0) {
+                        numWalLogs++;
+                        return this;
+                    }
+
+                }catch(NumberFormatException ex){
+                    parseErrors++;
+                    exceptions.add(ex);
+                }
+
                 return this;
             }
 

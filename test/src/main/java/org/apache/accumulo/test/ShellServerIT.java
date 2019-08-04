@@ -1854,6 +1854,30 @@ public class ShellServerIT extends SharedMiniClusterBase {
     ts.exec("deletetable -f t");
   }
 
+  //TODO - stub.
+  @Test
+  public void testListTablets() throws IOException {
+
+    String table = name.getMethodName();
+
+    ts.exec("createtable " + table + " -evc", true);
+    ts.exec("addsplits -t " + table + " 2 5 7", true);
+
+    for (int i = 0; i < 10; i++) {
+      ts.exec(String.format("insert %drow cf col%d value", i, i));
+    }
+
+    ts.exec("flush -w -t " + table, true);
+
+    String result1 = ts.exec("listtablets -t " + table, true);
+
+    System.out.println(result1);
+
+    String result = ts.exec("scan -t accumulo.metadata -np");
+
+    System.out.println(result);
+  }
+
   /**
    * The purpose of this test is to verify that you can successfully scan a table with a regular
    * iterator. It was written to verify that the changes made while updating the setshelliter
