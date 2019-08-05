@@ -32,11 +32,13 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -59,6 +61,8 @@ import java.util.regex.Pattern;
  */
 public class ListTabletsCommand extends Command {
 
+    private static final Logger log = LoggerFactory.getLogger(ListTabletsCommand.class);
+
     private Option outputFileOpt;
     private Option optTablePattern;
     private Option optHumanReadble;
@@ -67,7 +71,6 @@ public class ListTabletsCommand extends Command {
     @Override
     public int execute(String fullCommand, CommandLine cl, Shell shellState) throws Exception {
 
-        // Arrays.asList(cl.getArgs()
         final SortedSet<String> tables = new TreeSet<>();
 
         String o = cl.getOptionValue(ShellOptions.tableOption);
@@ -98,31 +101,30 @@ public class ListTabletsCommand extends Command {
         if (tables.isEmpty() && !shellState.getTableName().isEmpty()) {
             tables.add(shellState.getTableName());
         }
-//
-//        // sanity check...make sure the user-specified tables exist
-//        for (String tableName : tables) {
-//            if (!shellState.getConnector().tableOperations().exists(tableName)) {
-//                throw new TableNotFoundException(tableName, tableName,
-//                        "specified table that doesn't exist");
-//            }
-//        }
 
         try {
 
             // String valueFormat = prettyPrint ? "%9s" : "%,24d";
-
-//            List<String> lines = new ArrayList<>();
-//
-//            lines.add("NO TABLE ????");
-
+            shellState.getReader().println("tablename, #files, #wals, #entries, size, status, location, id, endrow");
             for (TabletInfo tabletInfo : getTabletInfo(tables, shellState.getConnector())) {
                 shellState.getReader()
-                        .println(String.format(tabletInfo.toString()));
+                        .println(String.format("%s, %d, %d, %d, %d, %s, %s, %s, %s",
+                                tabletInfo.getTableName(),
+                                tabletInfo.getNumFiles(),
+                                tabletInfo.getNumWalLogs(),
+                                tabletInfo.getNumEntries(),
+                                tabletInfo.getSize(),
+                                tabletInfo.getStatus(),
+                                tabletInfo.getLocation(),
+                                tabletInfo.getTableId(),
+                                tabletInfo.getEndRow()
+                                ));
             }
 
 //            shellState.printLines(lines.iterator(), false);
 
         } catch (Exception ex) {
+            ex.printStackTrace();
             throw new RuntimeException(ex);
         }
         return 0;
@@ -130,28 +132,23 @@ public class ListTabletsCommand extends Command {
 
     private List<TabletInfo> getTabletInfo(SortedSet<String> tables, final Connector connector) {
 
-        System.out.println("Looks:");
-
-        for (String e : tables) {
-            System.out.println("L: " + e);
+        if (log.isTraceEnabled()) {
+            log.trace("Looking for {} tables", tables.size());
+            for (String t : tables) {
+                log.trace("Looking for {}" + t);
+            }
         }
 
         Map<String, String> nameIdMap = connector.tableOperations().tableIdMap();
 
-        for (Map.Entry<String, String> e : nameIdMap.entrySet()) {
-            System.out.println("N: " + e.getKey() + ": " + e.getValue());
-        }
-
         Authorizations auth = new Authorizations();
-        List<TabletInfo> tablets = new ArrayList(tables.size());
+        List<TabletInfo> tablets = new ArrayList<>(tables.size());
 
         for (String tableName : tables) {
 
-            System.out.println("LT: " + tableName);
-
             String id = nameIdMap.get(tableName);
 
-            System.out.println("LT ID: " + id);
+            log.debug("scan for tablet info for tablename: \'{}\', tableId: \'{}\' ", tableName, id);
 
             if (id == null) {
                 TabletInfo.Builder builder = new TabletInfo.Builder(tableName);
@@ -160,8 +157,6 @@ public class ListTabletsCommand extends Command {
             }
 
             try (Scanner scanner = connector.createScanner("accumulo.metadata", auth)) {
-
-                System.out.println(String.format("SCANNER: %s - %s - R: %s", tableName, id, MetadataSchema.TabletsSection.getRange(id).toString()));
 
                 scanner.setRange(MetadataSchema.TabletsSection.getRange(id));
 
@@ -177,10 +172,10 @@ public class ListTabletsCommand extends Command {
                     Text row = entry.getKey().getRow();
                     Value value = entry.getValue();
 
-                    if(row.compareTo(currentRow) != 0){
+                    if (row.compareTo(currentRow) != 0) {
                         currentRow = row;
 
-                        if(builder != null) {
+                        if (builder != null) {
                             tablets.add(builder.build());
                         }
 
@@ -188,13 +183,14 @@ public class ListTabletsCommand extends Command {
                         builder.tableId(id);
                         builder.tableExists(true);
                         builder.updateInfo(entry.getKey(), value);
+                        builder.endRow(row.toString());
 
                     } else {
                         builder.updateInfo(entry.getKey(), value);
                     }
                 }
                 // emit last row
-                if(builder != null){
+                if (builder != null) {
                     tablets.add(builder.build());
                 }
 
@@ -209,12 +205,52 @@ public class ListTabletsCommand extends Command {
 
         }
 
-        System.out.println("founds:");
-        for (TabletInfo e : tablets) {
-            System.out.println("F: " + e);
+        if (log.isTraceEnabled()) {
+            for (TabletInfo tinfo : tablets) {
+                log.trace("Tablet info: {}" + tinfo);
+            }
         }
 
         return tablets;
+    }
+
+
+    @Override
+    public String description() {
+        return "prints tablet info an a single line.  Info contains #files #walogs #entries #size #status #location #tableid #endrow";
+    }
+
+    @Override
+    public int numArgs() {
+        return 0;
+    }
+
+
+    @Override
+    public Options getOptions() {
+
+        final Options opts = new Options();
+        opts.addOption(OptUtil.tableOpt("table to be scanned"));
+
+        optTablePattern = new Option("p", "pattern", true, "regex pattern of table names");
+        optTablePattern.setArgName("pattern");
+        opts.addOption(optTablePattern);
+
+        optHumanReadble =
+                new Option("h", "human-readable", false, "format large sizes to human readable units");
+        optHumanReadble.setArgName("human readable output");
+        opts.addOption(optHumanReadble);
+
+        optNamespace =
+                new Option(ShellOptions.namespaceOption, "namespace", true, "name of a namespace");
+        optNamespace.setArgName("namespace");
+        opts.addOption(optNamespace);
+
+        outputFileOpt = new Option("o", "output", true, "local file to write output to");
+        outputFileOpt.setArgName("file");
+        opts.addOption(outputFileOpt);
+
+        return opts;
     }
 
 
@@ -267,7 +303,15 @@ public class ListTabletsCommand extends Command {
         }
 
         public String getStatus() {
-            return status;
+
+            if(numWalLogs > 0){
+                return "RECOVERING";
+            }
+
+            if(location.length() > 0){
+                return "ASSIGNED";
+            }
+            return "UNASSIGNED";
         }
 
         public String getLocation() {
@@ -364,8 +408,25 @@ public class ListTabletsCommand extends Command {
                 return this;
             }
 
+            private static final Pattern rowPattern = Pattern.compile("^\\s*(.+)([;<])(.*)");
+
             public Builder endRow(String endRow) {
-                this.endRow = endRow;
+                Matcher m = rowPattern.matcher(endRow);
+                if (m.matches()) {
+                    if (m.group(1).compareTo(tableId) != 0) {
+                        this.endRow = String.format("ERR: %s", endRow);
+                        return this;
+                    }
+                    if (m.group(2).compareTo("<") == 0) {
+                        this.endRow = "+INF";
+                        return this;
+                    } else {
+                        this.endRow = m.group(3);
+                        return this;
+                    }
+                }
+                this.endRow = String.format("UNK: %s", endRow);
+                ;
                 return this;
             }
 
@@ -398,7 +459,7 @@ public class ListTabletsCommand extends Command {
                         return this;
                     }
 
-                }catch(NumberFormatException ex){
+                } catch (NumberFormatException ex) {
                     parseErrors++;
                     exceptions.add(ex);
                 }
@@ -412,41 +473,4 @@ public class ListTabletsCommand extends Command {
         }
     }
 
-    @Override
-    public String description() {
-        return null;
-    }
-
-    @Override
-    public int numArgs() {
-        return 0;
-    }
-
-
-    @Override
-    public Options getOptions() {
-
-        final Options opts = new Options();
-        opts.addOption(OptUtil.tableOpt("table to be scanned"));
-
-        optTablePattern = new Option("p", "pattern", true, "regex pattern of table names");
-        optTablePattern.setArgName("pattern");
-        opts.addOption(optTablePattern);
-
-        optHumanReadble =
-                new Option("h", "human-readable", false, "format large sizes to human readable units");
-        optHumanReadble.setArgName("human readable output");
-        opts.addOption(optHumanReadble);
-
-        optNamespace =
-                new Option(ShellOptions.namespaceOption, "namespace", true, "name of a namespace");
-        optNamespace.setArgName("namespace");
-        opts.addOption(optNamespace);
-
-        outputFileOpt = new Option("o", "output", true, "local file to write output to");
-        outputFileOpt.setArgName("file");
-        opts.addOption(outputFileOpt);
-
-        return opts;
-    }
 }

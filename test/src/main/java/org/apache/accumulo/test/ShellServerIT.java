@@ -97,6 +97,9 @@ import jline.console.ConsoleReader;
 
 @Category({MiniClusterOnlyTests.class, SunnyDayTests.class})
 public class ShellServerIT extends SharedMiniClusterBase {
+
+  private static final Logger log = LoggerFactory.getLogger(ShellServerIT.class);
+
   public static class TestOutputStream extends OutputStream {
     StringBuilder sb = new StringBuilder();
 
@@ -113,8 +116,6 @@ public class ShellServerIT extends SharedMiniClusterBase {
       sb.setLength(0);
     }
   }
-
-  private static final Logger log = LoggerFactory.getLogger(ShellServerIT.class);
 
   public static class StringInputStream extends InputStream {
     private String source = "";
@@ -1854,28 +1855,45 @@ public class ShellServerIT extends SharedMiniClusterBase {
     ts.exec("deletetable -f t");
   }
 
-  //TODO - stub.
+  //TODO - stub exercises the command but currently no automatic validation of results.
   @Test
   public void testListTablets() throws IOException {
 
     String table = name.getMethodName();
 
-    ts.exec("createtable " + table + " -evc", true);
-    ts.exec("addsplits -t " + table + " 2 5 7", true);
+    createTable(table+ "_0", "", 0);
+    createTable(table+ "_1", "2 6 8", 12);
+    createTable(table+ "_2", "3 7 9", 12);
 
-    for (int i = 0; i < 10; i++) {
+    ts.exec("clonetable " + table + "_2 " + table + "_2_cloned", true);
+    // ts.exec("flush -w -t " + table, true);
+
+    ts.exec("createtable " + table + "_3 -evc", true);
+
+    if(log.isDebugEnabled()) {
+      String scan = ts.exec("scan -t accumulo.metadata -np");
+      log.debug("metadata table can {}", scan);
+    }
+
+    String cmdOutput = ts.exec("listtablets -p " + table + ".*", true);
+
+    // log.debug("listtablets results:\n{}", cmdOutput);
+
+  }
+
+  private void createTable(String table, String splits, int numRows) throws IOException {
+
+    ts.exec("createtable " + table + " -evc", true);
+
+    if(splits.length() > 0) {
+      ts.exec("addsplits -t " + table + " " + splits, true);
+    }
+
+    for (int i = 0; i < numRows; i++) {
       ts.exec(String.format("insert %drow cf col%d value", i, i));
     }
 
     ts.exec("flush -w -t " + table, true);
-
-    String result1 = ts.exec("listtablets -t " + table, true);
-
-    System.out.println(result1);
-
-    String result = ts.exec("scan -t accumulo.metadata -np");
-
-    System.out.println(result);
   }
 
   /**
