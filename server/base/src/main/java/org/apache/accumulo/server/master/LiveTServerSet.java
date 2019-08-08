@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.impl.ClientContext;
@@ -256,9 +257,9 @@ public class LiveTServerSet implements Watcher {
     return zooCache;
   }
 
-  public synchronized void startListeningForTabletServerChanges() {
+  public synchronized ScheduledFuture<?> startListeningForTabletServerChanges() {
     scanServers();
-    SimpleTimer.getInstance(context.getConfiguration()).schedule(new Runnable() {
+    return SimpleTimer.getInstance(context.getConfiguration()).schedule(new Runnable() {
       @Override
       public void run() {
         scanServers();

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ScheduledFuture;
 
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
@@ -70,7 +71,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 
-public class GarbageCollectWriteAheadLogs {
+public class GarbageCollectWriteAheadLogs implements AutoCloseable {
   private static final Logger log = LoggerFactory.getLogger(GarbageCollectWriteAheadLogs.class);
 
   private final AccumuloServerContext context;
@@ -79,6 +80,8 @@ public class GarbageCollectWriteAheadLogs {
   private final LiveTServerSet liveServers;
   private final WalStateManager walMarker;
   private final Iterable<TabletLocationState> store;
+
+  private ScheduledFuture<?> liveServerScanTask = null;
 
   /**
    * Creates a new GC WAL object.
@@ -103,7 +106,7 @@ public class GarbageCollectWriteAheadLogs {
         log.debug("Tablet servers removed: " + deleted);
       }
     });
-    liveServers.startListeningForTabletServerChanges();
+    liveServerScanTask = liveServers.startListeningForTabletServerChanges();
     this.walMarker = new WalStateManager(context.getInstance(), ZooReaderWriter.getInstance());
     this.store = new Iterable<TabletLocationState>() {
       @Override
@@ -432,5 +435,19 @@ public class GarbageCollectWriteAheadLogs {
       }
     }
     return result;
+  }
+
+  /**
+   * Clean-up timer tasks created in {@code org.apache.accumulo.server.master.LiveTServerSet} on
+   * close (https://github.com/apache/accumulo/issues/1314)
+   */
+  @Override
+  public void close() {
+    if (liveServerScanTask != null) {
+      log.trace("Canceling liveServerScanTask on close");
+      boolean cancelled = liveServerScanTask.cancel(false);
+      log.trace("liveServerScanTask cancel was able to be cancelled: {}", cancelled);
+      liveServerScanTask = null;
+    }
   }
 }
