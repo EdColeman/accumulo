@@ -16,7 +16,13 @@
  */
 package org.apache.accumulo.shell.commands;
 
-import jline.console.ConsoleReader;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.util.Map;
+import java.util.TreeMap;
+
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.admin.TableOperations;
 import org.apache.accumulo.shell.Shell;
@@ -27,86 +33,86 @@ import org.apache.commons.cli.Options;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
-import java.util.Map;
-import java.util.TreeMap;
-
-import static org.junit.Assert.*;
+import jline.console.ConsoleReader;
 
 public class ListTabletsCommandTest {
 
-    @Test public void mockTest() throws Exception {
+  @Test
+  public void mockTest() throws Exception {
 
-        ListTabletsCommand cmd = new ListTabletsCommand();
+    ListTabletsCommand cmd = new ListTabletsCommand();
 
-        Connector conn = EasyMock.createMock(Connector.class);
-        TableOperations tableOps = EasyMock.createMock(TableOperations.class);
-        Shell shellState = EasyMock.createMock(Shell.class);
-        ConsoleReader reader = EasyMock.createMock(ConsoleReader.class);
+    Connector conn = EasyMock.createMock(Connector.class);
+    TableOperations tableOps = EasyMock.createMock(TableOperations.class);
+    Shell shellState = EasyMock.createMock(Shell.class);
+    ConsoleReader reader = EasyMock.createMock(ConsoleReader.class);
 
-        Options opts = cmd.getOptions();
+    Options opts = cmd.getOptions();
 
-        CommandLineParser parser = new BasicParser();
-        String[] args = {"-t", "aTable"};
-        CommandLine cli = parser.parse(opts,args);
+    CommandLineParser parser = new BasicParser();
+    String[] args = {"-t", "aTable"};
+    CommandLine cli = parser.parse(opts, args);
 
-        EasyMock.expect(shellState.getConnector()).andReturn(conn);
-        EasyMock.expect(conn.tableOperations()).andReturn(tableOps);
+    EasyMock.expect(shellState.getConnector()).andReturn(conn);
+    EasyMock.expect(conn.tableOperations()).andReturn(tableOps);
 
-        Map<String,String> idMap = new TreeMap<>();
-        idMap.put("aTable", "123");
+    Map<String,String> idMap = new TreeMap<>();
+    idMap.put("aTable", "123");
 
-        EasyMock.expect(tableOps.tableIdMap()).andReturn(idMap);
+    EasyMock.expect(tableOps.tableIdMap()).andReturn(idMap);
 
-        //EasyMock.expect(cli.hasOption("t")).andReturn(true);
-        //EasyMock.expect(cli.hasOption("t")).andReturn(true);
+    // EasyMock.expect(cli.hasOption("t")).andReturn(true);
+    // EasyMock.expect(cli.hasOption("t")).andReturn(true);
 
+    EasyMock.replay(conn, tableOps, shellState, reader);
 
-        EasyMock.replay(conn, tableOps, shellState, reader);
+    cmd.execute("listTablets -t aTable", cli, shellState);
 
-        cmd.execute("listTablets -t aTable", cli, shellState);
+    EasyMock.verify(conn, tableOps, shellState, reader);
+  }
 
-        EasyMock.verify(conn, tableOps, shellState, reader);
-    }
-    @Test
-    public void defaultBuilderTest(){
+  @Test
+  public void defaultBuilderTest() {
 
-        ListTabletsCommand.TabletInfo.Builder builder = new ListTabletsCommand.TabletInfo.Builder("aName");
+    ListTabletsCommand.TabletPrintInfo.Factory factory =
+        new ListTabletsCommand.TabletPrintInfo.Factory("aName");
 
-        ListTabletsCommand.TabletInfo info = builder.build();
+    ListTabletsCommand.TabletPrintInfo info = factory.build();
 
-        assertEquals("aName", info.getTableName());
-        assertEquals(0, info.getNumFiles());
-        assertEquals(0, info.getNumWalLogs());
-        assertEquals(0, info.getNumEntries());
-        assertEquals(0, info.getSize());
-        assertEquals("", info.getStatus());
-        assertEquals("", info.getLocation());
-        assertEquals("", info.getTableId());
-        assertEquals("", info.getEndRow());
-        assertFalse(info.tableExists());
+    assertEquals("aName", info.getTableName());
+    assertEquals(0, info.getNumFiles());
+    assertEquals(0, info.getNumWalLogs());
+    assertEquals(0, info.getNumEntries());
+    assertEquals(0, info.getSize());
+    assertEquals("", info.getStatus());
+    assertEquals("", info.getLocation());
+    assertEquals("", info.getTableId());
+    assertEquals("", info.getEndRow());
+    assertFalse(info.tableExists());
 
-    }
+  }
 
-    @Test
-    public void builderTest(){
+  @Test
+  public void builderTest() {
 
-        ListTabletsCommand.TabletInfo.Builder builder = new ListTabletsCommand.TabletInfo.Builder("aName")
-                .numFiles(1).numWalLogs(2).numEntries(3).size(4).status("status").location("loc")
-                .tableId("123").endRow("end").tableExists(true);
+    ListTabletsCommand.TabletPrintInfo.Factory factory =
+        new ListTabletsCommand.TabletPrintInfo.Factory("aName").numFiles(1).numWalLogs(2)
+            .numEntries(3).size(4).status("status").location("loc").tableId("123").endRow("end")
+            .tableExists(true);
 
-        ListTabletsCommand.TabletInfo info = builder.build();
+    ListTabletsCommand.TabletPrintInfo info = factory.build();
 
-        assertEquals("aName", info.getTableName());
-        assertEquals(1, info.getNumFiles());
-        assertEquals(2, info.getNumWalLogs());
-        assertEquals(3, info.getNumEntries());
-        assertEquals(4, info.getSize());
-        assertEquals("status", info.getStatus());
-        assertEquals("loc", info.getLocation());
-        assertEquals("123", info.getTableId());
-        assertEquals("end", info.getEndRow());
-        assertTrue(info.tableExists());
+    assertEquals("aName", info.getTableName());
+    assertEquals(1, info.getNumFiles());
+    assertEquals(2, info.getNumWalLogs());
+    assertEquals(3, info.getNumEntries());
+    assertEquals(4, info.getSize());
+    assertEquals("status", info.getStatus());
+    assertEquals("loc", info.getLocation());
+    assertEquals("123", info.getTableId());
+    assertEquals("end", info.getEndRow());
+    assertTrue(info.tableExists());
 
-    }
+  }
 
 }
