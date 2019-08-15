@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.Instance;
+import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.impl.Namespaces;
@@ -71,6 +72,9 @@ public class ListTabletsCommand extends Command {
 
   private static final Logger log = LoggerFactory.getLogger(ListTabletsCommand.class);
 
+  // default auths.
+  private final Authorizations auth = new Authorizations();
+
   private Option outputFileOpt;
   private Option optTablePattern;
   private Option optHumanReadable;
@@ -80,43 +84,37 @@ public class ListTabletsCommand extends Command {
   @Override
   public int execute(String fullCommand, CommandLine cl, Shell shellState) throws Exception {
 
-    final SortedSet<String> tables = new TreeSet<>();
-
-    if (cl.hasOption(ShellOptions.tableOption)) {
-      tables.add(cl.getOptionValue(ShellOptions.tableOption));
-    }
-
-    if (cl.hasOption(optNamespace.getOpt())) {
-      Instance instance = shellState.getInstance();
-      String namespaceId =
-          Namespaces.getNamespaceId(instance, cl.getOptionValue(optNamespace.getOpt()));
-      tables.addAll(Namespaces.getTableNames(instance, namespaceId));
-    }
-
-    boolean humanReadable = cl.hasOption(optHumanReadable.getOpt());
-
-    // Add any patterns
-    if (cl.hasOption(optTablePattern.getOpt())) {
-      for (String table : shellState.getConnector().tableOperations().list()) {
-        if (table.matches(cl.getOptionValue(optTablePattern.getOpt()))) {
-          tables.add(table);
-        }
-      }
-    }
-
-    // If we didn't get any tables, and we have a table selected, add the current table
-    if (tables.isEmpty() && !shellState.getTableName().isEmpty()) {
-      tables.add(shellState.getTableName());
-    }
+    final Set<String> tablenames = readTargetTables(cl, shellState);
 
     try {
 
-      String header = "table_name, #files, #wals, #entries, size, status, location, id, end_row";
+      final Connector connector = shellState.getConnector();
+
+      Map<String,String> idMap = connector.tableOperations().tableIdMap();
 
       List<String> lines = new LinkedList<>();
+      String header = "table_name, #files, #wals, #entries, size, status, location, id, end_row";
       lines.add(header);
-      for (TabletPrintInfo tabletPrintInfo : getTabletInfo(tables, shellState.getConnector())) {
-        lines.add(tabletPrintInfo.format(humanReadable));
+
+      boolean humanReadable = cl.hasOption(optHumanReadable.getOpt());
+
+      for (String tablename : tablenames) {
+
+        String tableId = idMap.get(tablename);
+
+        if (tableId == null) {
+
+          TabletRowInfo.Factory factory = new TabletRowInfo.Factory(tablename);
+          lines.add(factory.build().format(humanReadable));
+
+        } else {
+
+          List<TabletRowInfo> rows = getTabletRowInfo(tablename, tableId, connector);
+
+          for (TabletRowInfo row : rows) {
+            lines.add(row.format(humanReadable));
+          }
+        }
       }
 
       if (lines.size() == 1) {
@@ -139,64 +137,95 @@ public class ListTabletsCommand extends Command {
     return 0;
   }
 
-  private List<TabletPrintInfo> getTabletInfo(SortedSet<String> tables, final Connector connector) {
+  /**
+   * Process the command line for table names using table option, table name pattern, or default to
+   * current table.
+   *
+   * @param cl
+   *          command line
+   * @param shellState
+   *          shell state
+   * @return set of table names.
+   * @throws NamespaceNotFoundException
+   *           if the namespace option is specified and namespace does not exist
+   */
+  private Set<String> readTargetTables(final CommandLine cl, final Shell shellState)
+      throws NamespaceNotFoundException {
 
-    if (log.isTraceEnabled()) {
-      log.trace("Looking for {} tables", tables.size());
-      for (String t : tables) {
-        log.trace("Looking for {}" + t);
+    Set<String> tablenames = new TreeSet<>();
+
+    if (cl.hasOption(ShellOptions.tableOption)) {
+      tablenames.add(cl.getOptionValue(ShellOptions.tableOption));
+    }
+
+    if (cl.hasOption(optNamespace.getOpt())) {
+      Instance instance = shellState.getInstance();
+      String namespaceId =
+          Namespaces.getNamespaceId(instance, cl.getOptionValue(optNamespace.getOpt()));
+      tablenames.addAll(Namespaces.getTableNames(instance, namespaceId));
+    }
+
+    // Add any patterns
+    if (cl.hasOption(optTablePattern.getOpt())) {
+      for (String table : shellState.getConnector().tableOperations().list()) {
+        if (table.matches(cl.getOptionValue(optTablePattern.getOpt()))) {
+          tablenames.add(table);
+        }
       }
     }
 
-    Map<String,String> nameIdMap = connector.tableOperations().tableIdMap();
-
-    List<TabletPrintInfo> tablets = new ArrayList<>(tables.size());
-
-    for (String tableName : tables) {
-
-      String id = nameIdMap.get(tableName);
-
-      log.debug("scan for tablet info for table name: \'{}\', tableId: \'{}\' ", tableName, id);
-
-      if (id == null) {
-        TabletPrintInfo.Factory factory = new TabletPrintInfo.Factory(tableName);
-        tablets.add(factory.build());
-      } else {
-        getMetadatInfo(tablets, connector, id, tableName);
-      }
+    // If we didn't get any tables, and we have a table selected, add the current table
+    if (tablenames.isEmpty() && !shellState.getTableName().isEmpty()) {
+      tablenames.add(shellState.getTableName());
     }
 
-    if (log.isTraceEnabled()) {
-      for (TabletPrintInfo tabletPrintInfo : tablets) {
-        log.trace("Tablet info: {}", tabletPrintInfo);
-      }
-    }
+    return tablenames;
 
-    return tablets;
   }
 
-  Scanner buildScanner(final Scanner scanner, String id) {
+  private List<TabletRowInfo> getTabletRowInfo(String tablename, final String tableId,
+      final Connector connector) {
+
+    if (log.isTraceEnabled()) {
+      log.trace("get row info for table name {}" + tablename);
+    }
+
+    log.debug("scan metadata for tablet info table name: \'{}\', tableId: \'{}\' ", tablename,
+        tableId);
+
+    List<TabletRowInfo> tResults = getMetadataInfo(connector, tablename, tableId);
+
+    if (log.isTraceEnabled()) {
+      for (TabletRowInfo tabletRowInfo : tResults) {
+        log.trace("Tablet info: {}", tabletRowInfo);
+      }
+    }
+
+    return tResults;
+  }
+
+  private Scanner buildScanner(final Connector connector, String tablename, String id)
+      throws TableNotFoundException {
+
+    Scanner scanner = connector.createScanner(tablename, auth);
 
     Range range = MetadataSchema.TabletsSection.getRange(id);
     scanner.setRange(range);
 
-    for (Text cf : TabletPrintInfo.COL_FAMILIES) {
+    for (Text cf : TabletRowInfo.COL_FAMILIES) {
       scanner.fetchColumnFamily(cf);
     }
 
     return scanner;
   }
 
-  void getMetadatInfo(List<TabletPrintInfo> tablets, Connector connector, String id,
-      String tableName) {
+  private List<TabletRowInfo> getMetadataInfo(Connector connector, String tableName, String id) {
 
-    Authorizations auth = new Authorizations();
+    List<TabletRowInfo> results = new ArrayList<>();
 
-    TabletPrintInfo.Factory tabletInfoFactory = new TabletPrintInfo.Factory(tableName);
+    TabletRowInfo.Factory tabletInfoFactory = new TabletRowInfo.Factory(tableName);
 
-    try (Scanner scanner = connector.createScanner("accumulo.metadata", auth)) {
-
-      buildScanner(scanner, id);
+    try (Scanner scanner = buildScanner(connector, tableName, id)) {
 
       Text currentRow = new Text("");
 
@@ -211,34 +240,33 @@ public class ListTabletsCommand extends Command {
           currentRow = row;
 
           if (!firstRowComplete) {
-            tablets.add(tabletInfoFactory.build());
+            results.add(tabletInfoFactory.build());
             firstRowComplete = true;
           }
 
-          tabletInfoFactory = new TabletPrintInfo.Factory(tableName);
+          tabletInfoFactory = new TabletRowInfo.Factory(tableName);
           tabletInfoFactory.tableId(id);
           tabletInfoFactory.tableExists(true);
           tabletInfoFactory.updateInfo(entry.getKey(), value);
           tabletInfoFactory.endRow(row.toString());
 
         } else {
-          if (tabletInfoFactory != null) {
-            tabletInfoFactory.updateInfo(entry.getKey(), value);
-          }
+
+          tabletInfoFactory.updateInfo(entry.getKey(), value);
         }
       }
       // emit last row
-      if (tabletInfoFactory != null) {
-        tablets.add(tabletInfoFactory.build());
-      }
+      results.add(tabletInfoFactory.build());
 
     } catch (TableNotFoundException ex) {
       ex.printStackTrace();
-      // TabletPrintInfo.Factory factory = new TabletPrintInfo.Factory(tableName);
-      // factory.tableId(id);
-      // factory.tableExists(false);
-      // tablets.add(factory.build());
+      TabletRowInfo.Factory factory = new TabletRowInfo.Factory(tableName);
+      factory.tableId(id);
+      factory.tableExists(false);
+      results.add(factory.build());
     }
+
+    return results;
   }
 
   @Override
@@ -282,7 +310,7 @@ public class ListTabletsCommand extends Command {
     return opts;
   }
 
-  static class TabletPrintInfo {
+  static class TabletRowInfo {
 
     private final String tableName;
     private final int numFiles;
@@ -295,9 +323,10 @@ public class ListTabletsCommand extends Command {
     private final String endRow;
     private final boolean tableExists;
 
+    // debug - dev only.
     private final BigInteger tag = new BigInteger(32, ThreadLocalRandom.current());
 
-    private TabletPrintInfo(String tableName, int numFiles, int numWalLogs, long numEntries,
+    private TabletRowInfo(String tableName, int numFiles, int numWalLogs, long numEntries,
         long size, String status, String location, String tableId, String endRow,
         boolean tableExists) {
       this.tableName = tableName;
@@ -513,8 +542,8 @@ public class ListTabletsCommand extends Command {
         }
       }
 
-      public TabletPrintInfo build() {
-        return new TabletPrintInfo(tableName, numFiles, numWalLogs, numEntries, size, status,
+      public TabletRowInfo build() {
+        return new TabletRowInfo(tableName, numFiles, numWalLogs, numEntries, size, status,
             location, tableId, endRow, tableExists);
       }
     }

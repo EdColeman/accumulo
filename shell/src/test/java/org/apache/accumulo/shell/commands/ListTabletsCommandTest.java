@@ -74,10 +74,10 @@ public class ListTabletsCommandTest {
   @Test
   public void defaultBuilderTest() {
 
-    ListTabletsCommand.TabletPrintInfo.Factory factory =
-        new ListTabletsCommand.TabletPrintInfo.Factory("aName");
+    ListTabletsCommand.TabletRowInfo.Factory factory =
+        new ListTabletsCommand.TabletRowInfo.Factory("aName");
 
-    ListTabletsCommand.TabletPrintInfo info = factory.build();
+    ListTabletsCommand.TabletRowInfo info = factory.build();
 
     assertEquals("aName", info.getTableName());
     assertEquals(0, info.getNumFiles());
@@ -95,12 +95,12 @@ public class ListTabletsCommandTest {
   @Test
   public void builderTest() {
 
-    ListTabletsCommand.TabletPrintInfo.Factory factory =
-        new ListTabletsCommand.TabletPrintInfo.Factory("aName").numFiles(1).numWalLogs(2)
+    ListTabletsCommand.TabletRowInfo.Factory factory =
+        new ListTabletsCommand.TabletRowInfo.Factory("aName").numFiles(1).numWalLogs(2)
             .numEntries(3).size(4).status("status").location("loc").tableId("123").endRow("end")
             .tableExists(true);
 
-    ListTabletsCommand.TabletPrintInfo info = factory.build();
+    ListTabletsCommand.TabletRowInfo info = factory.build();
 
     assertEquals("aName", info.getTableName());
     assertEquals(1, info.getNumFiles());

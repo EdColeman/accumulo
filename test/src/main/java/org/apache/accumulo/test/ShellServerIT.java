@@ -1855,22 +1855,22 @@ public class ShellServerIT extends SharedMiniClusterBase {
     ts.exec("deletetable -f t");
   }
 
-  //TODO - stub exercises the command but currently no automatic validation of results.
+  // TODO - stub exercises the command but currently no automatic validation of results.
   @Test
   public void testListTablets() throws IOException {
 
     String table = name.getMethodName();
 
-    createTable(table+ "_0", "", 0);
-    createTable(table+ "_1", "2 6 8", 12);
-    createTable(table+ "_2", "3 7 9", 12);
+    createTable(table + "_0", "", 0);
+    createTable(table + "_1", "2 6 8", 12);
+    createTable(table + "_2", "3 7 9", 12);
 
     ts.exec("clonetable " + table + "_2 " + table + "_2_cloned", true);
     // ts.exec("flush -w -t " + table, true);
 
     ts.exec("createtable " + table + "_3 -evc", true);
 
-    if(log.isDebugEnabled()) {
+    if (log.isDebugEnabled()) {
       String scan = ts.exec("scan -t accumulo.metadata -np");
       log.debug("metadata table can {}", scan);
     }
@@ -1885,7 +1885,7 @@ public class ShellServerIT extends SharedMiniClusterBase {
 
     ts.exec("createtable " + table + " -evc", true);
 
-    if(splits.length() > 0) {
+    if (splits.length() > 0) {
       ts.exec("addsplits -t " + table + " " + splits, true);
     }
 
