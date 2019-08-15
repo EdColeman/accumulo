@@ -84,7 +84,7 @@ public class ListTabletsCommandTest {
     assertEquals(0, info.getNumWalLogs());
     assertEquals(0, info.getNumEntries());
     assertEquals(0, info.getSize());
-    assertEquals("", info.getStatus());
+    assertEquals("UNK", info.getStatus());
     assertEquals("", info.getLocation());
     assertEquals("", info.getTableId());
     assertEquals("", info.getEndRow());
@@ -107,7 +107,7 @@ public class ListTabletsCommandTest {
     assertEquals(2, info.getNumWalLogs());
     assertEquals(3, info.getNumEntries());
     assertEquals(4, info.getSize());
-    assertEquals("status", info.getStatus());
+    assertEquals("RECOVERING", info.getStatus());
     assertEquals("loc", info.getLocation());
     assertEquals("123", info.getTableId());
     assertEquals("end", info.getEndRow());
