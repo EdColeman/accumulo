@@ -56,10 +56,12 @@ import org.apache.accumulo.core.client.security.tokens.PasswordToken;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.Key;
+import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.file.FileOperations;
 import org.apache.accumulo.core.file.FileSKVWriter;
 import org.apache.accumulo.core.metadata.MetadataTable;
+import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.format.Formatter;
 import org.apache.accumulo.core.util.format.FormatterConfig;
@@ -67,6 +69,7 @@ import org.apache.accumulo.harness.MiniClusterConfigurationCallback;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
 import org.apache.accumulo.minicluster.impl.MiniAccumuloConfigImpl;
 import org.apache.accumulo.shell.Shell;
+import org.apache.accumulo.shell.commands.ListTabletsCommand;
 import org.apache.accumulo.test.categories.MiniClusterOnlyTests;
 import org.apache.accumulo.test.categories.SunnyDayTests;
 import org.apache.accumulo.test.functional.SlowIterator;
@@ -1857,7 +1860,7 @@ public class ShellServerIT extends SharedMiniClusterBase {
 
   // TODO - stub exercises the command but currently no automatic validation of results.
   @Test
-  public void testListTablets() throws IOException {
+  public void testListTablets() throws Exception {
 
     String table = name.getMethodName();
 
@@ -1866,18 +1869,51 @@ public class ShellServerIT extends SharedMiniClusterBase {
     createTable(table + "_2", "3 7 9", 12);
 
     ts.exec("clonetable " + table + "_2 " + table + "_2_cloned", true);
-    // ts.exec("flush -w -t " + table, true);
 
     ts.exec("createtable " + table + "_3 -evc", true);
 
+//    ts.exec("flush -w -t " + table + "_0", true);
+//    ts.exec("flush -w -t " + table + "_1", true);
+//    ts.exec("flush -w -t " + table + "_2", true);
+//    ts.exec("flush -w -t " + table + "_2_cloned", true);
+//    ts.exec("flush -w -t " + table + "_3", true);
+
     if (log.isDebugEnabled()) {
       String scan = ts.exec("scan -t accumulo.metadata -np");
-      log.debug("metadata table can {}", scan);
+      log.debug("metadata table scan results{}", scan);
+    }
+
+   Connector connector = getConnector();
+    final Scanner scanner = connector.createScanner("accumulo.metadata", Authorizations.EMPTY);
+
+    Map<String,String> idMap = connector.tableOperations().tableIdMap();
+    String tableId = idMap.get(table + "_1");
+
+    Range range = MetadataSchema.TabletsSection.getRange(tableId);
+    scanner.setRange(range);
+
+     final Text fileCf = MetadataSchema.TabletsSection.DataFileColumnFamily.NAME;
+     final Text locCf = MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME;
+     final Text logCf = MetadataSchema.TabletsSection.LogColumnFamily.NAME;
+     final Text tabCf = MetadataSchema.TabletsSection.TabletColumnFamily.NAME;
+
+     final Text[] COL_FAMILIES = {fileCf, locCf, logCf, tabCf};
+
+    for (Text cf : COL_FAMILIES) {
+      scanner.fetchColumnFamily(cf);
+    }
+
+    for (Map.Entry<Key,Value> entry : scanner) {
+      Key k = entry.getKey();
+      Value v = entry.getValue();
+
+      log.info("--E:{}:{}",k,v);
     }
 
     String cmdOutput = ts.exec("listtablets -p " + table + ".*", true);
+    // String cmdOutput = ts.exec("listtablets -t " + table + "_1", true);
 
-    // log.debug("listtablets results:\n{}", cmdOutput);
+    log.debug("listtablets results:\n{}", cmdOutput);
 
   }
 

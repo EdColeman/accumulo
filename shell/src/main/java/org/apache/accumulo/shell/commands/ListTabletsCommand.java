@@ -36,6 +36,7 @@ import org.apache.accumulo.core.client.impl.Namespaces;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.NumUtil;
@@ -80,11 +81,13 @@ public class ListTabletsCommand extends Command {
   private Option optHumanReadable;
   private Option optNamespace;
   private Option disablePaginationOpt;
+  private Option noFlushOption;
 
   @Override
   public int execute(String fullCommand, CommandLine cl, Shell shellState) throws Exception {
 
     final Set<String> tablenames = readTargetTables(cl, shellState);
+    boolean flush = true;
 
     try {
 
@@ -98,7 +101,15 @@ public class ListTabletsCommand extends Command {
 
       boolean humanReadable = cl.hasOption(optHumanReadable.getOpt());
 
+      if (cl.hasOption(noFlushOption.getOpt())) {
+        flush = false;
+      }
+
       for (String tablename : tablenames) {
+
+        if(flush){
+          shellState.getConnector().tableOperations().flush(tablename,null, null, true);
+        }
 
         String tableId = idMap.get(tablename);
 
@@ -204,10 +215,10 @@ public class ListTabletsCommand extends Command {
     return tResults;
   }
 
-  private Scanner buildScanner(final Connector connector, String tablename, String id)
+  private Scanner buildMetaScanner(final Connector connector, String id)
       throws TableNotFoundException {
 
-    Scanner scanner = connector.createScanner(tablename, auth);
+    Scanner scanner = connector.createScanner(MetadataTable.NAME, Authorizations.EMPTY);
 
     Range range = MetadataSchema.TabletsSection.getRange(id);
     scanner.setRange(range);
@@ -225,7 +236,7 @@ public class ListTabletsCommand extends Command {
 
     TabletRowInfo.Factory tabletInfoFactory = new TabletRowInfo.Factory(tableName);
 
-    try (Scanner scanner = buildScanner(connector, tableName, id)) {
+    try (Scanner scanner = buildMetaScanner(connector, id)) {
 
       Text currentRow = new Text("");
 
@@ -235,6 +246,8 @@ public class ListTabletsCommand extends Command {
 
         Text row = entry.getKey().getRow();
         Value value = entry.getValue();
+
+        log.debug("r:{}", row);
 
         if (row.compareTo(currentRow) != 0) {
           currentRow = row;
@@ -307,6 +320,10 @@ public class ListTabletsCommand extends Command {
     outputFileOpt = new Option("o", "output", true, "local file to write output to");
     outputFileOpt.setArgName("file");
     opts.addOption(outputFileOpt);
+
+    noFlushOption =
+            new Option("nf", "noFlush", false, "do not flush table data in memory before cloning.");
+    opts.addOption(noFlushOption);
 
     return opts;
   }
