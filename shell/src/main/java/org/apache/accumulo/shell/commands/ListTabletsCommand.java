@@ -229,7 +229,7 @@ public class ListTabletsCommand extends Command {
 
       Text currentRow = new Text("");
 
-      boolean firstRowComplete = false;
+      boolean firstRow = true;
 
       for (Map.Entry<Key,Value> entry : scanner) {
 
@@ -239,9 +239,10 @@ public class ListTabletsCommand extends Command {
         if (row.compareTo(currentRow) != 0) {
           currentRow = row;
 
-          if (!firstRowComplete) {
+          if (firstRow) {
+            firstRow = false;
+          } else {
             results.add(tabletInfoFactory.build());
-            firstRowComplete = true;
           }
 
           tabletInfoFactory = new TabletRowInfo.Factory(tableName);
@@ -524,16 +525,17 @@ public class ListTabletsCommand extends Command {
               size += Long.parseLong(tokens[0]);
               numEntries += Long.parseLong(tokens[1]);
             }
+            return;
           }
 
           if (cf.compareTo(locCf) == 0) {
             location = value.toString();
-
+            return;
           }
 
           if (cf.compareTo(logCf) == 0) {
             numWalLogs++;
-
+            return;
           }
 
         } catch (NumberFormatException ex) {

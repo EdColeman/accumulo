@@ -20,22 +20,33 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.accumulo.core.client.Connector;
+import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.admin.TableOperations;
+import org.apache.accumulo.core.data.Key;
+import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.metadata.schema.MetadataSchema;
+import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.shell.Shell;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.io.Text;
 import org.easymock.EasyMock;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jline.console.ConsoleReader;
 
 public class ListTabletsCommandTest {
+
+  private static final Logger log = LoggerFactory.getLogger(ListTabletsCommandTest.class);
 
   @Test
   public void mockTest() throws Exception {
@@ -43,6 +54,8 @@ public class ListTabletsCommandTest {
     ListTabletsCommand cmd = new ListTabletsCommand();
 
     Connector conn = EasyMock.createMock(Connector.class);
+    Scanner scanner = EasyMock.createMock(Scanner.class);
+
     TableOperations tableOps = EasyMock.createMock(TableOperations.class);
     Shell shellState = EasyMock.createMock(Shell.class);
     ConsoleReader reader = EasyMock.createMock(ConsoleReader.class);
@@ -54,6 +67,7 @@ public class ListTabletsCommandTest {
     CommandLine cli = parser.parse(opts, args);
 
     EasyMock.expect(shellState.getConnector()).andReturn(conn);
+    EasyMock.expect(conn.createScanner("aTable", new Authorizations())).andReturn(scanner);
     EasyMock.expect(conn.tableOperations()).andReturn(tableOps);
 
     Map<String,String> idMap = new TreeMap<>();
@@ -61,10 +75,31 @@ public class ListTabletsCommandTest {
 
     EasyMock.expect(tableOps.tableIdMap()).andReturn(idMap);
 
+    Map<Key,Value> meta = new TreeMap<>();
+    meta.put(new Key("123;a", "file", "hdfs://a/b/c/a.rf"), new Value("111,123"));
+    meta.put(new Key("123;a", "loc", "srv1"), new Value("srv1"));
+    meta.put(new Key("123;a", "log", "hdfs://a/b/wal.rf"), new Value("hdfs://a/b/wal.rf"));
+    meta.put(new Key("123;a", "file", "hdfs://a/b/c/a2.rf"), new Value("888,123"));
+    meta.put(new Key("123;b", "file", "hdfs://a/b/c/b.rf"), new Value("222,888"));
+    meta.put(new Key("123;b", "loc", "srv2"), new Value("srv1"));
+    meta.put(new Key("123<", "file", "hdfs://a/b/c/d.rf"), new Value("333,777"));
+    meta.put(new Key("123<", "loc", "srv1"), new Value("srv1"));
+
+    EasyMock.expect(scanner.iterator()).andReturn(meta.entrySet().iterator());
+    scanner.setRange(MetadataSchema.TabletsSection.getRange("123"));
+    EasyMock.expectLastCall();
+    for (Text cf : ListTabletsCommand.TabletRowInfo.COL_FAMILIES) {
+      scanner.fetchColumnFamily(cf);
+      EasyMock.expectLastCall();
+    }
+
+    scanner.close();
+    EasyMock.expectLastCall();
+
     // EasyMock.expect(cli.hasOption("t")).andReturn(true);
     // EasyMock.expect(cli.hasOption("t")).andReturn(true);
 
-    EasyMock.replay(conn, tableOps, shellState, reader);
+    EasyMock.replay(conn, scanner, tableOps, shellState, reader);
 
     cmd.execute("listTablets -t aTable", cli, shellState);
 
@@ -115,4 +150,34 @@ public class ListTabletsCommandTest {
 
   }
 
+  @Test
+  public void foo() throws Exception {
+
+    Connector conn = EasyMock.createMock(Connector.class);
+    Scanner scanner = EasyMock.createMock(Scanner.class);
+
+    EasyMock.expect(conn.createScanner("aTable", new Authorizations())).andReturn(scanner);
+
+    Map<Key,Value> meta = new TreeMap<>();
+    Key k1 = new Key(new Text("a"));
+    Value v1 = new Value("v-1");
+
+    meta.put(k1, v1);
+    //
+    // Iterator<Map.Entry<Key,Value>> itor =
+    // EasyMock.createMock(Iterator.class);
+
+    EasyMock.expect(scanner.iterator()).andReturn(meta.entrySet().iterator());
+
+    // EasyMock.expect(scanner.iterator().hasNext()).andReturn(true);
+    // EasyMock.expect(scanner.iterator().next()).andReturn(meta.entrySet().iterator().next());
+
+    EasyMock.replay(conn, scanner);
+
+    Iterator<Map.Entry<Key,Value>> itor = scanner.iterator();
+
+    Map.Entry<Key,Value> x = itor.next();
+
+    log.info("x {}", x);
+  }
 }
