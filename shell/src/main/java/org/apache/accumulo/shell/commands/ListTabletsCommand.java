@@ -18,9 +18,11 @@ package org.apache.accumulo.shell.commands;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ThreadLocalRandom;
@@ -32,7 +34,9 @@ import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.client.admin.TableOperations;
 import org.apache.accumulo.core.client.impl.Namespaces;
+import org.apache.accumulo.core.client.impl.Tables;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
@@ -73,9 +77,6 @@ public class ListTabletsCommand extends Command {
 
   private static final Logger log = LoggerFactory.getLogger(ListTabletsCommand.class);
 
-  // default auths.
-  private final Authorizations auth = new Authorizations();
-
   private Option outputFileOpt;
   private Option optTablePattern;
   private Option optHumanReadable;
@@ -86,14 +87,13 @@ public class ListTabletsCommand extends Command {
   @Override
   public int execute(String fullCommand, CommandLine cl, Shell shellState) throws Exception {
 
-    final Set<String> tablenames = readTargetTables(cl, shellState);
+    final Set<TableInfo> tableInfoSet = populateTables(cl, shellState);
+
     boolean flush = true;
 
     try {
 
       final Connector connector = shellState.getConnector();
-
-      Map<String,String> idMap = connector.tableOperations().tableIdMap();
 
       List<String> lines = new LinkedList<>();
       String header = "table_name, #files, #wals, #entries, size, status, location, id, end_row";
@@ -105,26 +105,16 @@ public class ListTabletsCommand extends Command {
         flush = false;
       }
 
-      for (String tablename : tablenames) {
+      for (TableInfo tableInfo : tableInfoSet) {
 
-        if(flush){
-          shellState.getConnector().tableOperations().flush(tablename,null, null, true);
+        if (flush) {
+          shellState.getConnector().tableOperations().flush(tableInfo.getName(), null, null, true);
         }
 
-        String tableId = idMap.get(tablename);
+        List<TabletRowInfo> rows = getTabletRowInfo(tableInfo, connector);
 
-        if (tableId == null) {
-
-          TabletRowInfo.Factory factory = new TabletRowInfo.Factory(tablename);
-          lines.add(factory.build().format(humanReadable));
-
-        } else {
-
-          List<TabletRowInfo> rows = getTabletRowInfo(tablename, tableId, connector);
-
-          for (TabletRowInfo row : rows) {
-            lines.add(row.format(humanReadable));
-          }
+        for (TabletRowInfo row : rows) {
+          lines.add(row.format(humanReadable));
         }
       }
 
@@ -160,51 +150,134 @@ public class ListTabletsCommand extends Command {
    * @throws NamespaceNotFoundException
    *           if the namespace option is specified and namespace does not exist
    */
-  private Set<String> readTargetTables(final CommandLine cl, final Shell shellState)
-      throws NamespaceNotFoundException {
+  private Set<TableInfo> populateTables(final CommandLine cl, final Shell shellState)
+      throws NamespaceNotFoundException, TableNotFoundException {
 
-    Set<String> tablenames = new TreeSet<>();
+    final TableOperations tableOps = shellState.getConnector().tableOperations();
+    final Instance instance = shellState.getInstance();
 
-    if (cl.hasOption(ShellOptions.tableOption)) {
-      tablenames.add(cl.getOptionValue(ShellOptions.tableOption));
+    Set<TableInfo> tableSet = new TreeSet<>();
+
+    if (cl.hasOption(optTablePattern.getOpt())) {
+      String tablePattern = cl.getOptionValue(optTablePattern.getOpt());
+      for (String table : tableOps.list()) {
+        if (table.matches(tablePattern)) {
+          String id = Tables.getTableId(instance, table);
+          tableSet.add(new TableInfo(table, id));
+        }
+      }
+      return validateTableSet(tableSet);
     }
 
     if (cl.hasOption(optNamespace.getOpt())) {
-      Instance instance = shellState.getInstance();
       String namespaceId =
           Namespaces.getNamespaceId(instance, cl.getOptionValue(optNamespace.getOpt()));
-      tablenames.addAll(Namespaces.getTableNames(instance, namespaceId));
+      for (String tableId : Namespaces.getTableIds(instance, namespaceId)) {
+        String name = Tables.getTableName(instance, tableId);
+        tableSet.add(new TableInfo(name, Tables.getTableId(instance, name)));
+      }
+      return validateTableSet(tableSet);
     }
 
-    // Add any patterns
-    if (cl.hasOption(optTablePattern.getOpt())) {
-      for (String table : shellState.getConnector().tableOperations().list()) {
-        if (table.matches(cl.getOptionValue(optTablePattern.getOpt()))) {
-          tablenames.add(table);
-        }
-      }
+    if (cl.hasOption(ShellOptions.tableOption)) {
+      String table = cl.getOptionValue(ShellOptions.tableOption);
+      String id = Tables.getTableId(instance, table);
+      tableSet.add(new TableInfo(table, id));
+      return validateTableSet(tableSet);
     }
 
     // If we didn't get any tables, and we have a table selected, add the current table
-    if (tablenames.isEmpty() && !shellState.getTableName().isEmpty()) {
-      tablenames.add(shellState.getTableName());
+    String table = shellState.getTableName();
+    if (!table.isEmpty()) {
+      String id = Tables.getTableId(instance, table);
+      tableSet.add(new TableInfo(table, id));
+      return validateTableSet(tableSet);
     }
 
-    return tablenames;
+    return validateTableSet(Collections.<TableInfo>emptySet());
 
   }
 
-  private List<TabletRowInfo> getTabletRowInfo(String tablename, final String tableId,
-      final Connector connector) {
+  private Set<TableInfo> validateTableSet(final Set<TableInfo> tableSet) {
 
-    if (log.isTraceEnabled()) {
-      log.trace("get row info for table name {}" + tablename);
+    if (tableSet.isEmpty()) {
+      Shell.log.warn("No tables found that match your criteria");
     }
 
-    log.debug("scan metadata for tablet info table name: \'{}\', tableId: \'{}\' ", tablename,
-        tableId);
+    return tableSet;
+  }
 
-    List<TabletRowInfo> tResults = getMetadataInfo(connector, tablename, tableId);
+  /**
+   * Wrapper for tablename and id. Comparisions, equals and hash code use tablename (id is ignored)
+   */
+  private static class TableInfo implements Comparable<TableInfo> {
+
+    private final String name;
+    private final String id;
+
+    public TableInfo(final String name, final String id) {
+      this.name = name;
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    /**
+     * Lexicographically table names
+     *
+     * @param other
+     *          an instance to compare
+     * @return 0 if table names are equal, a value less than 0 if less, or a value > 0 if greater
+     */
+    @Override
+    public int compareTo(TableInfo other) {
+      return name.compareTo(other.name);
+    }
+
+    /**
+     * Uses table name for equals to be consistent with compareTo
+     *
+     * @param o
+     *          other
+     * @return true if table names match.
+     */
+    @Override
+    public boolean equals(Object o) {
+      if (this == o)
+        return true;
+      if (o == null || getClass() != o.getClass())
+        return false;
+      TableInfo tableInfo = (TableInfo) o;
+      return name.equals(tableInfo.name);
+    }
+
+    /**
+     * Uses table name for hashCode to be consistent with equals and compareTo
+     *
+     * @return hash code of table name
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(name);
+    }
+  }
+
+  private List<TabletRowInfo> getTabletRowInfo(TableInfo tableInfo, final Connector connector) {
+
+    if (log.isTraceEnabled()) {
+      log.trace("get row info for table name {}" + tableInfo.getName());
+    }
+
+    log.debug("scan metadata for tablet info table name: \'{}\', tableId: \'{}\' ",
+        tableInfo.getName(), tableInfo.getId());
+
+    List<TabletRowInfo> tResults = getMetadataInfo(connector, tableInfo);
 
     if (log.isTraceEnabled()) {
       for (TabletRowInfo tabletRowInfo : tResults) {
@@ -230,13 +303,35 @@ public class ListTabletsCommand extends Command {
     return scanner;
   }
 
-  private List<TabletRowInfo> getMetadataInfo(Connector connector, String tableName, String id) {
+  private List<TabletRowInfo> getMetadataInfo(Connector connector, TableInfo tableInfo) {
+    //
+    //
+    // // This is created outside of the run loop and passed to the walogCollector so that
+    // // only a single timed task is created (internal to LiveTServerSet using SimpleTimer.
+    // final LiveTServerSet liveTServerSet = new LiveTServerSet(this, new LiveTServerSet.Listener()
+    // {
+    // @Override
+    // public void update(LiveTServerSet current, Set<TServerInstance> deleted,
+    // Set<TServerInstance> added) {
+    //
+    // log.debug("Number of current servers {}, tservers added {}, removed {}",
+    // current == null ? -1 : current.size(), added, deleted);
+    //
+    // if (log.isTraceEnabled()) {
+    // log.trace("Current servers: {}\nAdded: {}\n Removed: {}", current, added, deleted);
+    // }
+    // }
+    // });
+    //
+    // // now it's safe to get the liveServers
+    // liveServers.scanServers();
+    // Set<TServerInstance> currentServers = liveServers.getCurrentServers();
 
     List<TabletRowInfo> results = new ArrayList<>();
 
-    TabletRowInfo.Factory tabletInfoFactory = new TabletRowInfo.Factory(tableName);
+    TabletRowInfo.Factory tabletInfoFactory = new TabletRowInfo.Factory(tableInfo.getName());
 
-    try (Scanner scanner = buildMetaScanner(connector, id)) {
+    try (Scanner scanner = buildMetaScanner(connector, tableInfo.getId())) {
 
       Text currentRow = new Text("");
 
@@ -258,8 +353,8 @@ public class ListTabletsCommand extends Command {
             results.add(tabletInfoFactory.build());
           }
 
-          tabletInfoFactory = new TabletRowInfo.Factory(tableName);
-          tabletInfoFactory.tableId(id);
+          tabletInfoFactory = new TabletRowInfo.Factory(tableInfo.getName());
+          tabletInfoFactory.tableId(tableInfo.getId());
           tabletInfoFactory.tableExists(true);
           tabletInfoFactory.updateInfo(entry.getKey(), value);
           tabletInfoFactory.endRow(row.toString());
@@ -274,8 +369,8 @@ public class ListTabletsCommand extends Command {
 
     } catch (TableNotFoundException ex) {
       ex.printStackTrace();
-      TabletRowInfo.Factory factory = new TabletRowInfo.Factory(tableName);
-      factory.tableId(id);
+      TabletRowInfo.Factory factory = new TabletRowInfo.Factory(tableInfo.getName());
+      factory.tableId(tableInfo.getId());
       factory.tableExists(false);
       results.add(factory.build());
     }
@@ -322,7 +417,7 @@ public class ListTabletsCommand extends Command {
     opts.addOption(outputFileOpt);
 
     noFlushOption =
-            new Option("nf", "noFlush", false, "do not flush table data in memory before cloning.");
+        new Option("nf", "noFlush", false, "do not flush table data in memory before cloning.");
     opts.addOption(noFlushOption);
 
     return opts;
@@ -552,7 +647,6 @@ public class ListTabletsCommand extends Command {
 
           if (cf.compareTo(logCf) == 0) {
             numWalLogs++;
-            return;
           }
 
         } catch (NumberFormatException ex) {

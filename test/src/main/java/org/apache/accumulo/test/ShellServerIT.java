@@ -69,7 +69,6 @@ import org.apache.accumulo.harness.MiniClusterConfigurationCallback;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
 import org.apache.accumulo.minicluster.impl.MiniAccumuloConfigImpl;
 import org.apache.accumulo.shell.Shell;
-import org.apache.accumulo.shell.commands.ListTabletsCommand;
 import org.apache.accumulo.test.categories.MiniClusterOnlyTests;
 import org.apache.accumulo.test.categories.SunnyDayTests;
 import org.apache.accumulo.test.functional.SlowIterator;
@@ -1872,18 +1871,18 @@ public class ShellServerIT extends SharedMiniClusterBase {
 
     ts.exec("createtable " + table + "_3 -evc", true);
 
-//    ts.exec("flush -w -t " + table + "_0", true);
-//    ts.exec("flush -w -t " + table + "_1", true);
-//    ts.exec("flush -w -t " + table + "_2", true);
-//    ts.exec("flush -w -t " + table + "_2_cloned", true);
-//    ts.exec("flush -w -t " + table + "_3", true);
+    // ts.exec("flush -w -t " + table + "_0", true);
+    // ts.exec("flush -w -t " + table + "_1", true);
+    // ts.exec("flush -w -t " + table + "_2", true);
+    // ts.exec("flush -w -t " + table + "_2_cloned", true);
+    // ts.exec("flush -w -t " + table + "_3", true);
 
     if (log.isDebugEnabled()) {
       String scan = ts.exec("scan -t accumulo.metadata -np");
       log.debug("metadata table scan results{}", scan);
     }
 
-   Connector connector = getConnector();
+    Connector connector = getConnector();
     final Scanner scanner = connector.createScanner("accumulo.metadata", Authorizations.EMPTY);
 
     Map<String,String> idMap = connector.tableOperations().tableIdMap();
@@ -1892,12 +1891,12 @@ public class ShellServerIT extends SharedMiniClusterBase {
     Range range = MetadataSchema.TabletsSection.getRange(tableId);
     scanner.setRange(range);
 
-     final Text fileCf = MetadataSchema.TabletsSection.DataFileColumnFamily.NAME;
-     final Text locCf = MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME;
-     final Text logCf = MetadataSchema.TabletsSection.LogColumnFamily.NAME;
-     final Text tabCf = MetadataSchema.TabletsSection.TabletColumnFamily.NAME;
+    final Text fileCf = MetadataSchema.TabletsSection.DataFileColumnFamily.NAME;
+    final Text locCf = MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME;
+    final Text logCf = MetadataSchema.TabletsSection.LogColumnFamily.NAME;
+    final Text tabCf = MetadataSchema.TabletsSection.TabletColumnFamily.NAME;
 
-     final Text[] COL_FAMILIES = {fileCf, locCf, logCf, tabCf};
+    final Text[] COL_FAMILIES = {fileCf, locCf, logCf, tabCf};
 
     for (Text cf : COL_FAMILIES) {
       scanner.fetchColumnFamily(cf);
@@ -1907,7 +1906,7 @@ public class ShellServerIT extends SharedMiniClusterBase {
       Key k = entry.getKey();
       Value v = entry.getValue();
 
-      log.info("--E:{}:{}",k,v);
+      log.info("--E:{}:{}", k, v);
     }
 
     String cmdOutput = ts.exec("listtablets -p " + table + ".*", true);
