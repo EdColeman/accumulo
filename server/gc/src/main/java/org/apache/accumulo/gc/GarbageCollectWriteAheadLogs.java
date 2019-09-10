@@ -35,8 +35,6 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
-import org.apache.accumulo.core.gc.thrift.GCStatus;
-import org.apache.accumulo.core.gc.thrift.GcCycleStats;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.replication.ReplicationSchema.StatusSection;
@@ -46,6 +44,7 @@ import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.trace.Span;
 import org.apache.accumulo.core.trace.Trace;
 import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.gc.metrics2.GcCycleMetrics;
 import org.apache.accumulo.server.AccumuloServerContext;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -137,11 +136,13 @@ public class GarbageCollectWriteAheadLogs {
     this.store = store;
   }
 
-  public void collect(GCStatus status) {
+  public GcCycleMetrics collect() {
+
+    GcCycleMetrics gcCycleMetrics = new GcCycleMetrics();
 
     Span span = Trace.start("getCandidates");
     try {
-      status.currentLog.started = System.currentTimeMillis();
+      gcCycleMetrics.markStarted();
 
       Map<UUID,Path> recoveryLogs = getSortedWALogs();
 
@@ -157,8 +158,8 @@ public class GarbageCollectWriteAheadLogs {
       long fileScanStop = System.currentTimeMillis();
 
       log.info(String.format("Fetched %d files for %d servers in %.2f seconds", count,
-          logsByServer.size(), (fileScanStop - status.currentLog.started) / 1000.));
-      status.currentLog.candidates = count;
+          logsByServer.size(), (fileScanStop - gcCycleMetrics.getStarted()) / 1000.));
+      gcCycleMetrics.incrementCandidates(count);
       span.stop();
 
       // now it's safe to get the liveServers
@@ -171,8 +172,10 @@ public class GarbageCollectWriteAheadLogs {
         uuidToTServer = removeEntriesInUse(logsByServer, currentServers, logsState, recoveryLogs);
         count = uuidToTServer.size();
       } catch (Exception ex) {
-        log.error("Unable to scan metadata table", ex);
-        return;
+        String msg = "Unable to scan metadata table";
+        log.error(msg, ex);
+        gcCycleMetrics.sawError(msg);
+        return gcCycleMetrics;
       } finally {
         span.stop();
       }
@@ -185,8 +188,10 @@ public class GarbageCollectWriteAheadLogs {
       try {
         count = removeReplicationEntries(uuidToTServer);
       } catch (Exception ex) {
-        log.error("Unable to scan replication table", ex);
-        return;
+        String msg = "Unable to scan replication table";
+        log.error(msg, ex);
+        gcCycleMetrics.sawError(msg);
+        return gcCycleMetrics;
       } finally {
         span.stop();
       }
@@ -198,9 +203,11 @@ public class GarbageCollectWriteAheadLogs {
       span = Trace.start("removeFiles");
 
       logsState.keySet().retainAll(uuidToTServer.keySet());
-      count = removeFiles(logsState.values(), status);
+      long deletes = removeFiles(logsState.values(), gcCycleMetrics.getDeletes());
+      gcCycleMetrics.incrementDeleted(deletes);
 
       long removeStop = System.currentTimeMillis();
+
       log.info(String.format("%d total logs removed from %d servers in %.2f seconds", count,
           logsByServer.size(), (removeStop - logEntryScanStop) / 1000.));
 
@@ -215,15 +222,17 @@ public class GarbageCollectWriteAheadLogs {
           (removeMarkersStop - removeStop) / 1000.));
       span.stop();
 
-      status.currentLog.finished = removeStop;
-      status.lastLog = status.currentLog;
-      status.currentLog = new GcCycleStats();
+      gcCycleMetrics.markFinished();
 
     } catch (Exception e) {
-      log.error("exception occured while garbage collecting write ahead logs", e);
+      String msg = "exception occurred while garbage collecting write ahead logs";
+      log.error(msg, e);
+      gcCycleMetrics.sawError(msg);
     } finally {
       span.stop();
     }
+
+    return gcCycleMetrics;
   }
 
   private long removeTabletServerMarkers(Map<UUID,TServerInstance> uidMap,
@@ -266,13 +275,14 @@ public class GarbageCollectWriteAheadLogs {
     return 0;
   }
 
-  private long removeFiles(Collection<Pair<WalState,Path>> collection, final GCStatus status) {
+  private long removeFiles(Collection<Pair<WalState,Path>> collection, final long currDeletes) {
+    long deletes = currDeletes;
     for (Pair<WalState,Path> stateFile : collection) {
       Path path = stateFile.getSecond();
       log.debug("Removing {} WAL {}", stateFile.getFirst(), path);
-      status.currentLog.deleted += removeFile(path);
+      deletes += removeFile(path);
     }
-    return status.currentLog.deleted;
+    return deletes;
   }
 
   private long removeFiles(Collection<Path> values) {

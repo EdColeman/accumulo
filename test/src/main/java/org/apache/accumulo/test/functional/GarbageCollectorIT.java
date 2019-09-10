@@ -141,6 +141,10 @@ public class GarbageCollectorIT extends ConfigurableMacBase {
     int after = countFiles();
     VerifyIngest.verifyIngest(c, vopts, new ScannerOpts());
     assertTrue(after < before);
+
+    ProcessReference x = getCluster().getProcesses().get(ServerType.GARBAGE_COLLECTOR).iterator().next();
+    x.getProcess();
+
   }
 
   @Test

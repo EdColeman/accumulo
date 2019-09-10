@@ -17,6 +17,7 @@
 package org.apache.accumulo.gc.metrics2;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.accumulo.core.gc.thrift.GcCycleStats;
 
@@ -28,6 +29,11 @@ public class GcCycleMetrics {
   private AtomicLong inUse = new AtomicLong(0);
   private AtomicLong deleted = new AtomicLong(0);
   private AtomicLong errors = new AtomicLong(0);
+
+  // not in thrift
+  private ReentrantLock errorLock = new ReentrantLock();
+  private boolean sawError = Boolean.FALSE;
+  private String errMsg = "";
 
   public GcCycleMetrics() {}
 
@@ -80,5 +86,23 @@ public class GcCycleMetrics {
     stat.deleted = deleted.get();
     stat.errors = errors.get();
     return stat;
+  }
+
+  public long getStarted() {
+    return started.get();
+  }
+
+  public void sawError(final String msg) {
+    errorLock.lock();
+    try {
+      sawError = Boolean.TRUE;
+      errMsg = msg;
+    } finally {
+      errorLock.unlock();
+    }
+  }
+
+  public long getDeletes() {
+    return deleted.get();
   }
 }

@@ -81,6 +81,7 @@ import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
+import org.apache.accumulo.gc.metrics2.GcCycleMetrics;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.Accumulo;
 import org.apache.accumulo.server.AccumuloServerContext;
@@ -640,7 +641,11 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
         GarbageCollectWriteAheadLogs walogCollector =
             new GarbageCollectWriteAheadLogs(this, fs, liveTServerSet, isUsingTrash());
         log.info("Beginning garbage collection of write-ahead logs");
-        walogCollector.collect(gcMetricsValues.getStatus());
+        GcCycleMetrics walCollectMetrics = walogCollector.collect();
+
+        // status.lastLog = status.currentLog;
+        // status.currentLog = new GcCycleStats();
+
       } catch (Exception e) {
         log.error("{}", e.getMessage(), e);
       } finally {
@@ -867,6 +872,15 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
     return slashCount == 1;
   }
 
+  /**
+   * Used to report gc run statistics via thrift to monitor service
+   *
+   * @param info
+   *          thrift rpc call info
+   * @param credentials
+   *          thrift prc credentials.
+   * @return gc cycle run statistics - current, prev, wal current, wal prev
+   */
   @Override
   public GCStatus getStatus(TInfo info, TCredentials credentials) {
     return gcMetricsValues.getStatus();
