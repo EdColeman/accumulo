@@ -81,6 +81,7 @@ import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
+import org.apache.accumulo.gc.metrics2.GcMetricsValues;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.Accumulo;
 import org.apache.accumulo.server.AccumuloServerContext;
@@ -880,6 +881,6 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
    */
   @Override
   public GCStatus getStatus(TInfo info, TCredentials credentials) {
-    return gcMetricsValues.getStatus();
+    return gcMetricsValues.toThrift();
   }
 }

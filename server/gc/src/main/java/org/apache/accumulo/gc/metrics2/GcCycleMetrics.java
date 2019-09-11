@@ -37,8 +37,16 @@ public class GcCycleMetrics {
 
   public GcCycleMetrics() {}
 
+  public long getStarted() {
+    return started.get();
+  }
+
   public void markStarted() {
     started.set(System.currentTimeMillis());
+  }
+
+  public long getFinished() {
+    return finished.get();
   }
 
   public void markFinished() {
@@ -55,10 +63,6 @@ public class GcCycleMetrics {
 
   public void incrementCandidates(final long delta) {
     candidates.addAndGet(delta);
-  }
-
-  public long getFinished() {
-    return finished.get();
   }
 
   public long getDeleted() {
@@ -99,10 +103,6 @@ public class GcCycleMetrics {
 
   public void incrementErrors(final long delta) {
     errors.addAndGet(delta);
-  }
-
-  public long getStarted() {
-    return started.get();
   }
 
   public void sawCollectionError(final String msg) {
