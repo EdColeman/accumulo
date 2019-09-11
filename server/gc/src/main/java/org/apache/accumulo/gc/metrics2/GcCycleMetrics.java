@@ -32,7 +32,7 @@ public class GcCycleMetrics {
 
   // not in thrift
   private ReentrantLock errorLock = new ReentrantLock();
-  private boolean sawError = Boolean.FALSE;
+  private boolean sawCollectionError = Boolean.FALSE;
   private String errMsg = "";
 
   public GcCycleMetrics() {}
@@ -45,12 +45,28 @@ public class GcCycleMetrics {
     finished.set(System.currentTimeMillis());
   }
 
+  public long getCandidates() {
+    return candidates.get();
+  }
+
   public void incrementCandidates() {
     candidates.incrementAndGet();
   }
 
   public void incrementCandidates(final long delta) {
     candidates.addAndGet(delta);
+  }
+
+  public long getFinished() {
+    return finished.get();
+  }
+
+  public long getDeleted() {
+    return deleted.get();
+  }
+
+  public long getInUse() {
+    return inUse.get();
   }
 
   public void incrementInUse() {
@@ -61,6 +77,10 @@ public class GcCycleMetrics {
     inUse.addAndGet(delta);
   }
 
+  public long getDeletes() {
+    return deleted.get();
+  }
+
   public void incrementDeleted() {
     deleted.incrementAndGet();
   }
@@ -69,12 +89,49 @@ public class GcCycleMetrics {
     deleted.addAndGet(delta);
   }
 
+  public long getErrors() {
+    return errors.get();
+  }
+
   public void incrementErrors() {
     errors.incrementAndGet();
   }
 
   public void incrementErrors(final long delta) {
     errors.addAndGet(delta);
+  }
+
+  public long getStarted() {
+    return started.get();
+  }
+
+  public void sawCollectionError(final String msg) {
+    errorLock.lock();
+    try {
+      sawCollectionError = Boolean.TRUE;
+      errMsg = msg;
+      markFinished();
+    } finally {
+      errorLock.unlock();
+    }
+  }
+
+  public boolean hasError() {
+    errorLock.lock();
+    try {
+      return sawCollectionError;
+    } finally {
+      errorLock.unlock();
+    }
+  }
+
+  public String getErrMsg() {
+    errorLock.lock();
+    try {
+      return errMsg;
+    } finally {
+      errorLock.unlock();
+    }
   }
 
   public GcCycleStats toThrift() {
@@ -88,21 +145,4 @@ public class GcCycleMetrics {
     return stat;
   }
 
-  public long getStarted() {
-    return started.get();
-  }
-
-  public void sawError(final String msg) {
-    errorLock.lock();
-    try {
-      sawError = Boolean.TRUE;
-      errMsg = msg;
-    } finally {
-      errorLock.unlock();
-    }
-  }
-
-  public long getDeletes() {
-    return deleted.get();
-  }
 }

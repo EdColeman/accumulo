@@ -37,7 +37,6 @@ import org.apache.accumulo.core.replication.ReplicationSchema;
 import org.apache.accumulo.core.replication.ReplicationTable;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.Pair;
-import org.apache.accumulo.gc.metrics2.GcCycleMetrics;
 import org.apache.accumulo.server.AccumuloServerContext;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.log.WalStateManager;
@@ -111,8 +110,9 @@ public class GarbageCollectWriteAheadLogsTest {
         return Collections.emptyMap();
       }
     };
-    GcCycleMetrics stats = gc.collect();
-    assertNotNull(stats);
+    GcMetricsValues v = new GcMetricsValues();
+    gc.collect(v.getWalCurr());
+    assertNotNull(v.getWalCurr());
     EasyMock.verify(context, fs, marker, tserverSet);
   }
 
@@ -142,9 +142,9 @@ public class GarbageCollectWriteAheadLogsTest {
         return Collections.emptyMap();
       }
     };
-
-    GcCycleMetrics stats = gc.collect();
-    assertNotNull(stats);
+    GcMetricsValues v = new GcMetricsValues();
+    gc.collect(v.getWalCurr());
+    assertNotNull(v.getWalCurr());
 
     EasyMock.verify(context, marker, tserverSet, fs);
   }
@@ -194,8 +194,9 @@ public class GarbageCollectWriteAheadLogsTest {
       }
     };
 
-    GcCycleMetrics stats = gc.collect();
-    assertNotNull(stats);
+    GcMetricsValues v = new GcMetricsValues();
+    gc.collect(v.getWalCurr());
+    assertNotNull(v.getWalCurr());
 
     EasyMock.verify(context, fs, marker, tserverSet, conn, rscanner, mscanner);
   }
@@ -240,8 +241,9 @@ public class GarbageCollectWriteAheadLogsTest {
       }
     };
 
-    GcCycleMetrics stats = gc.collect();
-    assertNotNull(stats);
+    GcMetricsValues v = new GcMetricsValues();
+    gc.collect(v.getWalCurr());
+    assertNotNull(v.getWalCurr());
 
     EasyMock.verify(context, fs, marker, tserverSet, conn, rscanner, mscanner);
   }
@@ -291,8 +293,9 @@ public class GarbageCollectWriteAheadLogsTest {
       }
     };
 
-    GcCycleMetrics stats = gc.collect();
-    assertNotNull(stats);
+    GcMetricsValues v = new GcMetricsValues();
+    gc.collect(v.getWalCurr());
+    assertNotNull(v.getWalCurr());
 
     EasyMock.verify(context, fs, marker, tserverSet, conn, rscanner, mscanner);
   }

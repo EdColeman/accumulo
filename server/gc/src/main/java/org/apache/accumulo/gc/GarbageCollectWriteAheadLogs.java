@@ -136,9 +136,7 @@ public class GarbageCollectWriteAheadLogs {
     this.store = store;
   }
 
-  public GcCycleMetrics collect() {
-
-    GcCycleMetrics gcCycleMetrics = new GcCycleMetrics();
+  public void collect(final GcCycleMetrics gcCycleMetrics) {
 
     Span span = Trace.start("getCandidates");
     try {
@@ -174,8 +172,8 @@ public class GarbageCollectWriteAheadLogs {
       } catch (Exception ex) {
         String msg = "Unable to scan metadata table";
         log.error(msg, ex);
-        gcCycleMetrics.sawError(msg);
-        return gcCycleMetrics;
+        gcCycleMetrics.sawCollectionError(msg);
+        return;
       } finally {
         span.stop();
       }
@@ -190,8 +188,8 @@ public class GarbageCollectWriteAheadLogs {
       } catch (Exception ex) {
         String msg = "Unable to scan replication table";
         log.error(msg, ex);
-        gcCycleMetrics.sawError(msg);
-        return gcCycleMetrics;
+        gcCycleMetrics.sawCollectionError(msg);
+        return;
       } finally {
         span.stop();
       }
@@ -227,12 +225,10 @@ public class GarbageCollectWriteAheadLogs {
     } catch (Exception e) {
       String msg = "exception occurred while garbage collecting write ahead logs";
       log.error(msg, e);
-      gcCycleMetrics.sawError(msg);
+      gcCycleMetrics.sawCollectionError(msg);
     } finally {
       span.stop();
     }
-
-    return gcCycleMetrics;
   }
 
   private long removeTabletServerMarkers(Map<UUID,TServerInstance> uidMap,

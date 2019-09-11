@@ -81,7 +81,6 @@ import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
-import org.apache.accumulo.gc.metrics2.GcCycleMetrics;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.Accumulo;
 import org.apache.accumulo.server.AccumuloServerContext;
@@ -419,22 +418,17 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
               if (archiveOrMoveToTrash(fullPath) || fs.deleteRecursively(fullPath)) {
                 // delete succeeded, still want to delete
                 removeFlag = true;
-                synchronized (SimpleGarbageCollector.this) {
-                  gcMetricsValues.incrCurrentDeleted();
-                }
+                gcMetricsValues.getCurrent().incrementDeleted();
               } else if (fs.exists(fullPath)) {
                 // leave the entry in the metadata; we'll try again later
                 removeFlag = false;
-                synchronized (SimpleGarbageCollector.this) {
-                  gcMetricsValues.incrCurrentErrors();
-                }
+                gcMetricsValues.getCurrent().incrementErrors();
                 log.warn("File exists, but was not deleted for an unknown reason: " + fullPath);
               } else {
                 // this failure, we still want to remove the metadata entry
                 removeFlag = true;
-                synchronized (SimpleGarbageCollector.this) {
-                  gcMetricsValues.incrCurrentErrors();
-                }
+                gcMetricsValues.getCurrent().incrementErrors();
+
                 String parts[] = fullPath.toString().split(Constants.ZTABLES)[1].split("/");
                 if (parts.length > 2) {
                   String tableId = parts[1];
@@ -507,12 +501,12 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
 
     @Override
     public void incrementCandidatesStat(long i) {
-      gcMetricsValues.incrCurrentCandidates(i);
+      gcMetricsValues.getCurrent().incrementCandidates(i);
     }
 
     @Override
     public void incrementInUseStat(long i) {
-      gcMetricsValues.incrCurrentInUse(i);
+      gcMetricsValues.getCurrent().incrementInUse(i);
     }
 
     @Override
@@ -597,22 +591,23 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
       try {
         System.gc(); // make room
 
-        gcMetricsValues.setCurrentStarted();
+        gcMetricsValues.getCurrent().markStarted();
 
         new GarbageCollectionAlgorithm().collect(new GCEnv(RootTable.NAME));
         new GarbageCollectionAlgorithm().collect(new GCEnv(MetadataTable.NAME));
 
         log.info("Number of data file candidates for deletion: "
-            + gcMetricsValues.getCurrentCandidates());
+            + gcMetricsValues.getCurrent().getCandidates());
+        log.info("Number of data file candidates still in use: "
+            + +gcMetricsValues.getCurrent().getInUse());
+        log.info("Number of successfully deleted data files: "
+            + gcMetricsValues.getCurrent().getDeleted());
         log.info(
-            "Number of data file candidates still in use: " + +gcMetricsValues.getCurrentInUse());
-        log.info(
-            "Number of successfully deleted data files: " + gcMetricsValues.getCurrentDeleted());
-        log.info("Number of data files delete failures: " + gcMetricsValues.getCurrentErrors());
+            "Number of data files delete failures: " + gcMetricsValues.getCurrent().getErrors());
 
-        gcMetricsValues.setCurrentFinished();
+        gcMetricsValues.getCurrent().markFinished();
 
-        gcMetricsValues.updateLast();
+        gcMetricsValues.updateCollectStats();
 
       } catch (Exception e) {
         log.error("{}", e.getMessage(), e);
@@ -641,7 +636,9 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
         GarbageCollectWriteAheadLogs walogCollector =
             new GarbageCollectWriteAheadLogs(this, fs, liveTServerSet, isUsingTrash());
         log.info("Beginning garbage collection of write-ahead logs");
-        GcCycleMetrics walCollectMetrics = walogCollector.collect();
+        walogCollector.collect(gcMetricsValues.getWalCurr());
+
+        gcMetricsValues.updateWalStats();
 
         // status.lastLog = status.currentLog;
         // status.currentLog = new GcCycleStats();
@@ -689,7 +686,7 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
       Trace.off();
       try {
         long gcDelay = getConfiguration().getTimeInMillis(Property.GC_CYCLE_DELAY);
-        log.debug("Sleeping for " + gcDelay + " milliseconds");
+        log.debug("Sleeping for {} milliseconds", gcDelay);
         Thread.sleep(gcDelay);
       } catch (InterruptedException e) {
         log.warn("{}", e.getMessage(), e);

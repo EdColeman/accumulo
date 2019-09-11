@@ -18,62 +18,84 @@ package org.apache.accumulo.gc;
 
 import org.apache.accumulo.core.gc.thrift.GCStatus;
 import org.apache.accumulo.core.gc.thrift.GcCycleStats;
+import org.apache.accumulo.gc.metrics2.GcCycleMetrics;
 
 public class GcMetricsValues {
 
   private GCStatus status =
       new GCStatus(new GcCycleStats(), new GcCycleStats(), new GcCycleStats(), new GcCycleStats());
 
-  public GcMetricsValues() {
+  private GcCycleMetrics curr = new GcCycleMetrics();
+  private GcCycleMetrics prev = new GcCycleMetrics();
+  private GcCycleMetrics walCurr = new GcCycleMetrics();
+  private GcCycleMetrics walPrev = new GcCycleMetrics();
 
+  public GcMetricsValues() {}
+
+  public void updateCollectStats() {
+    prev = curr;
+    curr = new GcCycleMetrics();
   }
 
-  public void incrCurrentDeleted() {
-    ++status.current.deleted;
+  public void updateWalStats() {
+    walPrev = walCurr;
+    walCurr = new GcCycleMetrics();
   }
 
-  public void incrCurrentErrors() {
-    ++status.current.errors;
+  public GcCycleMetrics getCurrent() {
+    return curr;
   }
 
-  public void incrCurrentCandidates(long i) {
-    status.current.candidates += i;
+  public GcCycleMetrics getWalCurr() {
+    return walCurr;
   }
-
-  public void incrCurrentInUse(long i) {
-    status.current.inUse += i;
-  }
-
-  public void setCurrentStarted() {
-    status.current.started = System.currentTimeMillis();
-  }
-
-  public void setCurrentFinished() {
-    status.current.finished = System.currentTimeMillis();
-  }
-
-  public void updateLast() {
-    status.last = status.current;
-    status.current = new GcCycleStats();
-  }
-
-  public long getCurrentCandidates() {
-    return status.current.candidates;
-  }
-
-  public long getCurrentInUse() {
-    return status.current.inUse;
-  }
-
-  public long getCurrentDeleted() {
-    return status.current.deleted;
-  }
-
-  public long getCurrentErrors() {
-    return status.current.errors;
-  }
+  // public void incrCurrentDeleted() {
+  // ++status.current.deleted;
+  // }
+  //
+  // public void incrCurrentErrors() {
+  // ++status.current.errors;
+  // }
+  //
+  // public void incrCurrentCandidates(long i) {
+  // status.current.candidates += i;
+  // }
+  //
+  // public void incrCurrentInUse(long i) {
+  // status.current.inUse += i;
+  // }
+  //
+  // public void setCurrentStarted() {
+  // status.current.started = System.currentTimeMillis();
+  // }
+  //
+  // public void setCurrentFinished() {
+  // status.current.finished = System.currentTimeMillis();
+  // }
+  //
+  // public void updateLast() {
+  // status.last = status.current;
+  // status.current = new GcCycleStats();
+  // }
+  //
+  // public long getCurrentCandidates() {
+  // return status.current.candidates;
+  // }
+  //
+  // public long getCurrentInUse() {
+  // return status.current.inUse;
+  // }
+  //
+  // public long getCurrentDeleted() {
+  // return status.current.deleted;
+  // }
+  //
+  // public long getCurrentErrors() {
+  // return status.current.errors;
+  // }
 
   public GCStatus getStatus() {
-    return status;
+    return new GCStatus(curr.toThrift(), prev.toThrift(), walCurr.toThrift(), walPrev.toThrift());
   }
+
 }
