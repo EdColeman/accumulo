@@ -56,7 +56,7 @@ public class GcMetricsValues {
     return curr;
   }
 
-  public GcCycleMetrics getPrev(){
+  public GcCycleMetrics getPrev() {
     return prev;
   }
 
@@ -64,7 +64,7 @@ public class GcMetricsValues {
     return walCurr;
   }
 
-  public GcCycleMetrics getWalPrev(){
+  public GcCycleMetrics getWalPrev() {
     return walPrev;
   }
 
