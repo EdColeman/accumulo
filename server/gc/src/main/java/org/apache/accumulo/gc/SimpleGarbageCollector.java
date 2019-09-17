@@ -82,6 +82,7 @@ import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
+import org.apache.accumulo.gc.metrics2.GcRunMetrics;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.Accumulo;
 import org.apache.accumulo.server.AccumuloServerContext;
@@ -148,6 +149,8 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
 
   private GCStatus status =
       new GCStatus(new GcCycleStats(), new GcCycleStats(), new GcCycleStats(), new GcCycleStats());
+
+  private GcRunMetrics gcRunMetrics = new GcRunMetrics();
 
   public static void main(String[] args) throws UnknownHostException, IOException {
     final String app = "gc";
@@ -607,6 +610,7 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
 
         status.current.finished = System.currentTimeMillis();
         status.last = status.current;
+        gcRunMetrics.setLastCollect(status.current);
         status.current = new GcCycleStats();
 
       } catch (Exception e) {
@@ -637,6 +641,7 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
             new GarbageCollectWriteAheadLogs(this, fs, liveTServerSet, isUsingTrash());
         log.info("Beginning garbage collection of write-ahead logs");
         walogCollector.collect(status);
+        gcRunMetrics.setLastWalCollect(status.lastLog);
       } catch (Exception e) {
         log.error("{}", e.getMessage(), e);
       } finally {
@@ -669,6 +674,8 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
         }
 
         final long actionComplete = System.nanoTime();
+
+        gcRunMetrics.setPostOpDuration(actionComplete);
 
         log.info("gc post action {} completed in {} seconds", action, String.format("%.2f",
             (TimeUnit.NANOSECONDS.toMillis(actionComplete - actionStart) / 1000.0)));
@@ -866,5 +873,9 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
   @Override
   public GCStatus getStatus(TInfo info, TCredentials credentials) {
     return status;
+  }
+
+  public GcRunMetrics getGcRunMetrics() {
+    return gcRunMetrics;
   }
 }
