@@ -82,6 +82,7 @@ import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
+import org.apache.accumulo.gc.metrics2.GcMetrics2;
 import org.apache.accumulo.gc.metrics2.GcRunMetrics;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.Accumulo;
@@ -111,6 +112,7 @@ import org.apache.accumulo.server.zookeeper.ZooLock;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.metrics2.MetricsSystem;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +177,8 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
     }
   }
 
+  GcMetrics2 m2 = null;
+
   /**
    * Creates a new garbage collector.
    *
@@ -188,6 +192,15 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
     this.fs = fs;
 
     final AccumuloConfiguration conf = getConfiguration();
+
+    MetricsSystemHelper.configure("Acc_GC");
+    m2 = GcMetrics2.init(this, MetricsSystemHelper.getInstance());
+    m2.register();
+    
+//    if (conf.getBoolean(Property.GC_ENABLE_METRICS2)) {
+//      MetricsSystemHelper.configure(SimpleGarbageCollector.class.getSimpleName());
+//      GcMetrics2.init(this, MetricsSystemHelper.getInstance());
+//    }
 
     final long gcDelay = conf.getTimeInMillis(Property.GC_CYCLE_DELAY);
     final String useFullCompaction = conf.get(Property.GC_USE_FULL_COMPACTION);

@@ -184,6 +184,11 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
     // test complete, cancel compaction and move on.
     connector.tableOperations().cancelCompaction(tableName);
 
+    try {
+      Thread.sleep(300_000);
+    } catch(Exception ex){
+      // empty
+    }
     log.debug("Success: Timing results for online commands.");
     log.debug("Time for unblocked online {} ms",
         TimeUnit.MILLISECONDS.convert(timing1.runningTime(), TimeUnit.NANOSECONDS));
