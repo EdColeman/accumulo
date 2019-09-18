@@ -31,10 +31,10 @@ import org.apache.hadoop.metrics2.lib.MutableGaugeLong;
 
 public class GcMetrics2 implements Metrics, MetricsSource {
 
-  public static final String NAME = "Acc_GC" + ",sub=acc_stats";
-  public static final String DESCRIPTION = "GC Metrics";
-  public static final String CONTEXT = "Acc_GC";
-  public static final String RECORD = "stats";
+  public static final String NAME = "Acc_GC" + ",sub=accumulo_gc_stats";
+  public static final String DESCRIPTION = "Accumulo GC Metrics";
+  public static final String CONTEXT = "accumulo.gc";
+  public static final String RECORD = "accumulo_gc_run_stats";
 
   private final SimpleGarbageCollector gc;
   private final MetricsSystem metricsSystem;
@@ -57,6 +57,7 @@ public class GcMetrics2 implements Metrics, MetricsSource {
   private MutableGaugeLong walErrors;
 
   private MutableGaugeLong postOpDuration;
+  private MutableGaugeLong runCycleCount;
 
   private GcMetrics2(final SimpleGarbageCollector gc, final MetricsSystem metricsSystem) {
     this.gc = gc;
@@ -67,22 +68,25 @@ public class GcMetrics2 implements Metrics, MetricsSource {
 
     // create gauges
 
-    gcStarted = registry.newGauge("gcStarted", "gc collect start timestamp", 0L);
-    gcFinished = registry.newGauge("gcFinished", "gc collect finished timestamp", 0L);
-    gcCandidates = registry.newGauge("gcCandidates", "number of gc candidates", 0L);
-    gcInUse = registry.newGauge("gcInUse", "number of gc candidates still in use", 0L);
-    gcDeleted = registry.newGauge("gcDeleted", "number of gc candidates deleted", 0L);
-    gcErrors = registry.newGauge("gcDeleteErrors", "number of gc delete errors", 0L);
+    gcStarted = registry.newGauge("AccGcStarted", "gc collect start timestamp", 0L);
+    gcFinished = registry.newGauge("AccGcFinished", "gc collect finished timestamp", 0L);
+    gcCandidates = registry.newGauge("AccGcCandidates", "number of gc candidates", 0L);
+    gcInUse = registry.newGauge("AccGcInUse", "number of gc candidates still in use", 0L);
+    gcDeleted = registry.newGauge("AccGcDeleted", "number of gc candidates deleted", 0L);
+    gcErrors = registry.newGauge("AccGcDeleteErrors", "number of gc delete errors", 0L);
 
-    walStarted = registry.newGauge("gcWalStarted", "gc wal collect start timestamp", 0L);
-    walFinished = registry.newGauge("gcWalFinished", "gc wal collect finished timestamp", 0L);
-    walCandidates = registry.newGauge("gcWalCandidates", "number of gc wal candidates", 0L);
-    walInUse = registry.newGauge("gcWalInUse", "number of candidates still inuse", 0L);
-    walDeleted = registry.newGauge("gcWalDeleted", "number of wals deleted", 0L);
-    walErrors = registry.newGauge("gcWalErrors", "number of wal deletion errors", 0L);
+    walStarted = registry.newGauge("AccGcWalStarted", "gc wal collect start timestamp", 0L);
+    walFinished = registry.newGauge("AccGcWalFinished", "gc wal collect finished timestamp", 0L);
+    walCandidates = registry.newGauge("AccGcWalCandidates", "number of gc wal candidates", 0L);
+    walInUse = registry.newGauge("AccGcWalInUse", "number of candidates still inuse", 0L);
+    walDeleted = registry.newGauge("AccGcWalDeleted", "number of wals deleted", 0L);
+    walErrors = registry.newGauge("AccGcWalErrors", "number of wal deletion errors", 0L);
 
     postOpDuration =
-        registry.newGauge("postOpDurationMillis", "duration of post gc op in milliseconds", 0L);
+        registry.newGauge("AccGcPostOpDurationMillis", "duration of post gc op in milliseconds", 0L);
+
+    runCycleCount =
+        registry.newGauge("AccGcRunCycleCount", "counter of completed gc collect cycles", 0L);
   }
 
   public static synchronized GcMetrics2 init(SimpleGarbageCollector gc,
@@ -122,6 +126,7 @@ public class GcMetrics2 implements Metrics, MetricsSource {
     walErrors.set(values.getLastWalCollect().errors);
 
     postOpDuration.set(TimeUnit.NANOSECONDS.toMillis(values.getPostOpDuration()));
+    runCycleCount.set(values.getRunCycleCount());
   }
 
   @Override
@@ -134,7 +139,8 @@ public class GcMetrics2 implements Metrics, MetricsSource {
     throw new UnsupportedOperationException("add() is not implemented");
   }
 
-  @Override public boolean isEnabled() {
+  @Override
+  public boolean isEnabled() {
     return true;
   }
 }

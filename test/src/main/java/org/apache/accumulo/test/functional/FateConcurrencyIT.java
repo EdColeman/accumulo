@@ -186,7 +186,7 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
 
     try {
       Thread.sleep(300_000);
-    } catch(Exception ex){
+    } catch (Exception ex) {
       // empty
     }
     log.debug("Success: Timing results for online commands.");

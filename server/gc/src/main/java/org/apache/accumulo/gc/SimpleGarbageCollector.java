@@ -112,7 +112,6 @@ import org.apache.accumulo.server.zookeeper.ZooLock;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.metrics2.MetricsSystem;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,11 +195,11 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
     MetricsSystemHelper.configure("Acc_GC");
     m2 = GcMetrics2.init(this, MetricsSystemHelper.getInstance());
     m2.register();
-    
-//    if (conf.getBoolean(Property.GC_ENABLE_METRICS2)) {
-//      MetricsSystemHelper.configure(SimpleGarbageCollector.class.getSimpleName());
-//      GcMetrics2.init(this, MetricsSystemHelper.getInstance());
-//    }
+
+    // if (conf.getBoolean(Property.GC_ENABLE_METRICS2)) {
+    // MetricsSystemHelper.configure(SimpleGarbageCollector.class.getSimpleName());
+    // GcMetrics2.init(this, MetricsSystemHelper.getInstance());
+    // }
 
     final long gcDelay = conf.getTimeInMillis(Property.GC_CYCLE_DELAY);
     final String useFullCompaction = conf.get(Property.GC_USE_FULL_COMPACTION);
@@ -688,7 +687,7 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
 
         final long actionComplete = System.nanoTime();
 
-        gcRunMetrics.setPostOpDuration(actionComplete);
+        gcRunMetrics.setPostOpDuration(actionComplete - actionStart);
 
         log.info("gc post action {} completed in {} seconds", action, String.format("%.2f",
             (TimeUnit.NANOSECONDS.toMillis(actionComplete - actionStart) / 1000.0)));
@@ -699,8 +698,9 @@ public class SimpleGarbageCollector extends AccumuloServerContext implements Ifa
 
       Trace.off();
       try {
+        gcRunMetrics.incrementRunCycleCount();
         long gcDelay = getConfiguration().getTimeInMillis(Property.GC_CYCLE_DELAY);
-        log.debug("Sleeping for " + gcDelay + " milliseconds");
+        log.debug("Sleeping for {} milliseconds", gcDelay);
         Thread.sleep(gcDelay);
       } catch (InterruptedException e) {
         log.warn("{}", e.getMessage(), e);

@@ -31,6 +31,7 @@ public class GcRunMetrics {
   private AtomicReference<GcCycleStats> lastWalCollect = new AtomicReference<>(new GcCycleStats());
 
   private AtomicLong postOpDuration = new AtomicLong(0);
+  private AtomicLong runCycleCount = new AtomicLong(0);
 
   public GcRunMetrics() {}
 
@@ -90,6 +91,29 @@ public class GcRunMetrics {
    */
   public void setPostOpDuration(long postOpDuration) {
     this.postOpDuration.set(postOpDuration);
+  }
+
+  /**
+   * Duration of post operation (compact, flush, none) in nanoseconds.
+   *
+   * @return duration in nanoseconds.
+   */
+  public long getRunCycleCount() {
+    return runCycleCount.get();
+  }
+
+  /**
+   * Duration of post operation (compact, flush, none) in nanoseconds.
+   *
+   * @param runCycleCount
+   *          the number of gc collect cycles completed.
+   */
+  public void setRunCycleCount(long runCycleCount) {
+    this.runCycleCount.set(runCycleCount);
+  }
+
+  public void incrementRunCycleCount(){
+    this.runCycleCount.incrementAndGet();
   }
 
   @Override
