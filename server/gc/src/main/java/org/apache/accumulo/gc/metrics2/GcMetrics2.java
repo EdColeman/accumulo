@@ -82,8 +82,8 @@ public class GcMetrics2 implements Metrics, MetricsSource {
     walDeleted = registry.newGauge("AccGcWalDeleted", "number of wals deleted", 0L);
     walErrors = registry.newGauge("AccGcWalErrors", "number of wal deletion errors", 0L);
 
-    postOpDuration =
-        registry.newGauge("AccGcPostOpDurationMillis", "duration of post gc op in milliseconds", 0L);
+    postOpDuration = registry.newGauge("AccGcPostOpDurationMillis",
+        "duration of post gc op in milliseconds", 0L);
 
     runCycleCount =
         registry.newGauge("AccGcRunCycleCount", "counter of completed gc collect cycles", 0L);

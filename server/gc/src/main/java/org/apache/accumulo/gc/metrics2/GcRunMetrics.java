@@ -112,7 +112,7 @@ public class GcRunMetrics {
     this.runCycleCount.set(runCycleCount);
   }
 
-  public void incrementRunCycleCount(){
+  public void incrementRunCycleCount() {
     this.runCycleCount.incrementAndGet();
   }
 

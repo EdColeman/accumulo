@@ -16,144 +16,150 @@
  */
 package org.apache.accumulo.test.functional.util;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Map;
+import java.util.TreeMap;
+
 import org.apache.commons.configuration.SubsetConfiguration;
 import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsSink;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-public class Metrics2TestSink implements MetricsSink {
+public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
-  // OutputStream outStream = null;
-  OutputStream outStream;
+  private Metrics2IPC.IpcSink ipcSink = null;
 
-  @Override public void putMetrics(MetricsRecord metricsRecord) {
+  @Override
+  public void putMetrics(MetricsRecord metricsRecord) {
     try {
-      if (outStream != null) {
-        for (AbstractMetric r : metricsRecord.metrics()) {
-          String o = String.format("%s, %d\n", r.name(), r.value().longValue());
-          outStream.write(o.getBytes());
-        }
-        outStream.write(String.format("%s\n", metricsRecord.toString()).getBytes());
-        flush();
+
+      JsonValues v = new JsonValues();
+      v.setTimestamp(metricsRecord.timestamp());
+      for (AbstractMetric r : metricsRecord.metrics()) {
+        v.addMetric(r.name(), Long.toString(r.value().longValue()));
       }
+
+      v.sign();
+
+      ipcSink.append(v.toJson().getBytes());
+
+      ipcSink.flush();
+
     } catch (Exception ex) {
       ex.printStackTrace();
     }
   }
 
-  @Override public void flush() {
-    try {
-      outStream.flush();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
+  @Override
+  public void flush() {
+    ipcSink.flush();
   }
 
-  IPCSocket ipc = null;
-  Object lock = new Object();
-
-  @Override public void init(SubsetConfiguration subsetConfiguration) {
-
-    synchronized (lock) {
-      if (ipc == null) {
-        ipc = new IPCSocket(this);
-      }
-    }
+  @Override
+  public synchronized void init(SubsetConfiguration subsetConfiguration) {
 
     try {
+
+      if (ipcSink != null) {
+        return;
+      }
 
       String contextValue = subsetConfiguration.getString("context");
       if (contextValue.startsWith(":")) {
-        contextValue = contextValue.substring(1, contextValue.length());
+        contextValue = contextValue.substring(1);
       }
 
-      File f = new File(String.format("%s/%s.dat", "/tmp", contextValue));
-
-      outStream = new BufferedOutputStream(new FileOutputStream(f));
+      ipcSink = new Metrics2IPC.IpcSink(contextValue);
 
     } catch (Exception ex) {
       throw new IllegalStateException("Failed to init test metrics", ex);
     }
   }
 
-  private static class IPCSocket implements Runnable {
+  @Override
+  public synchronized void close() {
+    if (ipcSink != null) {
+      ipcSink.close();
+    }
+    ipcSink = null;
+  }
 
-    private ServerSocket serverSocket;
-    private Socket clientSocket;
-    private PrintWriter out;
-    private BufferedReader in;
+  public static class JsonValues {
 
-    private Metrics2TestSink outer;
+    private long timestamp;
+    private Map<String,String> metrics;
+    private String signature;
 
-    public IPCSocket(Metrics2TestSink outer) {
-
-      this.outer = outer;
-
-      createTestSocket();
-
-      Thread t = new Thread(this);
-      t.start();
+    public JsonValues() {
+      metrics = new TreeMap<>();
     }
 
-    private volatile boolean running = true;
+    public long getTimestamp() {
+      return timestamp;
+    }
 
-    void createTestSocket() {
+    public void setTimestamp(long timestamp) {
+      this.timestamp = timestamp;
+    }
+
+    public Map<String,String> getMetrics() {
+      return metrics;
+    }
+
+    public void addMetric(final String name, final String value) {
+      metrics.put(name, value);
+    }
+
+    public String getSignature() {
+      return signature;
+    }
+
+    public void sign() {
+      MessageDigest digest;
       try {
-
-        serverSocket = new ServerSocket(12123);
-        clientSocket = serverSocket.accept();
-
-        in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-      } catch (Exception ex) {
-
+        digest = MessageDigest.getInstance("SHA-256");
+      } catch (NoSuchAlgorithmException ex) {
+        signature = "-1";
+        return;
       }
+      digest.reset();
+      digest.update(Long.toString(timestamp).getBytes());
+      for (Map.Entry<String,String> e : metrics.entrySet()) {
+        digest.update(e.getKey().getBytes());
+        digest.update(e.getValue().getBytes());
+      }
+
+      byte[] md = digest.digest();
+
+      long x = 0;
+      for (int i = 0; i < 8; i++) {
+        x |= (0xff & (long) md[i]) << i * 8;
+      }
+      signature = Long.toHexString(x);
     }
 
-    public void run() {
-
-      while (running) {
-        try {
-          String greeting = in.readLine();
-
-          outer.outStream.write(greeting.getBytes());
-
-          if ("hello".equals(greeting)) {
-            out.println("hello client");
-          } else if ("done!".equals(greeting)) {
-            out.println("shutdown accepted");
-            close();
-          } else {
-            out.println("what? \'" + greeting +"\'");
-          }
-        } catch (IOException ex) {
-          ex.printStackTrace();
-        }
-      }
+    public String toJson() {
+      Gson gson = new GsonBuilder().create();
+      return gson.toJson(this);
     }
 
-    void close() {
-      try {
-        in.close();
-        out.close();
-        clientSocket.close();
-        serverSocket.close();
-      } catch (IOException ex) {
-        // empty
-      }
-      running = false;
+    public static JsonValues fromJson(final String json) {
+      Gson gson = new GsonBuilder().create();
+      return gson.fromJson(json, Metrics2TestSink.JsonValues.class);
+    }
+
+    @Override
+    public String toString() {
+      final StringBuilder sb = new StringBuilder("JsonValues{");
+      sb.append("timestamp=").append(timestamp);
+      sb.append(", metrics=").append(metrics);
+      sb.append(", signature='").append(signature).append('\'');
+      sb.append('}');
+      return sb.toString();
     }
   }
 }

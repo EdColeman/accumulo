@@ -22,11 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +56,7 @@ import org.apache.accumulo.fate.ZooStore;
 import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.harness.AccumuloClusterHarness;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriterFactory;
+import org.apache.accumulo.test.functional.util.Metrics2IPC;
 import org.apache.hadoop.io.Text;
 import org.apache.zookeeper.KeeperException;
 import org.junit.AfterClass;
@@ -186,23 +182,21 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
     assertTrue("verify compaction still running and fate transaction still exists",
         blockUntilCompactionRunning(tableName));
 
-
-    IPCClient ipc = new IPCClient();
-
-    for(int x = 0; x < 20; x++){
-      ipc.ping();
-      Thread.sleep(3_000);
-    }
-
     // test complete, cancel compaction and move on.
     connector.tableOperations().cancelCompaction(tableName);
 
-    try {
-      Thread.sleep(300_000);
+    int count = 20;
+
+    try (Metrics2IPC.FileSource source = new Metrics2IPC.FileSource("accumulo.gc")) {
+      while (count-- > 0) {
+
+        byte[] data = source.blocking();
+        log.info("Received {}, {}", count, data == null ? "null" : new String(data));
+        Thread.sleep(10_000);
+
+      }
     } catch (Exception ex) {
-      //
-      //
-      // empty
+      log.debug("reads", ex);
     }
     log.debug("Success: Timing results for online commands.");
     log.debug("Time for unblocked online {} ms",
@@ -217,60 +211,6 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
 
   }
 
-  static class IPCClient implements Runnable {
-
-    private volatile Boolean running = true;
-
-
-    private ServerSocket serverSocket;
-    private Socket clientSocket;
-    private PrintWriter out;
-    private BufferedReader in;
-
-    public IPCClient(){
-
-      createTestSocket();
-
-      Thread t = new Thread(this);
-      t.start();
-    }
-
-    private void createTestSocket(){
-
-      try {
-
-        // serverSocket = new ServerSocket(12123);
-        clientSocket = new Socket("127.0.0.1", 12123);
-
-        in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-      } catch (Exception ex) {
-        ex.printStackTrace();
-      }
-    }
-
-    public void ping(){
-      try {
-
-        out.print("hello");
-
-        log.info("PING: {}", in.readLine());
-
-      }catch(Exception ex){
-
-      }
-    }
-    public void run(){
-      while(running){
-
-      }
-    }
-
-    public void close(){
-      running = false;
-    }
-  }
   /**
    * Validate the the AdminUtil.getStatus works correctly after refactor and validate that
    * getTransactionStatus can be called without lock map(s). The test starts a long running fate
@@ -481,7 +421,7 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
    * Checks fates in zookeeper looking for transaction associated with a compaction as a double
    * check that the test will be valid because the running compaction does have a fate transaction
    * lock.
-   *
+   * <p>
    * This method throws can throw either IllegalStateException (failed) or a Zookeeper exception.
    * Throwing the Zookeeper exception allows for retries if desired to handle transient zookeeper
    * issues.
