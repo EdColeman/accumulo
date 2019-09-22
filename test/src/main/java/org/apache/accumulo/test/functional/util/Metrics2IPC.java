@@ -16,16 +16,17 @@
  */
 package org.apache.accumulo.test.functional.util;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +35,6 @@ public class Metrics2IPC {
 
   private static final String rootDir = "/tmp";
   private static final String extension = "ipc";
-
-  private static final int BUFFER_SIZE = 32 * 1024;
 
   private static class IpcFile implements AutoCloseable {
 
@@ -50,16 +49,21 @@ public class Metrics2IPC {
       }
     }
 
+    private Metrics2ProtocolHandler handler;
+
     private RandomAccessFile aFile;
     private FileChannel channel = null;
-    private final ByteBuffer buffer;
+    // private final ByteBuffer buffer;
     private final Mode mode;
 
     private IpcFile(final String componentName, final Mode mode) {
       this.mode = mode;
+
+      final String filename = String.format("%s/%s.%s", rootDir, componentName, extension);
+
       try {
-        aFile = new RandomAccessFile(String.format("%s/%s.%s", rootDir, componentName, extension),
-            mode.mode);
+
+        aFile = new RandomAccessFile(filename, mode.mode);
         channel = aFile.getChannel();
         if (mode.equals(Mode.SINK)) {
           channel.truncate(0);
@@ -69,10 +73,22 @@ public class Metrics2IPC {
         log.info("Failed to create metrics test file ipc channel", ex);
       }
 
-      buffer = ByteBuffer.allocate(BUFFER_SIZE);
+      if (channel == null) {
+        throw new IllegalStateException("Could not create file channel " + filename);
+      }
+
+      DataInputStream in =
+          new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
+      DataOutputStream out =
+          new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
+
+      handler = new Metrics2ProtocolHandler(in, out);
+
+      // buffer = ByteBuffer.allocate(BUFFER_SIZE);
     }
 
-    @Override public synchronized void close() {
+    @Override
+    public synchronized void close() {
       try {
         if (mode.equals(Mode.SINK)) {
           channel.force(true);
@@ -91,52 +107,15 @@ public class Metrics2IPC {
       if (channel == null) {
         return false;
       }
-
-      buffer.clear();
-      buffer.put(data);
-
-      buffer.flip();
-      try {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
-      } catch (IOException ex) {
-        log.debug("metrics ipc write failed", ex);
-        return false;
-      }
+      handler.send(data);
       return true;
     }
 
-    byte[] read() {
+    public String read() {
       if (channel == null) {
-        return new byte[0];
+        return "";
       }
-
-      buffer.clear();
-
-      try {
-
-        boolean haveStart = false;
-        boolean haveEnd = false;
-
-        while (channel.read(buffer) != -1)
-          ;
-
-        int pos = buffer.position();
-
-        buffer.flip();
-        log.trace("Read {}", new String(buffer.array(), 0, pos, StandardCharsets.UTF_8));
-
-        byte[] data = new byte[pos];
-
-        buffer.get(data, 0, pos);
-
-        return data;
-
-      } catch (IOException ex) {
-        log.debug("metrics ipc write failed", ex);
-        return new byte[0];
-      }
+      return handler.read();
     }
 
     public synchronized void flush() {
@@ -149,14 +128,6 @@ public class Metrics2IPC {
       }
     }
 
-    long currPos() {
-      try {
-        log.trace("POS: {}", channel.size());
-        return channel.size();
-      } catch (IOException ex) {
-        return -1;
-      }
-    }
   }
 
   static class IpcSink extends IpcFile {
@@ -171,23 +142,13 @@ public class Metrics2IPC {
 
     private static final Logger log = LoggerFactory.getLogger(FileSource.class);
 
-    private long filePos = -1;
-
     public FileSource(final String componentName) {
       super(componentName, Mode.SOURCE);
     }
 
-    public byte[] blocking() {
-      if (filePos < currPos()) {
-        byte[] data = read();
-        filePos = currPos();
-        return data;
-      }
-      return null;
-    }
   }
 
-  final static int port = 12332;
+  private final static int port = 12332;
 
   public static class IpcSocketSink implements Runnable, AutoCloseable {
 
@@ -205,7 +166,8 @@ public class Metrics2IPC {
       t.start();
     }
 
-    @Override public void run() {
+    @Override
+    public void run() {
       try {
         serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
 
@@ -239,7 +201,8 @@ public class Metrics2IPC {
       }
     }
 
-    @Override public synchronized void close() throws Exception {
+    @Override
+    public synchronized void close() throws IOException {
       if (serverSocket != null) {
         running = false;
         ServerSocket closing = serverSocket;
@@ -257,14 +220,14 @@ public class Metrics2IPC {
 
     private Metrics2ProtocolHandler handler;
 
-    private long[] backoff = {500, 500, 1_000, 3_000, 5_000};
-
     private volatile boolean running = true;
 
     public IpcSocketSource() {
       boolean connected = false;
 
       int failureCount = 0;
+
+      final long[] backoff = {500, 500, 1_000, 3_000, 5_000};
 
       while (!connected && failureCount < backoff.length) {
         try {
@@ -305,7 +268,8 @@ public class Metrics2IPC {
       }
     }
 
-    @Override public synchronized void close() throws IOException {
+    @Override
+    public synchronized void close() throws IOException {
       if (socket != null) {
         Socket closing = socket;
         socket = null;
@@ -313,9 +277,8 @@ public class Metrics2IPC {
       }
     }
 
-    @Override public void run() {
-
-      ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+    @Override
+    public void run() {
 
       String stop = "stop";
 

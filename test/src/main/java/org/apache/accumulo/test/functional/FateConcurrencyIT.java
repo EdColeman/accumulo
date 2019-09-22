@@ -190,8 +190,8 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
     try (Metrics2IPC.FileSource source = new Metrics2IPC.FileSource("accumulo.gc")) {
       while (count-- > 0) {
 
-        byte[] data = source.blocking();
-        log.info("Received {}, {}", count, data == null ? "null" : new String(data));
+        String r = source.read();
+        log.info("Received {}, {}", count, r);
         Thread.sleep(10_000);
 
       }
