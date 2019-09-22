@@ -47,10 +47,10 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
       v.sign();
 
-      ipcSink.append(Metrics2IPC.BEGIN_MARKER);
+
       ipcSink.append(v.toJson().getBytes());
       ipcSink.append(NL_BYTES);
-      ipcSink.append(Metrics2IPC.END_MARKER);
+
 
       ipcSink.flush();
 

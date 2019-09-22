@@ -21,7 +21,15 @@ public class Metrics2IPCTest {
 
         Thread.currentThread().sleep(500);
 
-       source.send("stop".getBytes(StandardCharsets.UTF_8));
+        log.info("send ?");
+       sink.send("?".getBytes(StandardCharsets.UTF_8));
+
+
+        Thread.currentThread().sleep(500);
+        log.info("send stop");
+        sink.send("stop".getBytes(StandardCharsets.UTF_8));
+
+        Thread.currentThread().sleep(500);
 
       }catch(Exception ex){
         log.info("Could not create / connect source", ex);

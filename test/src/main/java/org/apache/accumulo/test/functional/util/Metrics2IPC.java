@@ -19,10 +19,11 @@ package org.apache.accumulo.test.functional.util;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -30,9 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Metrics2IPC {
-
-  public static byte[] BEGIN_MARKER = "RECORD_START::\n".getBytes(StandardCharsets.UTF_8);
-  public static byte[] END_MARKER = "::RECORD_STOP\n".getBytes(StandardCharsets.UTF_8);
 
   private static final String rootDir = "/tmp";
   private static final String extension = "ipc";
@@ -195,7 +193,11 @@ public class Metrics2IPC {
 
     private static final Logger log = LoggerFactory.getLogger(IpcSocketSink.class);
 
-    ServerSocketChannel socket;
+    private Metrics2ProtocolHandler handler;
+
+    private ServerSocket serverSocket;
+    private Socket client;
+
     private volatile boolean running = true;
 
     public IpcSocketSink() {
@@ -205,22 +207,43 @@ public class Metrics2IPC {
 
     @Override public void run() {
       try {
-        socket = ServerSocketChannel.open();
-        socket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
-        while (running) {
-          socket.accept();
+        serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
+
+        // serverSocket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
+
+        boolean connected = false;
+
+        while (running && !connected) {
+          client = serverSocket.accept();
+          connected = client.isConnected();
           log.info("ACCEPTED connection");
+        }
+
+        DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
+        DataOutputStream out =
+            new DataOutputStream(new BufferedOutputStream(client.getOutputStream()));
+
+        handler = new Metrics2ProtocolHandler(in, out);
+
+        while (running) {
+          in.readInt();
         }
       } catch (IOException ex) {
         log.info("Failed to open server socket", ex);
       }
     }
 
+    public void send(final byte[] payload) {
+      if (client.isConnected()) {
+        handler.send(payload);
+      }
+    }
+
     @Override public synchronized void close() throws Exception {
-      if (socket != null) {
+      if (serverSocket != null) {
         running = false;
-        ServerSocketChannel closing = socket;
-        socket = null;
+        ServerSocket closing = serverSocket;
+        serverSocket = null;
         closing.close();
       }
     }
@@ -230,10 +253,9 @@ public class Metrics2IPC {
   public static class IpcSocketSource implements Runnable, AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(IpcSocketSource.class);
-    private SocketChannel channel;
+    private Socket socket;
 
-    private DataInputStream in = null;
-    private DataOutputStream out = null;
+    private Metrics2ProtocolHandler handler;
 
     private long[] backoff = {500, 500, 1_000, 3_000, 5_000};
 
@@ -246,12 +268,15 @@ public class Metrics2IPC {
 
       while (!connected && failureCount < backoff.length) {
         try {
-          channel = SocketChannel.open();
-          // socket.configureBlocking(false);
-          channel.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
 
-          in = new DataInputStream(new BufferedInputStream(channel.socket().getInputStream()));
-          out = new DataOutputStream(new BufferedOutputStream(channel.socket().getOutputStream()));
+          socket = new Socket(InetAddress.getLoopbackAddress(), port);
+
+          DataInputStream in =
+              new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+          DataOutputStream out =
+              new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+
+          handler = new Metrics2ProtocolHandler(in, out);
 
           connected = true;
 
@@ -275,20 +300,15 @@ public class Metrics2IPC {
     }
 
     public void send(final byte[] payload) {
-      try {
-        if (channel.isConnected()) {
-          out.writeInt(payload.length);
-          out.write(payload, 0, payload.length);
-        }
-      } catch (IOException ex) {
-        log.debug("Source write failed", ex);
+      if (socket.isConnected()) {
+        handler.send(payload);
       }
     }
 
     @Override public synchronized void close() throws IOException {
-      if (channel != null) {
-        SocketChannel closing = channel;
-        channel = null;
+      if (socket != null) {
+        Socket closing = socket;
+        socket = null;
         closing.close();
       }
     }
@@ -297,24 +317,25 @@ public class Metrics2IPC {
 
       ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 
-      byte[] stop = "stop".getBytes();
+      String stop = "stop";
 
       try {
 
         while (running) {
-          int length = in.readInt();
-          log.debug("Expecting {}", length);
-          byte[] cmd = new byte[length];
-          in.readFully(cmd, 0, length);
+          log.info("start blocking read");
+          String r = handler.read();
 
-          if (Arrays.equals(cmd, stop)) {
-              log.info("Source received stop - closing connection");
+          log.info("Received {}", r);
+
+          if (stop.equals(r)) {
+            log.info("Source received stop - closing connection");
+            Thread.sleep(1_000);
             running = false;
             close();
           }
 
         }
-      } catch (IOException ex) {
+      } catch (Exception ex) {
         log.debug("Source read failed", ex);
       }
     }
