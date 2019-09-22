@@ -16,16 +16,23 @@
  */
 package org.apache.accumulo.test.functional.util;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Metrics2IPC {
+
+  public static byte[] BEGIN_MARKER = "RECORD_START::\n".getBytes(StandardCharsets.UTF_8);
+  public static byte[] END_MARKER = "::RECORD_STOP\n".getBytes(StandardCharsets.UTF_8);
 
   private static final String rootDir = "/tmp";
   private static final String extension = "ipc";
@@ -67,8 +74,7 @@ public class Metrics2IPC {
       buffer = ByteBuffer.allocate(BUFFER_SIZE);
     }
 
-    @Override
-    public synchronized void close() {
+    @Override public synchronized void close() {
       try {
         if (mode.equals(Mode.SINK)) {
           channel.force(true);
@@ -111,6 +117,9 @@ public class Metrics2IPC {
       buffer.clear();
 
       try {
+
+        boolean haveStart = false;
+        boolean haveEnd = false;
 
         while (channel.read(buffer) != -1)
           ;
@@ -177,6 +186,137 @@ public class Metrics2IPC {
         return data;
       }
       return null;
+    }
+  }
+
+  final static int port = 12332;
+
+  public static class IpcSocketSink implements Runnable, AutoCloseable {
+
+    private static final Logger log = LoggerFactory.getLogger(IpcSocketSink.class);
+
+    ServerSocketChannel socket;
+    private volatile boolean running = true;
+
+    public IpcSocketSink() {
+      Thread t = new Thread(this);
+      t.start();
+    }
+
+    @Override public void run() {
+      try {
+        socket = ServerSocketChannel.open();
+        socket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
+        while (running) {
+          socket.accept();
+          log.info("ACCEPTED connection");
+        }
+      } catch (IOException ex) {
+        log.info("Failed to open server socket", ex);
+      }
+    }
+
+    @Override public synchronized void close() throws Exception {
+      if (socket != null) {
+        running = false;
+        ServerSocketChannel closing = socket;
+        socket = null;
+        closing.close();
+      }
+    }
+
+  }
+
+  public static class IpcSocketSource implements Runnable, AutoCloseable {
+
+    private static final Logger log = LoggerFactory.getLogger(IpcSocketSource.class);
+    private SocketChannel channel;
+
+    private DataInputStream in = null;
+    private DataOutputStream out = null;
+
+    private long[] backoff = {500, 500, 1_000, 3_000, 5_000};
+
+    private volatile boolean running = true;
+
+    public IpcSocketSource() {
+      boolean connected = false;
+
+      int failureCount = 0;
+
+      while (!connected && failureCount < backoff.length) {
+        try {
+          channel = SocketChannel.open();
+          // socket.configureBlocking(false);
+          channel.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
+
+          in = new DataInputStream(new BufferedInputStream(channel.socket().getInputStream()));
+          out = new DataOutputStream(new BufferedOutputStream(channel.socket().getOutputStream()));
+
+          connected = true;
+
+        } catch (IOException ex) {
+          try {
+            log.debug("failure count {}", failureCount);
+            Thread.sleep(backoff[failureCount++]);
+          } catch (InterruptedException iex) {
+            Thread.currentThread().interrupt();
+          }
+          log.trace("Failed to open client socket retries=" + failureCount, ex);
+        }
+      }
+
+      if (!connected) {
+        throw new IllegalStateException("Source failed to collect as client: " + failureCount);
+      }
+
+      Thread t = new Thread(this);
+      t.start();
+    }
+
+    public void send(final byte[] payload) {
+      try {
+        if (channel.isConnected()) {
+          out.writeInt(payload.length);
+          out.write(payload, 0, payload.length);
+        }
+      } catch (IOException ex) {
+        log.debug("Source write failed", ex);
+      }
+    }
+
+    @Override public synchronized void close() throws IOException {
+      if (channel != null) {
+        SocketChannel closing = channel;
+        channel = null;
+        closing.close();
+      }
+    }
+
+    @Override public void run() {
+
+      ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+
+      byte[] stop = "stop".getBytes();
+
+      try {
+
+        while (running) {
+          int length = in.readInt();
+          log.debug("Expecting {}", length);
+          byte[] cmd = new byte[length];
+          in.readFully(cmd, 0, length);
+
+          if (Arrays.equals(cmd, stop)) {
+              log.info("Source received stop - closing connection");
+            running = false;
+            close();
+          }
+
+        }
+      } catch (IOException ex) {
+        log.debug("Source read failed", ex);
+      }
     }
   }
 }

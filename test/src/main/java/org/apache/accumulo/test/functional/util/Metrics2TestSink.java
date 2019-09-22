@@ -16,6 +16,7 @@
  */
 package org.apache.accumulo.test.functional.util;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -31,6 +32,7 @@ import com.google.gson.GsonBuilder;
 
 public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
+  public static final byte[] NL_BYTES = "\n".getBytes(StandardCharsets.UTF_8);
   private Metrics2IPC.IpcSink ipcSink = null;
 
   @Override
@@ -45,7 +47,10 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
       v.sign();
 
+      ipcSink.append(Metrics2IPC.BEGIN_MARKER);
       ipcSink.append(v.toJson().getBytes());
+      ipcSink.append(NL_BYTES);
+      ipcSink.append(Metrics2IPC.END_MARKER);
 
       ipcSink.flush();
 
