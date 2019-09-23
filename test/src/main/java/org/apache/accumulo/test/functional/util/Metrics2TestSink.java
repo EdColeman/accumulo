@@ -77,7 +77,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       if (ipc != null) {
         return;
       }
-      
+
       context = subsetConfiguration.getString("context");
       if (context.startsWith(":")) {
         context = context.substring(1);
