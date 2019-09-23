@@ -57,7 +57,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
   private String context = "";
 
-  private static final AtomicReference<JsonValues> lastUpdate = new AtomicReference<>(new JsonValues());
+  private AtomicReference<String> lastUpdate = new AtomicReference<>(new String("a"));
 
   private final Lock initLock = new ReentrantLock();
   private AtomicBoolean initialized = new AtomicBoolean(Boolean.FALSE);
@@ -66,17 +66,22 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
   @Override public void putMetrics(MetricsRecord metricsRecord) {
     try {
 
-      JsonValues v = new JsonValues();
-      v.setTimestamp(metricsRecord.timestamp());
-      v.setContext(context);
+      String tmp = lastUpdate.get();
+      lastUpdate.set(tmp+",#");
 
-      for (AbstractMetric r : metricsRecord.metrics()) {
-        v.addMetric(r.name(), Long.toString(r.value().longValue()));
-      }
+//      JsonValues v = new JsonValues();
+//      v.setTimestamp(metricsRecord.timestamp());
+//      v.setContext(context);
+//
+//      for (AbstractMetric r : metricsRecord.metrics()) {
+//        v.addMetric(r.name(), Long.toString(r.value().longValue()));
+//      }
 
-      v.sign();
+//      v.sign();
       // ipc.send(v.toJson().getBytes());
-      Metrics2TestSink.lastUpdate.set(v);
+      // Metrics2TestSink.lastUpdate.set(v);
+
+      server.close();
 
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -108,7 +113,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       log.info("Initializing metrics reporting server with context \'{}\'", context);
 
       if(server == null){
-        server = new MetricsServer("metrics");
+        server = new MetricsServer("metrics", lastUpdate);
       }
 
     } catch (Exception ex) {
@@ -125,13 +130,14 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
   private static class MetricsServer implements Runnable {
 
     private HttpServer server;
+    private AtomicReference<String> updates;
 
-    MetricsServer(final String context) {
-
+    MetricsServer(final String context, final AtomicReference<String> lastUpdate) {
+      updates = lastUpdate;
       try {
         server = HttpServer
             .create(new InetSocketAddress(InetAddress.getLocalHost(), 12332), 0);
-        server.createContext("/" + context, new MyHandler());
+        server.createContext("/" + context, new MyHandler(updates));
         server.setExecutor(null); // creates a default executor
         server.start();
 
@@ -143,20 +149,30 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       }
     }
 
+    public void close(){
+      server.stop(0);
+    }
+
     static class MyHandler implements HttpHandler {
 
-      public MyHandler(){
+      private AtomicReference<String> update;
+
+      public MyHandler(AtomicReference<String> update){
+        this.update = update;
       }
 
       @Override public void handle(HttpExchange t) throws IOException {
-        JsonValues v = Metrics2TestSink.lastUpdate.get();
+        //JsonValues v = Metrics2TestSink.lastUpdate.get();
+        String v = update.get();
+
         if(v == null){
           t.sendResponseHeaders(204, -1);
         } else {
-          String response = v.toJson();
+          // String response = v.toJson();
+          String response = v;
           t.sendResponseHeaders(200, response.getBytes(StandardCharsets.UTF_8).length);
           OutputStream os = t.getResponseBody();
-          os.write(response.getBytes());
+          os.write(response.getBytes(StandardCharsets.UTF_8));
           os.close();
         }
       }
