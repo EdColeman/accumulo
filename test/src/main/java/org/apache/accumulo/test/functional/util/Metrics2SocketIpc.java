@@ -21,132 +21,14 @@ import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Metrics2IPC {
-
-  private static final String rootDir = "/tmp";
-  private static final String extension = "ipc";
-
-  private static class IpcFile implements AutoCloseable {
-
-    private static final Logger log = LoggerFactory.getLogger(IpcSink.class);
-
-    enum Mode {
-      SINK("rw"), SOURCE("r");
-      private final String mode;
-
-      Mode(String mode) {
-        this.mode = mode;
-      }
-    }
-
-    private Metrics2ProtocolHandler handler;
-
-    private RandomAccessFile aFile;
-    private FileChannel channel = null;
-    // private final ByteBuffer buffer;
-    private final Mode mode;
-
-    private IpcFile(final String componentName, final Mode mode) {
-      this.mode = mode;
-
-      final String filename = String.format("%s/%s.%s", rootDir, componentName, extension);
-
-      try {
-
-        aFile = new RandomAccessFile(filename, mode.mode);
-        channel = aFile.getChannel();
-        if (mode.equals(Mode.SINK)) {
-          channel.truncate(0);
-        }
-      } catch (IOException ex) {
-        aFile = null;
-        log.info("Failed to create metrics test file ipc channel", ex);
-      }
-
-      if (channel == null) {
-        throw new IllegalStateException("Could not create file channel " + filename);
-      }
-
-      DataInputStream in =
-          new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
-      DataOutputStream out =
-          new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
-
-      handler = new Metrics2ProtocolHandler(in, out);
-
-      // buffer = ByteBuffer.allocate(BUFFER_SIZE);
-    }
-
-    @Override
-    public synchronized void close() {
-      try {
-        if (mode.equals(Mode.SINK)) {
-          channel.force(true);
-        }
-        channel.close();
-        aFile.close();
-
-        channel = null;
-        aFile = null;
-      } catch (IOException ex) {
-        // empty
-      }
-    }
-
-    public boolean append(final byte[] data) {
-      if (channel == null) {
-        return false;
-      }
-      handler.send(data);
-      return true;
-    }
-
-    public String read() {
-      if (channel == null) {
-        return "";
-      }
-      return handler.read();
-    }
-
-    public synchronized void flush() {
-      try {
-        if (channel != null) {
-          channel.force(true);
-        }
-      } catch (IOException ex) {
-        log.debug("metrics test ipc flush failed", ex);
-      }
-    }
-
-  }
-
-  static class IpcSink extends IpcFile {
-
-    public IpcSink(final String componentName) {
-      super(componentName, Mode.SINK);
-    }
-
-  }
-
-  public static class FileSource extends IpcFile {
-
-    private static final Logger log = LoggerFactory.getLogger(FileSource.class);
-
-    public FileSource(final String componentName) {
-      super(componentName, Mode.SOURCE);
-    }
-
-  }
+public class Metrics2SocketIpc {
 
   private final static int port = 12332;
 
@@ -162,6 +44,13 @@ public class Metrics2IPC {
     private volatile boolean running = true;
 
     public IpcSocketSink() {
+
+      try {
+        serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
+      } catch (IOException e) {
+        throw new IllegalStateException("Failed to create socket connection for sink.");
+      }
+
       Thread t = new Thread(this);
       t.start();
     }
@@ -169,8 +58,6 @@ public class Metrics2IPC {
     @Override
     public void run() {
       try {
-        serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
-
         // serverSocket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
 
         boolean connected = false;
@@ -199,6 +86,13 @@ public class Metrics2IPC {
       if (client.isConnected()) {
         handler.send(payload);
       }
+    }
+
+    public String read() {
+      if (client.isConnected()) {
+        return handler.read();
+      }
+      return "";
     }
 
     @Override
@@ -266,6 +160,13 @@ public class Metrics2IPC {
       if (socket.isConnected()) {
         handler.send(payload);
       }
+    }
+
+      public String read(){
+        if (socket.isConnected()) {
+          return handler.read();
+        }
+        return "";
     }
 
     @Override

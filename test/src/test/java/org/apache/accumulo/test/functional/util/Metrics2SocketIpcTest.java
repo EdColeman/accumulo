@@ -22,16 +22,16 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Metrics2IPCTest {
+public class Metrics2SocketIpcTest {
 
-  private static final Logger log = LoggerFactory.getLogger(Metrics2IPCTest.class);
+  private static final Logger log = LoggerFactory.getLogger(Metrics2SocketIpcTest.class);
 
   @Test
   public void connect() {
 
-    try (Metrics2IPC.IpcSocketSink sink = new Metrics2IPC.IpcSocketSink()) {
+    try (Metrics2SocketIpc.IpcSocketSink sink = new Metrics2SocketIpc.IpcSocketSink()) {
 
-      try (Metrics2IPC.IpcSocketSource source = new Metrics2IPC.IpcSocketSource()) {
+      try (Metrics2SocketIpc.IpcSocketSource source = new Metrics2SocketIpc.IpcSocketSource()) {
 
         Thread.sleep(500);
 

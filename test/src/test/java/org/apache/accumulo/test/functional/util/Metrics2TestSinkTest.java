@@ -18,9 +18,15 @@ package org.apache.accumulo.test.functional.util;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Map;
-import java.util.TreeMap;
+import java.io.File;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.*;
 
+import org.apache.commons.configuration.BaseConfiguration;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.SubsetConfiguration;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,5 +59,18 @@ public class Metrics2TestSinkTest {
     assertEquals(serdes.getTimestamp(), r.getTimestamp());
     assertEquals(serdes.getSignature(), r.getSignature());
     assertEquals(expected, r.getMetrics());
+  }
+
+  @Test public void create(){
+
+    Metrics2TestSink metrics = new Metrics2TestSink();
+
+    Configuration config = new BaseConfiguration();
+    config.addProperty("metrics.context", "accumulo.gc");
+
+    SubsetConfiguration subsetConfiguration = (SubsetConfiguration) config.subset("metrics");
+
+    metrics.init(subsetConfiguration);
+
   }
 }

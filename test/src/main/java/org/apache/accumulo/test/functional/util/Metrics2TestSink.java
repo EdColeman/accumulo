@@ -16,9 +16,11 @@
  */
 package org.apache.accumulo.test.functional.util;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -29,11 +31,18 @@ import org.apache.hadoop.metrics2.MetricsSink;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
+  static final Logger log = LoggerFactory.getLogger(Metrics2TestSink.class);
+
   public static final byte[] NL_BYTES = "\n".getBytes(StandardCharsets.UTF_8);
-  private Metrics2IPC.IpcSink ipcSink = null;
+
+  private Metrics2SocketIpc.IpcSocketSource ipc = null;
+
+  private String context = "";
 
   @Override
   public void putMetrics(MetricsRecord metricsRecord) {
@@ -41,16 +50,14 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
       JsonValues v = new JsonValues();
       v.setTimestamp(metricsRecord.timestamp());
+      v.setContext(context);
+
       for (AbstractMetric r : metricsRecord.metrics()) {
         v.addMetric(r.name(), Long.toString(r.value().longValue()));
       }
 
       v.sign();
-
-      ipcSink.append(v.toJson().getBytes());
-      ipcSink.append(NL_BYTES);
-
-      ipcSink.flush();
+      ipc.send(v.toJson().getBytes());
 
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -59,7 +66,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
   @Override
   public void flush() {
-    ipcSink.flush();
+
   }
 
   @Override
@@ -67,16 +74,16 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
     try {
 
-      if (ipcSink != null) {
+      if (ipc != null) {
         return;
       }
-
-      String contextValue = subsetConfiguration.getString("context");
-      if (contextValue.startsWith(":")) {
-        contextValue = contextValue.substring(1);
+      
+      context = subsetConfiguration.getString("context");
+      if (context.startsWith(":")) {
+        context = context.substring(1);
       }
 
-      ipcSink = new Metrics2IPC.IpcSink(contextValue);
+      ipc = new Metrics2SocketIpc.IpcSocketSource();
 
     } catch (Exception ex) {
       throw new IllegalStateException("Failed to init test metrics", ex);
@@ -84,16 +91,17 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
   }
 
   @Override
-  public synchronized void close() {
-    if (ipcSink != null) {
-      ipcSink.close();
+  public synchronized void close() throws IOException {
+    if (ipc != null) {
+      ipc.close();
     }
-    ipcSink = null;
+    ipc = null;
   }
 
   public static class JsonValues {
 
     private long timestamp;
+    private String context;
     private Map<String,String> metrics;
     private String signature;
 
@@ -107,6 +115,14 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
     public void setTimestamp(long timestamp) {
       this.timestamp = timestamp;
+    }
+
+    public String getContext() {
+      return context;
+    }
+
+    public void setContext(String context) {
+      this.context = context;
     }
 
     public Map<String,String> getMetrics() {

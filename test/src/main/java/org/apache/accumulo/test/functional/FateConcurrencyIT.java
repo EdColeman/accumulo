@@ -56,7 +56,7 @@ import org.apache.accumulo.fate.ZooStore;
 import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.harness.AccumuloClusterHarness;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriterFactory;
-import org.apache.accumulo.test.functional.util.Metrics2IPC;
+import org.apache.accumulo.test.functional.util.Metrics2SocketIpc;
 import org.apache.hadoop.io.Text;
 import org.apache.zookeeper.KeeperException;
 import org.junit.AfterClass;
@@ -187,11 +187,11 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
 
     int count = 20;
 
-    try (Metrics2IPC.FileSource source = new Metrics2IPC.FileSource("accumulo.gc")) {
+    try (Metrics2SocketIpc.IpcSocketSink source = new Metrics2SocketIpc.IpcSocketSink()) {
       while (count-- > 0) {
 
         String r = source.read();
-        log.info("Received {}, {}", count, r);
+        log.info("metric poll count {} - \'{}\'", count, r);
         Thread.sleep(10_000);
 
       }

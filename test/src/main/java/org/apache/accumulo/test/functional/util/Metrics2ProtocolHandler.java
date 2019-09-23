@@ -56,7 +56,7 @@ public class Metrics2ProtocolHandler {
 
       log.debug("start blocking read");
 
-      if (in.available() < 4) {
+      while(in.available() < 4) {
         Thread.sleep(500);
       }
 
