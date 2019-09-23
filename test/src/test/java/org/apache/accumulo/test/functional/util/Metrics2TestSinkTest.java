@@ -16,29 +16,33 @@
  */
 package org.apache.accumulo.test.functional.util;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.File;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.*;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.SubsetConfiguration;
+import org.apache.hadoop.metrics2.AbstractMetric;
+import org.apache.hadoop.metrics2.MetricType;
+import org.apache.hadoop.metrics2.MetricsCollector;
+import org.apache.hadoop.metrics2.MetricsInfo;
+import org.apache.hadoop.metrics2.MetricsRecord;
+import org.apache.hadoop.metrics2.MetricsTag;
+import org.apache.hadoop.metrics2.MetricsVisitor;
+import org.apache.hadoop.metrics2.impl.MetricsCollectorImpl;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.util.Collection;
+import java.util.Map;
+import java.util.TreeMap;
+
+import static org.junit.Assert.assertEquals;
 
 public class Metrics2TestSinkTest {
   private static final Logger log = LoggerFactory.getLogger(Metrics2TestSinkTest.class);
 
-  @Test
-  public void jsonRoundTrip() {
+  @Test public void jsonRoundTrip() {
     Map<String,String> expected = new TreeMap<>();
     expected.put("a", "1");
     expected.put("b", "2");
@@ -61,7 +65,7 @@ public class Metrics2TestSinkTest {
     assertEquals(expected, r.getMetrics());
   }
 
-  @Test public void create(){
+  @Test public void create() throws Exception {
 
     Metrics2TestSink metrics = new Metrics2TestSink();
 
@@ -72,5 +76,69 @@ public class Metrics2TestSinkTest {
 
     metrics.init(subsetConfiguration);
 
+    MetricsClient client = new MetricsClient();
+
+    log.info("X: {}", client.getMetrics());
+
+    MetricsCollector collector = new MetricsCollectorImpl();
+
+     final String CONTEXT = "accumulo.gc";
+     final String RECORD = "accumulo_gc_run_stats";
+
+      metrics.putMetrics(new FakeRecord());
+
+    log.info("X: {}", client.getMetrics());
+
   }
+
+  static class FakeMetric extends AbstractMetric {
+
+    protected FakeMetric(MetricsInfo info) {
+      super(info);
+    }
+
+    @Override public Number value() {
+      return 99;
+    }
+
+    @Override public MetricType type() {
+      return MetricType.GAUGE;
+    }
+
+    @Override public void visit(MetricsVisitor metricsVisitor) {
+
+    }
+  }
+  static class FakeRecord implements MetricsRecord{
+
+    Map<String,Long> m = new TreeMap<>();
+
+    public FakeRecord(){
+
+    }
+    @Override public long timestamp() {
+      return System.currentTimeMillis();
+    }
+
+    @Override public String name() {
+      return "aName";
+    }
+
+    @Override public String description() {
+      return "a description";
+    }
+
+    @Override public String context() {
+      return "context";
+    }
+
+    @Override public Collection<MetricsTag> tags() {
+      return null;
+    }
+
+    @Override public Iterable<AbstractMetric> metrics() {
+      return null;
+    }
+  }
+
 }

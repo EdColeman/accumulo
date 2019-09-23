@@ -16,23 +16,36 @@
  */
 package org.apache.accumulo.test.functional.util;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.apache.commons.configuration.SubsetConfiguration;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsSink;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
@@ -40,12 +53,17 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
   public static final byte[] NL_BYTES = "\n".getBytes(StandardCharsets.UTF_8);
 
-  private Metrics2SocketIpc.IpcSocketSource ipc = null;
+  // private Metrics2SocketIpc.IpcSocketSource ipc = null;
 
   private String context = "";
 
-  @Override
-  public void putMetrics(MetricsRecord metricsRecord) {
+  private static final AtomicReference<JsonValues> lastUpdate = new AtomicReference<>(new JsonValues());
+
+  private final Lock initLock = new ReentrantLock();
+  private AtomicBoolean initialized = new AtomicBoolean(Boolean.FALSE);
+  private MetricsServer server;
+
+  @Override public void putMetrics(MetricsRecord metricsRecord) {
     try {
 
       JsonValues v = new JsonValues();
@@ -57,45 +75,96 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       }
 
       v.sign();
-      ipc.send(v.toJson().getBytes());
+      // ipc.send(v.toJson().getBytes());
+      Metrics2TestSink.lastUpdate.set(v);
 
     } catch (Exception ex) {
       ex.printStackTrace();
     }
   }
 
-  @Override
-  public void flush() {
+  @Override public void flush() {
 
   }
 
-  @Override
-  public synchronized void init(SubsetConfiguration subsetConfiguration) {
+  @Override public void init(SubsetConfiguration subsetConfiguration) {
 
+    initLock.lock();
     try {
 
-      if (ipc != null) {
+      if(initialized.get()){
         return;
       }
 
+      initialized.set(Boolean.TRUE);
+
       context = subsetConfiguration.getString("context");
-      if (context.startsWith(":")) {
+      if(context == null || context.isEmpty()){
+        context = "metrics";
+      }else if (context.startsWith(":")) {
         context = context.substring(1);
       }
 
-      ipc = new Metrics2SocketIpc.IpcSocketSource();
+      log.info("Initializing metrics reporting server with context \'{}\'", context);
+
+      if(server == null){
+        server = new MetricsServer("metrics");
+      }
 
     } catch (Exception ex) {
-      throw new IllegalStateException("Failed to init test metrics", ex);
+      throw new IllegalStateException("Failed to initialize test metrics sink", ex);
+    }finally {
+      initLock.unlock();
     }
   }
 
-  @Override
-  public synchronized void close() throws IOException {
-    if (ipc != null) {
-      ipc.close();
+  @Override public synchronized void close() throws IOException {
+
+  }
+
+  private static class MetricsServer implements Runnable {
+
+    private HttpServer server;
+
+    MetricsServer(final String context) {
+
+      try {
+        server = HttpServer
+            .create(new InetSocketAddress(InetAddress.getLocalHost(), 12332), 0);
+        server.createContext("/" + context, new MyHandler());
+        server.setExecutor(null); // creates a default executor
+        server.start();
+
+        log.error("Listen on {}", server.getAddress());
+
+      } catch (IOException ex) {
+        log.debug("Failed to create metrics server for test sink - requests not available", ex);
+        server = null;
+      }
     }
-    ipc = null;
+
+    static class MyHandler implements HttpHandler {
+
+      public MyHandler(){
+      }
+
+      @Override public void handle(HttpExchange t) throws IOException {
+        JsonValues v = Metrics2TestSink.lastUpdate.get();
+        if(v == null){
+          t.sendResponseHeaders(204, -1);
+        } else {
+          String response = v.toJson();
+          t.sendResponseHeaders(200, response.getBytes(StandardCharsets.UTF_8).length);
+          OutputStream os = t.getResponseBody();
+          os.write(response.getBytes());
+          os.close();
+        }
+      }
+    }
+
+    @Override public void run() {
+
+    }
   }
 
   public static class JsonValues {
@@ -171,8 +240,18 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       return gson.fromJson(json, Metrics2TestSink.JsonValues.class);
     }
 
-    @Override
-    public String toString() {
+    public static JsonValues fromJson(final InputStream in) {
+
+      try {
+        Gson gson = new GsonBuilder().create();
+        return gson.fromJson(IOUtils.toString(in), Metrics2TestSink.JsonValues.class);
+      }catch(IOException ex){
+        log.info("Failed to process input stream");
+      }
+      return null;
+    }
+
+    @Override public String toString() {
       final StringBuilder sb = new StringBuilder("JsonValues{");
       sb.append("timestamp=").append(timestamp);
       sb.append(", metrics=").append(metrics);

@@ -31,10 +31,10 @@ import org.apache.hadoop.metrics2.lib.MutableGaugeLong;
 
 public class GcMetrics2 implements Metrics, MetricsSource {
 
-  public static final String NAME = "Acc_GC" + ",sub=accumulo_gc_stats";
+  public static final String NAME = "AccGC" + ",sub=AccGcRunStats";
   public static final String DESCRIPTION = "Accumulo GC Metrics";
   public static final String CONTEXT = "accumulo.gc";
-  public static final String RECORD = "accumulo_gc_run_stats";
+  public static final String RECORD = "AccGc";
 
   private final SimpleGarbageCollector gc;
   private final MetricsSystem metricsSystem;
