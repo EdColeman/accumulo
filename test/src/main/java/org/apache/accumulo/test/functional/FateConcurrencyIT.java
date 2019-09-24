@@ -56,6 +56,8 @@ import org.apache.accumulo.fate.ZooStore;
 import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.harness.AccumuloClusterHarness;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriterFactory;
+import org.apache.accumulo.test.functional.util.MetricsClient;
+import org.apache.accumulo.test.functional.util.PostRx;
 import org.apache.hadoop.io.Text;
 import org.apache.zookeeper.KeeperException;
 import org.junit.AfterClass;
@@ -184,6 +186,18 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
     // test complete, cancel compaction and move on.
     connector.tableOperations().cancelCompaction(tableName);
 
+    int count = 20;
+
+    PostRx poster = new PostRx();
+    
+    try {
+      while (count-- > 0) {
+        log.info("X: {}", poster.getMetrics());
+        Thread.sleep(5_000);
+      }
+    } catch (Exception ex) {
+      log.debug("reads", ex);
+    }
     log.debug("Success: Timing results for online commands.");
     log.debug("Time for unblocked online {} ms",
         TimeUnit.MILLISECONDS.convert(timing1.runningTime(), TimeUnit.NANOSECONDS));
@@ -407,7 +421,7 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
    * Checks fates in zookeeper looking for transaction associated with a compaction as a double
    * check that the test will be valid because the running compaction does have a fate transaction
    * lock.
-   *
+   * <p>
    * This method throws can throw either IllegalStateException (failed) or a Zookeeper exception.
    * Throwing the Zookeeper exception allows for retries if desired to handle transient zookeeper
    * issues.
