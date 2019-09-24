@@ -162,11 +162,11 @@ public class Metrics2SocketIpc {
       }
     }
 
-      public String read(){
-        if (socket.isConnected()) {
-          return handler.read();
-        }
-        return "";
+    public String read() {
+      if (socket.isConnected()) {
+        return handler.read();
+      }
+      return "";
     }
 
     @Override

@@ -16,6 +16,9 @@
  */
 package org.apache.accumulo.test.functional.util;
 
+import java.io.IOException;
+import java.net.InetAddress;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -27,22 +30,21 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.InetAddress;
-
 public class MetricsClient {
 
   private static final Logger log = LoggerFactory.getLogger(MetricsClient.class);
 
   public static class MetricsResp {
     private final int code;
-    private final Metrics2TestSink.JsonValues v;
+    private final JsonMetricsValues v;
 
-    public MetricsResp(final int code, Metrics2TestSink.JsonValues v){
+    public MetricsResp(final int code, JsonMetricsValues v) {
       this.code = code;
       this.v = v;
     }
-    @Override public String toString() {
+
+    @Override
+    public String toString() {
       final StringBuilder sb = new StringBuilder("MetricsResp{");
       sb.append("code=").append(code);
       sb.append(", v=").append(v);
@@ -55,7 +57,8 @@ public class MetricsClient {
 
     CloseableHttpClient httpclient = HttpClients.createDefault();
 
-    final String u = String.format("http://%s:%d/metrics", InetAddress.getLocalHost().getHostAddress(),12332);
+    final String u =
+        String.format("http://%s:%d/metrics", InetAddress.getLocalHost().getHostAddress(), 12332);
 
     log.info("Connect to: {}", u);
 
@@ -69,14 +72,14 @@ public class MetricsClient {
       ResponseHandler<MetricsResp> responseHandler = new ResponseHandler<MetricsResp>() {
 
         @Override
-        public MetricsResp handleResponse(
-            final HttpResponse response) throws ClientProtocolException, IOException {
+        public MetricsResp handleResponse(final HttpResponse response)
+            throws ClientProtocolException, IOException {
 
           int status = response.getStatusLine().getStatusCode();
 
           log.error("response ---> {}", status);
 
-          if(status == 204){
+          if (status == 204) {
             MetricsResp answer = new MetricsResp(status, null);
             return answer;
           }
@@ -84,15 +87,16 @@ public class MetricsClient {
           if (status >= 200 && status < 300) {
 
             HttpEntity entity = response.getEntity();
-            if(entity != null){
+            if (entity != null) {
               return new MetricsResp(status,
-                  Metrics2TestSink.JsonValues.fromJson(IOUtils.toString(entity.getContent())));
+                  JsonMetricsValues.fromJson(IOUtils.toString(entity.getContent())));
             }
 
             return new MetricsResp(status, null);
 
-          } if(status == 404 || status >= 500) {
-            log.info("Could not connect to metrics server at {}, received {}",u,status);
+          }
+          if (status == 404 || status >= 500) {
+            log.info("Could not connect to metrics server at {}, received {}", u, status);
             return new MetricsResp(status, null);
           } else {
             throw new ClientProtocolException("Unexpected response status: " + status);
@@ -105,11 +109,10 @@ public class MetricsClient {
         MetricsResp values = httpclient.execute(httpget, responseHandler);
         log.info("RESP: {}", values);
         return values;
-      }catch(Exception ex){
+      } catch (Exception ex) {
         log.debug("Could not connect to metrics server at {}", u);
         return new MetricsResp(-1, null);
       }
-
 
     } finally {
       httpclient.close();
