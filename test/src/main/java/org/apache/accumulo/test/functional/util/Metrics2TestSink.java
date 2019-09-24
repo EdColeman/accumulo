@@ -17,9 +17,6 @@
 package org.apache.accumulo.test.functional.util;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,10 +28,6 @@ import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
 
 public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
@@ -50,7 +43,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
 
   private final Lock initLock = new ReentrantLock();
   private AtomicBoolean initialized = new AtomicBoolean(Boolean.FALSE);
-  private MetricsServer server;
+  private MetricsTestServer server;
 
   @Override
   public void putMetrics(MetricsRecord metricsRecord) {
@@ -105,7 +98,7 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
       log.info("Initializing metrics reporting server with context \'{}\'", context);
 
       if (server == null) {
-        server = new MetricsServer("metrics", lastUpdate);
+        server = new MetricsTestServer("metrics", lastUpdate);
       }
 
     } catch (Exception ex) {
@@ -118,63 +111,6 @@ public class Metrics2TestSink implements MetricsSink, AutoCloseable {
   @Override
   public synchronized void close() throws IOException {
 
-  }
-
-  private static class MetricsServer implements Runnable {
-
-    private HttpServer server;
-    private AtomicReference<String> updates;
-
-    MetricsServer(final String context, final AtomicReference<String> lastUpdate) {
-      updates = lastUpdate;
-      try {
-        server = HttpServer.create(new InetSocketAddress(InetAddress.getLocalHost(), 12332), 0);
-        server.createContext("/" + context, new MyHandler(updates));
-        server.setExecutor(null); // creates a default executor
-        server.start();
-
-        log.error("Listen on {}", server.getAddress());
-
-      } catch (IOException ex) {
-        log.debug("Failed to create metrics server for test sink - requests not available", ex);
-        server = null;
-      }
-    }
-
-    public void close() {
-      server.stop(0);
-    }
-
-    static class MyHandler implements HttpHandler {
-
-      private AtomicReference<String> update;
-
-      public MyHandler(AtomicReference<String> update) {
-        this.update = update;
-      }
-
-      @Override
-      public void handle(HttpExchange t) throws IOException {
-        // JsonValues v = Metrics2TestSink.lastUpdate.get();
-        String v = update.get();
-
-        if (v == null) {
-          t.sendResponseHeaders(204, -1);
-        } else {
-          // String response = v.toJson();
-          String response = v;
-          t.sendResponseHeaders(200, response.getBytes(StandardCharsets.UTF_8).length);
-          OutputStream os = t.getResponseBody();
-          os.write(response.getBytes(StandardCharsets.UTF_8));
-          os.close();
-        }
-      }
-    }
-
-    @Override
-    public void run() {
-
-    }
   }
 
 }

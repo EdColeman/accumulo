@@ -57,6 +57,7 @@ import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.harness.AccumuloClusterHarness;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriterFactory;
 import org.apache.accumulo.test.functional.util.MetricsClient;
+import org.apache.accumulo.test.functional.util.PostRx;
 import org.apache.hadoop.io.Text;
 import org.apache.zookeeper.KeeperException;
 import org.junit.AfterClass;
@@ -187,11 +188,11 @@ public class FateConcurrencyIT extends AccumuloClusterHarness {
 
     int count = 20;
 
-    MetricsClient client = new MetricsClient();
-
+    PostRx poster = new PostRx();
+    
     try {
       while (count-- > 0) {
-        log.info("X: {}", client.getMetrics());
+        log.info("X: {}", poster.getMetrics());
         Thread.sleep(5_000);
       }
     } catch (Exception ex) {

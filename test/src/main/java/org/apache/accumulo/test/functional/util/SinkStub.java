@@ -20,6 +20,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -27,14 +28,25 @@ import org.apache.commons.configuration.SubsetConfiguration;
 import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricsRecord;
 import org.apache.hadoop.metrics2.MetricsSink;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SinkStub implements MetricsSink, AutoCloseable {
+
+  private static final Logger log = LoggerFactory.getLogger(SinkStub.class);
 
   private final AtomicBoolean initialized = new AtomicBoolean(Boolean.FALSE);
 
   private PrintWriter pw = null;
 
   private AtomicReference<JsonMetricsValues> lastUpdate = new AtomicReference<>(null);
+
+  private AtomicReference<String> stub = new AtomicReference<>(null);
 
   @Override
   public void putMetrics(MetricsRecord metricsRecord) {
@@ -49,6 +61,10 @@ public class SinkStub implements MetricsSink, AutoCloseable {
     metrics.sign();
 
     lastUpdate.set(metrics);
+
+    publish("", lastUpdate);
+
+    stub.set(lastUpdate.get().toJson());
 
     pw.println(String.format("%s", lastUpdate.get().toJson()));
     pw.flush();
@@ -94,5 +110,36 @@ public class SinkStub implements MetricsSink, AutoCloseable {
 
     initialized.set(Boolean.TRUE);
 
+  }
+
+  private void publish(final String context, final AtomicReference<JsonMetricsValues> metricsRef){
+
+    try(CloseableHttpClient httpclient = HttpClients.createDefault()) {
+
+      final String postUri = String
+          .format("http://%s:%d/post", InetAddress.getLocalHost().getHostAddress(), 12332);
+
+      log.debug("post destination uri: \'{}\'", postUri);
+
+      StringEntity entity = new StringEntity(metricsRef.get().toJson());
+      HttpPost httpPost = new HttpPost(postUri);
+
+      httpPost.setEntity(entity);
+      httpPost.setHeader("Accept", "application/json");
+      httpPost.setHeader("Content-type", "application/json");
+
+      CloseableHttpResponse response = httpclient.execute(httpPost);
+
+      int status = response.getStatusLine().getStatusCode();
+
+      if (status >= 200 && status < 300) {
+        log.debug("metrics post successful");
+      } else {
+        log.debug("metrics post failed with status {}", status);
+      }
+
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
   }
 }
