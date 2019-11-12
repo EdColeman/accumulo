@@ -16,6 +16,19 @@
  */
 package org.apache.accumulo.shell.commands;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
@@ -34,7 +47,6 @@ import org.apache.accumulo.core.util.NumUtil;
 import org.apache.accumulo.server.master.LiveTServerSet;
 import org.apache.accumulo.server.master.state.DistributedStoreException;
 import org.apache.accumulo.server.master.state.TServerInstance;
-import org.apache.accumulo.server.master.state.TabletLocationState;
 import org.apache.accumulo.server.master.state.ZooTabletStateStore;
 import org.apache.accumulo.shell.Shell;
 import org.apache.accumulo.shell.Shell.Command;
@@ -45,19 +57,6 @@ import org.apache.commons.cli.Options;
 import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Copied from ACCUMULO-2873 It would be very useful to have a utility that generates single line
@@ -89,8 +88,8 @@ public class ListTabletsCommand extends Command {
   private Option disablePaginationOpt;
   private Option noFlushOption;
 
-  @Override public int execute(String fullCommand, CommandLine cl, Shell shellState)
-      throws Exception {
+  @Override
+  public int execute(String fullCommand, CommandLine cl, Shell shellState) throws Exception {
 
     final Set<TableInfo> tableInfoSet = populateTables(cl, shellState);
 
@@ -147,10 +146,13 @@ public class ListTabletsCommand extends Command {
    * Process the command line for table names using table option, table name pattern, or default to
    * current table.
    *
-   * @param cl         command line
-   * @param shellState shell state
+   * @param cl
+   *          command line
+   * @param shellState
+   *          shell state
    * @return set of table names.
-   * @throws NamespaceNotFoundException if the namespace option is specified and namespace does not exist
+   * @throws NamespaceNotFoundException
+   *           if the namespace option is specified and namespace does not exist
    */
   private Set<TableInfo> populateTables(final CommandLine cl, final Shell shellState)
       throws NamespaceNotFoundException, TableNotFoundException {
@@ -233,20 +235,24 @@ public class ListTabletsCommand extends Command {
     /**
      * Lexicographically table names
      *
-     * @param other an instance to compare
+     * @param other
+     *          an instance to compare
      * @return 0 if table names are equal, a value less than 0 if less, or a value > 0 if greater
      */
-    @Override public int compareTo(TableInfo other) {
+    @Override
+    public int compareTo(TableInfo other) {
       return name.compareTo(other.name);
     }
 
     /**
      * Uses table name for equals to be consistent with compareTo
      *
-     * @param o other
+     * @param o
+     *          other
      * @return true if table names match.
      */
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       if (this == o)
         return true;
       if (o == null || getClass() != o.getClass())
@@ -260,7 +266,8 @@ public class ListTabletsCommand extends Command {
      *
      * @return hash code of table name
      */
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return Objects.hash(name);
     }
   }
@@ -302,16 +309,17 @@ public class ListTabletsCommand extends Command {
 
   private List<TabletRowInfo> getMetadataInfo(Connector connector, TableInfo tableInfo) {
 
-    //    ClientConfiguration clientConfig = ClientConfiguration.loadDefault();
+    // ClientConfiguration clientConfig = ClientConfiguration.loadDefault();
     //
-    //    ClientContext ctx = new ClientContext();
+    // ClientContext ctx = new ClientContext();
     //
-    //    final LiveTServerSet liveTServerSet = new LiveTServerSet(null,null);
+    // final LiveTServerSet liveTServerSet = new LiveTServerSet(null,null);
 
     // This is created outside of the run loop and passed to the walogCollector so that
     // only a single timed task is created (internal to LiveTServerSet using SimpleTimer.
     final LiveTServerSet liveTServerSet = new LiveTServerSet(null, new LiveTServerSet.Listener() {
-      @Override public void update(LiveTServerSet current, Set<TServerInstance> deleted,
+      @Override
+      public void update(LiveTServerSet current, Set<TServerInstance> deleted,
           Set<TServerInstance> added) {
 
         log.debug("Number of current servers {}, tservers added {}, removed {}",
@@ -333,9 +341,10 @@ public class ListTabletsCommand extends Command {
       zooStore = new ZooTabletStateStore();
     } catch (DistributedStoreException ex) {
       log.error("Could not create zoostore", ex);
-      return Collections.EMPTY_LIST;
+      return Collections.emptyList();
     }
 
+    log.info("ZS: {}", zooStore);
 
     List<TabletRowInfo> results = new ArrayList<>();
 
@@ -388,15 +397,18 @@ public class ListTabletsCommand extends Command {
     return results;
   }
 
-  @Override public String description() {
+  @Override
+  public String description() {
     return "prints tablet info an a single line.  Info contains #files #walogs #entries #size #status #location #tableid #endrow";
   }
 
-  @Override public int numArgs() {
+  @Override
+  public int numArgs() {
     return 0;
   }
 
-  @Override public Options getOptions() {
+  @Override
+  public Options getOptions() {
 
     final Options opts = new Options();
     opts.addOption(OptUtil.tableOpt("table to be scanned"));
@@ -530,7 +542,8 @@ public class ListTabletsCommand extends Command {
 
     static final Text[] COL_FAMILIES = {fileCf, locCf, logCf, tabCf};
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
       final StringBuilder sb = new StringBuilder("TabletInfo{");
       sb.append("tag=\'").append(String.format("%08x", tag)).append('\'');
       sb.append(", tableName='").append(tableName).append('\'');
