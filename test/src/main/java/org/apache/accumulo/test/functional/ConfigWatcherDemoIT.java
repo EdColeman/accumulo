@@ -169,6 +169,12 @@ public class ConfigWatcherDemoIT extends AccumuloClusterHarness {
     assertTrue("verify number of children decreased",
         statAfterAdds.getNumChildren() > statAfterDelete.getNumChildren());
 
+    // see if table delete triggers the event watcher.
+    client.tableOperations().delete(tableName);
+
+    log.debug("Event watcher after delete: {}", eventWatcher);
+    log.debug("Child watcher after delete: {}", childWatcher);
+
   }
 
   @Test
