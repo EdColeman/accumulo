@@ -110,5 +110,4 @@ public abstract class Metrics implements MetricsSource {
     registry.snapshot(builder, all);
     getMoreMetrics(builder, all);
   }
-
 }
