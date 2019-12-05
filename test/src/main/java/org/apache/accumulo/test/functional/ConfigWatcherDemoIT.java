@@ -87,7 +87,7 @@ public class ConfigWatcherDemoIT extends AccumuloClusterHarness {
 
   /**
    * Manually set watches on the system prop config directory and validate assumptions.
-   * 
+   *
    * @throws Exception
    *           any exception is a test failure.
    */
