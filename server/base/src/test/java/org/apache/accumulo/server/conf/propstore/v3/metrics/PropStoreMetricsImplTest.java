@@ -11,8 +11,9 @@ public class PropStoreMetricsImplTest {
 
   @BeforeClass public static void init() {
 
+    // the prefix is used to get the properties filename (hadoop-metrics2-accumulo.properties
     MetricsSystem metricsSystem = DefaultMetricsSystem
-        .initialize("test"); // called once per application
+        .initialize("accumulo"); // called once per application
 
     metrics = new PropStoreMetricsImpl(metricsSystem);
     metrics.register();
@@ -20,12 +21,14 @@ public class PropStoreMetricsImplTest {
 
   @Test public void addLookupRate() {
 
-    metrics.addLookupRate(1000);
-
-    try {
-      Thread.sleep(20_000);
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
+    for(int i = 0; i < 10; i++) {
+      metrics.addLookupRate(1000 + (100*i));
+      try {
+        Thread.sleep(5_000);
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+      }
     }
-  }
+    }
+
 }
