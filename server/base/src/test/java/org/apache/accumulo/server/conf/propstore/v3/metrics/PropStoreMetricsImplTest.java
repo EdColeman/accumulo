@@ -22,10 +22,15 @@ public class PropStoreMetricsImplTest {
   @Test public void addLookupRate() {
 
     for (int i = 0; i < 10; i++) {
+
+      StatTimer.record(metrics.lookupRate(), () -> {
+        System.out.println("Hello"); return null;
+      } );
+
       try (TimedStat ignored = metrics.timedLookup()) {
 
         metrics.addLookupRate(1000 + (100 * i));
-        
+
         try {
           Thread.sleep(5_000);
         } catch (InterruptedException ex) {

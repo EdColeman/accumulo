@@ -82,4 +82,7 @@ public class PropStoreMetricsImpl implements MetricsSource, PropStoreMetrics {
     registry.snapshot(builder, all);
   }
 
+  public MutableStat lookupRate() {
+    return lookupStat;
+  }
 }
