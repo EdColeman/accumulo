@@ -9,6 +9,7 @@ import org.apache.hadoop.metrics2.lib.Interns;
 import org.apache.hadoop.metrics2.lib.MetricsRegistry;
 import org.apache.hadoop.metrics2.lib.MutableCounterLong;
 import org.apache.hadoop.metrics2.lib.MutableRate;
+import org.apache.hadoop.metrics2.lib.MutableStat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,8 @@ public class PropStoreMetricsImpl implements MetricsSource, PropStoreMetrics {
   private static final String CONTEXT = "master";
 
   private MutableRate lookupRate;
+  private MutableStat lookupStat;
+
   private MutableCounterLong lookupHit;
   private MutableCounterLong lookupMiss;
 
@@ -37,6 +40,7 @@ public class PropStoreMetricsImpl implements MetricsSource, PropStoreMetrics {
     this.registry.tag(MsInfo.ProcessName, PROCESS);
 
     lookupRate = registry.newRate("lookupRate", " some text for lookup rate");
+    lookupStat = registry.newStat("lookupStat", "describe the stat", "lookupCount", "elapsed");
     lookupHit = registry.newCounter("lookupHit", "found the lookup", 0L);
     lookupMiss = registry.newCounter("lookupMiss", "missed the lookup", 0L);
   }
@@ -49,6 +53,10 @@ public class PropStoreMetricsImpl implements MetricsSource, PropStoreMetrics {
 
   @Override public void addLookupRate(long elapsed) {
     lookupRate.add(elapsed);
+  }
+
+  public TimedStat timedLookup() {
+    return new TimedStat(lookupStat);
   }
 
   @Override public void incrLookupMiss() {
@@ -73,4 +81,5 @@ public class PropStoreMetricsImpl implements MetricsSource, PropStoreMetrics {
     MetricsRecordBuilder builder = metricsCollector.addRecord(RECORD).setContext(CONTEXT);
     registry.snapshot(builder, all);
   }
+
 }

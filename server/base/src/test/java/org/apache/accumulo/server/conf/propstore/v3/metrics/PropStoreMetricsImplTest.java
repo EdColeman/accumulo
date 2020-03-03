@@ -21,14 +21,18 @@ public class PropStoreMetricsImplTest {
 
   @Test public void addLookupRate() {
 
-    for(int i = 0; i < 10; i++) {
-      metrics.addLookupRate(1000 + (100*i));
-      try {
-        Thread.sleep(5_000);
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-      }
+    for (int i = 0; i < 10; i++) {
+      try (TimedStat ignored = metrics.timedLookup()) {
+
+        metrics.addLookupRate(1000 + (100 * i));
+        
+        try {
+          Thread.sleep(5_000);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+        }
+      } // end timed section
     }
-    }
+  }
 
 }
