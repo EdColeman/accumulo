@@ -35,6 +35,9 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tags;
+
 public class FateMetrics extends MasterMetrics {
 
   private static final Logger log = LoggerFactory.getLogger(FateMetrics.class);
@@ -95,6 +98,13 @@ public class FateMetrics extends MasterMetrics {
     zkChildFateOpsTotal = registry.newGauge("totalFateOps", "Total FATE Ops", 0L);
     zkConnectionErrorsTotal =
         registry.newGauge("totalZkConnErrors", "Total ZK Connection Errors", 0L);
+
+    Metrics.gauge("currentFateOps", Tags.of("master", "fate"), currentFateOps,
+        v -> currentFateOps.value());
+    Metrics.gauge("zkChildFateOpsTotal", Tags.of("master", "fate"), zkChildFateOpsTotal,
+        v -> zkChildFateOpsTotal.value());
+    Metrics.gauge("zkConnectionErrorsTotal", Tags.of("master", "fate"), zkConnectionErrorsTotal,
+        v -> zkConnectionErrorsTotal.value());
 
     for (ReadOnlyTStore.TStatus t : ReadOnlyTStore.TStatus.values()) {
       MutableGaugeLong g = registry.newGauge(FATE_TX_STATE_METRIC_PREFIX + t.name().toUpperCase(),

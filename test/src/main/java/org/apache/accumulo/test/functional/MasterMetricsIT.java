@@ -138,7 +138,8 @@ public class MasterMetricsIT extends AccumuloClusterHarness {
    * metrics.
    */
   @Test
-  public void compactionMetrics() throws AccumuloSecurityException, AccumuloException {
+  public void compactionMetrics()
+      throws AccumuloSecurityException, AccumuloException, InterruptedException {
 
     assumeTrue(accumuloClient.instanceOperations().getSystemConfiguration()
         .get(Property.MASTER_FATE_METRICS_ENABLED.getKey()).compareTo("true") == 0);
@@ -173,6 +174,8 @@ public class MasterMetricsIT extends AccumuloClusterHarness {
       assertTrue(results.containsKey(k));
       assertTrue(Long.parseLong(results.get(k)) >= tableCount);
     }
+
+    Thread.sleep(120_000);
 
     for (SlowOps t : tables) {
       try {
@@ -213,7 +216,7 @@ public class MasterMetricsIT extends AccumuloClusterHarness {
 
       Map<String,String> results = metricsTail.parseLine("");
 
-      if (results != null && results.size() > 0
+      if (results != null && results.size() > 0 && results.get("currentFateOps") != null
           && Long.parseLong(results.get("currentFateOps")) >= tableCount) {
         log.info("Found required number of fate operations");
         return results;
