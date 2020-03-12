@@ -99,11 +99,11 @@ public class FateMetrics extends MasterMetrics {
     zkConnectionErrorsTotal =
         registry.newGauge("totalZkConnErrors", "Total ZK Connection Errors", 0L);
 
-    Metrics.gauge("currentFateOps", Tags.of("master", "fate"), currentFateOps,
+    Metrics.gauge("currentFateOps", Tags.of("process", "master", "sub", "fate"), currentFateOps,
         v -> currentFateOps.value());
-    Metrics.gauge("zkChildFateOpsTotal", Tags.of("master", "fate"), zkChildFateOpsTotal,
+    Metrics.gauge("zkChildFateOpsTotal", Tags.of("process", "master", "sub", "fate"), zkChildFateOpsTotal,
         v -> zkChildFateOpsTotal.value());
-    Metrics.gauge("zkConnectionErrorsTotal", Tags.of("master", "fate"), zkConnectionErrorsTotal,
+    Metrics.gauge("zkConnectionErrorsTotal", Tags.of("process", "master", "sub", "fate"), zkConnectionErrorsTotal,
         v -> zkConnectionErrorsTotal.value());
 
     for (ReadOnlyTStore.TStatus t : ReadOnlyTStore.TStatus.values()) {
