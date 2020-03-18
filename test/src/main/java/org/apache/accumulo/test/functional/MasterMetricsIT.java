@@ -175,7 +175,7 @@ public class MasterMetricsIT extends AccumuloClusterHarness {
       assertTrue(Long.parseLong(results.get(k)) >= tableCount);
     }
 
-    Thread.sleep(120_000);
+    Thread.sleep(180_000);
 
     for (SlowOps t : tables) {
       try {

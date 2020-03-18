@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.accumulo.server.metrics.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,8 @@ public abstract class MasterMetrics extends Metrics {
 
   protected MasterMetrics(String subName, String description, String record) {
     super("Master,sub=" + subName, description, "master", record);
+
+    io.micrometer.core.instrument.Metrics.addRegistry(new SimpleMeterRegistry());
 
     io.micrometer.core.instrument.Metrics.addRegistry(new LoggingMeterRegistry());
 

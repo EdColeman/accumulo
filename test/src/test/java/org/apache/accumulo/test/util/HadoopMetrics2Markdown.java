@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.accumulo.test.util;
 
 import org.slf4j.Logger;
@@ -41,7 +59,7 @@ public class HadoopMetrics2Markdown {
       }
 
 
-      log.info("MM: {}", byMetricName);
+      log.info("processed records: {}", byMetricName);
 
       printMarkdown(outFilename, byMetricName);
 
@@ -53,13 +71,15 @@ public class HadoopMetrics2Markdown {
   private void printMarkdown(final String filename,
       final Map<String,Map<TagInfo,Integer>> byMetricName) {
 
+    final String mdTableHeader = "| tag name | type |\n| ---- | ---- |";
+
     try (FileWriter fileWriter = new FileWriter(filename);
         PrintWriter printWriter = new PrintWriter(fileWriter)) {
 
       byMetricName.forEach((k, v) -> {
         log.debug("record:{} -> tags: {}", k, v);
         printWriter.printf("Record: %s\n", k);
-        printWriter.println("| tag name | type |");
+        printWriter.println(mdTableHeader);
         v.forEach((t, tv) -> printWriter.printf("| %s | %s |\n", t.key, t.type.name()));
         printWriter.printf("\n");
       });
@@ -170,6 +190,13 @@ public class HadoopMetrics2Markdown {
 
     static Optional<RecordInfo> parse(final String line) {
 
+      // the : should appear once, if more, it partial records may have been written
+      long count = line.chars().filter(ch -> ch == ':').count();
+      if(count != 1){
+        log.debug("Possible corrupt record, multiple :. Received '{}'",line);
+        return Optional.empty();
+      }
+
       Matcher lineMatcher = match_line.matcher(line);
       if (!lineMatcher.matches()) {
         return Optional.empty();
@@ -196,7 +223,7 @@ public class HadoopMetrics2Markdown {
   public static void main(String... args) {
 
     if (args.length == 0) {
-      new HadoopMetrics2Markdown(defaultInFile, "/tmp/sample.md");
+      new HadoopMetrics2Markdown(defaultInFile, defaultOutFile);
     }
   }
 }
