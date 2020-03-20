@@ -18,9 +18,6 @@
  */
 package org.apache.accumulo.test.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
@@ -29,12 +26,16 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.StringJoiner;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HadoopMetrics2Markdown {
 
@@ -53,11 +54,9 @@ public class HadoopMetrics2Markdown {
         String line = scanner.nextLine();
         log.trace("Read: {}", line);
 
-        RecordInfo.parse(line)
-            .ifPresentOrElse(this::save, () -> log.debug("no match: {}", line));
+        RecordInfo.parse(line).ifPresentOrElse(this::save, () -> log.debug("no match: {}", line));
 
       }
-
 
       log.info("processed records: {}", byMetricName);
 
@@ -92,8 +91,7 @@ public class HadoopMetrics2Markdown {
   private void save(final RecordInfo info) {
     log.trace("save record:{}", info);
 
-    Map<TagInfo,Integer> tagsSeen = byMetricName
-        .computeIfAbsent(info.name, k -> new TreeMap<>());
+    Map<TagInfo,Integer> tagsSeen = byMetricName.computeIfAbsent(info.name, k -> new TreeMap<>());
 
     info.tags.forEach(t -> {
       if (tagsSeen.computeIfPresent(t, (k, v) -> v + 1) == null) {
@@ -102,18 +100,35 @@ public class HadoopMetrics2Markdown {
     });
   }
 
-  private static class TagInfo implements Comparable<TagInfo>{
+  private static class TagInfo implements Comparable<TagInfo> {
 
     // private static final Pattern numPattern = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final Pattern numPattern =
         Pattern.compile("^[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?$");
 
-    @Override public int compareTo(TagInfo o) {
+    @Override
+    public int compareTo(TagInfo o) {
       int result = this.type.compareTo(o.type);
-      if(result != 0){
+      if (result != 0) {
         return result;
       }
       return this.key.compareTo(o.key);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o)
+        return true;
+      if (o == null || getClass() != o.getClass())
+        return false;
+      TagInfo tagInfo = (TagInfo) o;
+      return Objects.equals(key, tagInfo.key) && Objects.equals(value, tagInfo.value)
+          && type == tagInfo.type;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, value, type);
     }
 
     enum Type {
@@ -145,7 +160,8 @@ public class HadoopMetrics2Markdown {
       return value;
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
       return new StringJoiner(", ", TagInfo.class.getSimpleName() + "[", "]")
           .add("key='" + key + "'").add("value='" + value + "'").add("type=" + type).toString();
     }
@@ -166,8 +182,8 @@ public class HadoopMetrics2Markdown {
         "(?<" + g_timestamp + ">\\d*)\\s*(?<" + g_name + ">\\S*):\\s*(?<" + g_tags + ">.*$)");
 
     // match tag k,v pairs
-    private static final Pattern match_tags = Pattern
-        .compile("((?<" + g_tkey + ">\\w*)=(?<" + g_tvalue + ">.+?(?=(?=,\\s\\w)|$)))+");
+    private static final Pattern match_tags =
+        Pattern.compile("((?<" + g_tkey + ">\\w*)=(?<" + g_tvalue + ">.+?(?=(?=,\\s\\w)|$)))+");
 
     final String timestamp;
     final String name;
@@ -182,7 +198,8 @@ public class HadoopMetrics2Markdown {
       tags.add(tag);
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
       return new StringJoiner(", ", RecordInfo.class.getSimpleName() + "[", "]")
           .add("timestamp='" + timestamp + "'").add("name='" + name + "'").add("tags=" + tags)
           .toString();
@@ -192,8 +209,8 @@ public class HadoopMetrics2Markdown {
 
       // the : should appear once, if more, it partial records may have been written
       long count = line.chars().filter(ch -> ch == ':').count();
-      if(count != 1){
-        log.debug("Possible corrupt record, multiple :. Received '{}'",line);
+      if (count != 1) {
+        log.debug("Possible corrupt record, multiple :. Received '{}'", line);
         return Optional.empty();
       }
 

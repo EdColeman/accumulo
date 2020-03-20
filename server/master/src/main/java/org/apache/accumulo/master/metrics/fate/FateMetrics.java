@@ -101,10 +101,10 @@ public class FateMetrics extends MasterMetrics {
 
     Metrics.gauge("currentFateOps", Tags.of("process", "master", "sub", "fate"), currentFateOps,
         v -> currentFateOps.value());
-    Metrics.gauge("zkChildFateOpsTotal", Tags.of("process", "master", "sub", "fate"), zkChildFateOpsTotal,
-        v -> zkChildFateOpsTotal.value());
-    Metrics.gauge("zkConnectionErrorsTotal", Tags.of("process", "master", "sub", "fate"), zkConnectionErrorsTotal,
-        v -> zkConnectionErrorsTotal.value());
+    Metrics.gauge("zkChildFateOpsTotal", Tags.of("process", "master", "sub", "fate"),
+        zkChildFateOpsTotal, v -> zkChildFateOpsTotal.value());
+    Metrics.gauge("zkConnectionErrorsTotal", Tags.of("process", "master", "sub", "fate"),
+        zkConnectionErrorsTotal, v -> zkConnectionErrorsTotal.value());
 
     for (ReadOnlyTStore.TStatus t : ReadOnlyTStore.TStatus.values()) {
       MutableGaugeLong g = registry.newGauge(FATE_TX_STATE_METRIC_PREFIX + t.name().toUpperCase(),
