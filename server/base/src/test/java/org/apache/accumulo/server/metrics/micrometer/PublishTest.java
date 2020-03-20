@@ -24,16 +24,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
+import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
+import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.DistributionSummary;
-import io.micrometer.core.instrument.Meter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 /**
@@ -44,37 +45,56 @@ public class PublishTest {
 
   private static final Logger log = LoggerFactory.getLogger(PublishTest.class);
 
-  private static MeterRegistry registry;
+  private static CompositeMeterRegistry composite ;
 
   @BeforeClass
   public static void init() {
-    registry = new SimpleMeterRegistry();
+    composite = new CompositeMeterRegistry();
+    composite.add(new SimpleMeterRegistry());
+  }
+
+  static class FileSink implements Consumer<String> {
+
+
+    @Override public void accept(String s) {
+      log.warn("accept: {}", s);
+    }
+
   }
 
   @Test
   public void sample() throws Exception {
 
-    AtomicInteger m1 = registry.gauge("sample.metric.m1", new AtomicInteger(0));
+    AtomicInteger m1 = composite.gauge("sample.metric.m1", Tags.of("tag1", "a-1", "tag2", "b-2"), new AtomicInteger(0));
     Timer t2 = Timer.builder("sample.metric.t2").publishPercentiles(0.5, 0.95) // median and 95th
         // percentile
-        .publishPercentileHistogram().register(registry);
-    DistributionSummary summary = registry.summary("response.size");
+        .publishPercentileHistogram().register(composite);
+    DistributionSummary summary = composite.summary("response.size");
+
+    Function<Meter, String> myPrinter = a -> "A: " + a.getId() + ": " + a.measure()+ ". " + a.toString();
+
+    LoggingMeterRegistry.Builder builder = LoggingMeterRegistry.builder(LoggingRegistryConfig.DEFAULT);
+    builder.loggingSink(new FileSink()).meterIdPrinter(myPrinter);
+
+    LoggingMeterRegistry x = builder.build();
+    composite.add(x);
 
     SampleRunner runner = new SampleRunner();
 
     for (int i = 0; i < 10; i++) {
       long nanos = System.nanoTime();
-      Timer.Sample t1 = Timer.start(registry);
+      Timer.Sample t1 = Timer.start(composite);
       m1.incrementAndGet();
-      Thread.sleep(1_000);
+      Thread.sleep(10_000);
       summary.record(i);
-      t1.stop(registry.timer("sample.metric.t1"));
+      t1.stop(composite.timer("sample.metric.t1"));
       long elapsed = System.nanoTime() - nanos;
       t2.record(Duration.ofNanos(elapsed));
     }
 
     runner.cleanup();
   }
+
 
   static class SampleRunner implements Runnable {
 
@@ -88,9 +108,9 @@ public class PublishTest {
 
     @Override
     public void run() {
-      registry.forEachMeter(out);
+      composite.forEachMeter(out);
       try {
-        Thread.sleep(750);
+        Thread.sleep(5_000);
       } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
       }
