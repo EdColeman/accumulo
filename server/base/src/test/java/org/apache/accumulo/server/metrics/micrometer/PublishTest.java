@@ -26,15 +26,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import io.micrometer.core.instrument.*;
-import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
-import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
-import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.core.instrument.logging.LoggingMeterRegistry;
+import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 /**
@@ -45,7 +48,7 @@ public class PublishTest {
 
   private static final Logger log = LoggerFactory.getLogger(PublishTest.class);
 
-  private static CompositeMeterRegistry composite ;
+  private static CompositeMeterRegistry composite;
 
   @BeforeClass
   public static void init() {
@@ -55,8 +58,8 @@ public class PublishTest {
 
   static class FileSink implements Consumer<String> {
 
-
-    @Override public void accept(String s) {
+    @Override
+    public void accept(String s) {
       log.warn("accept: {}", s);
     }
 
@@ -65,15 +68,18 @@ public class PublishTest {
   @Test
   public void sample() throws Exception {
 
-    AtomicInteger m1 = composite.gauge("sample.metric.m1", Tags.of("tag1", "a-1", "tag2", "b-2"), new AtomicInteger(0));
+    AtomicInteger m1 = composite.gauge("sample.metric.m1", Tags.of("tag1", "a-1", "tag2", "b-2"),
+        new AtomicInteger(0));
     Timer t2 = Timer.builder("sample.metric.t2").publishPercentiles(0.5, 0.95) // median and 95th
         // percentile
         .publishPercentileHistogram().register(composite);
     DistributionSummary summary = composite.summary("response.size");
 
-    Function<Meter, String> myPrinter = a -> "A: " + a.getId() + ": " + a.measure()+ ". " + a.toString();
+    Function<Meter,String> myPrinter =
+        a -> "A: " + a.getId() + ": " + a.measure() + ". " + a.toString();
 
-    LoggingMeterRegistry.Builder builder = LoggingMeterRegistry.builder(LoggingRegistryConfig.DEFAULT);
+    LoggingMeterRegistry.Builder builder =
+        LoggingMeterRegistry.builder(LoggingRegistryConfig.DEFAULT);
     builder.loggingSink(new FileSink()).meterIdPrinter(myPrinter);
 
     LoggingMeterRegistry x = builder.build();
@@ -94,7 +100,6 @@ public class PublishTest {
 
     runner.cleanup();
   }
-
 
   static class SampleRunner implements Runnable {
 
