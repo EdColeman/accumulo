@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.server.metrics;
 
+import org.apache.accumulo.core.metrics.MetricsRegistration;
 import org.apache.hadoop.metrics2.MetricsCollector;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsSource;
@@ -30,6 +31,8 @@ import org.apache.hadoop.metrics2.source.JvmMetrics;
 import org.apache.hadoop.metrics2.source.JvmMetricsInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ServiceLoader;
 
 /**
  * Accumulo will search for a file named hadoop-metrics-accumulo.properties on the Accumulo
@@ -61,6 +64,11 @@ public abstract class Metrics implements MetricsSource {
     if (ms.getSource(JvmMetricsInfo.JvmMetrics.name()) == null) {
       JvmMetrics.create(processName, "", ms);
     }
+
+    // experiential - use micrometer metrics.
+    ServiceLoader<MetricsRegistration> loader = ServiceLoader.load(MetricsRegistration.class);
+    loader.findFirst().ifPresent(first -> first.register());
+
     return ms;
   }
 
