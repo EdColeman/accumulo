@@ -67,7 +67,7 @@ public abstract class Metrics implements MetricsSource {
 
     // experiential - use micrometer metrics.
     ServiceLoader<MetricsRegistration> loader = ServiceLoader.load(MetricsRegistration.class);
-    loader.findFirst().ifPresent(first -> first.register());
+    loader.forEach(first -> first.register());
 
     return ms;
   }

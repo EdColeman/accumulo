@@ -23,12 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AutoService(MetricsRegistration.class)
-public class DefaultMetricsRegistration implements MetricsRegistration {
+public class PrometheusMetricsRegistration implements MetricsRegistration {
 
-  private static final Logger log =  LoggerFactory.getLogger(DefaultMetricsRegistration.class);
+  private static final Logger log =  LoggerFactory.getLogger(PrometheusMetricsRegistration.class);
 
-  public DefaultMetricsRegistration(){
-    log.warn("CONSTRUCTOR - DefaultMetricsRegistration");
+  public PrometheusMetricsRegistration(){
+    log.warn("CONSTRUCTOR - PrometheusMetricsRegistration");
 
   }
 
