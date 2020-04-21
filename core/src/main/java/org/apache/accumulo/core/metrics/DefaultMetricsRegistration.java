@@ -18,23 +18,25 @@
  */
 package org.apache.accumulo.core.metrics;
 
-import com.google.auto.service.AutoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.auto.service.AutoService;
 
 @AutoService(MetricsRegistration.class)
 public class DefaultMetricsRegistration implements MetricsRegistration {
 
-  private static final Logger log =  LoggerFactory.getLogger(DefaultMetricsRegistration.class);
+  private static final Logger log = LoggerFactory.getLogger(DefaultMetricsRegistration.class);
 
-  public DefaultMetricsRegistration(){
+  public DefaultMetricsRegistration() {
     log.warn("CONSTRUCTOR - DefaultMetricsRegistration");
 
   }
 
-  @Override public void register() {
+  @Override
+  public void register() {
     // search for micrometer-registry-X jars?
 
-    log.warn("REGISTER - metrics registration called - you should do something");
+    log.warn("REGISTER - DefaultMetricsRegistration metrics registration called - you should do something");
   }
 }

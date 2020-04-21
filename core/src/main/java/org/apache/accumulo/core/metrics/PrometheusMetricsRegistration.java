@@ -18,23 +18,34 @@
  */
 package org.apache.accumulo.core.metrics;
 
-import com.google.auto.service.AutoService;
+import java.io.IOException;
+
+import org.apache.accumulo.start.classloader.AccumuloClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.auto.service.AutoService;
 
 @AutoService(MetricsRegistration.class)
 public class PrometheusMetricsRegistration implements MetricsRegistration {
 
-  private static final Logger log =  LoggerFactory.getLogger(PrometheusMetricsRegistration.class);
+  private static final Logger log = LoggerFactory.getLogger(PrometheusMetricsRegistration.class);
 
-  public PrometheusMetricsRegistration(){
+  public PrometheusMetricsRegistration() throws UnsupportedOperationException {
     log.warn("CONSTRUCTOR - PrometheusMetricsRegistration");
-
   }
 
-  @Override public void register() {
+  @Override
+  public void register() throws UnsupportedOperationException {
+    log.warn("REGISTER - PrometheusMetricsRegistration metrics registration called - you should do something");
+
+    try {
+      ClassLoader loader = AccumuloClassLoader.getClassLoader();
+      loader.loadClass("io.micrometer.prometheus.PrometheusMeterRegistry");
+    } catch (IOException | ClassNotFoundException ex) {
+      throw new UnsupportedOperationException("Registration failed", ex);
+    }
     // search for micrometer-registry-X jars?
 
-    log.warn("REGISTER - metrics registration called - you should do something");
   }
 }

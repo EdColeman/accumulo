@@ -19,6 +19,7 @@
 package org.apache.accumulo.server.metrics;
 
 import org.apache.accumulo.core.metrics.MetricsRegistration;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.hadoop.metrics2.MetricsCollector;
 import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsSource;
@@ -66,10 +67,22 @@ public abstract class Metrics implements MetricsSource {
     }
 
     // experiential - use micrometer metrics.
+    loadMetricsConfig();
     ServiceLoader<MetricsRegistration> loader = ServiceLoader.load(MetricsRegistration.class);
-    loader.forEach(first -> first.register());
+    loader.forEach(s -> s.register());
 
     return ms;
+  }
+
+  private static Configuration loadMetricsConfig(){
+
+  }
+  private void register(MetricsRegistration registrar) {
+    try {
+      registrar.register();
+    } catch (UnsupportedOperationException ex) {
+      System.err.println("Metrics registration failed: " + ex.getMessage());
+    }
   }
 
   private final String name;
@@ -101,17 +114,18 @@ public abstract class Metrics implements MetricsSource {
    * Runs prior to {@link #getMetrics(MetricsCollector, boolean)} in order to prepare metrics in the
    * {@link MetricsRegistry} to be published.
    */
-  protected void prepareMetrics() {}
+  protected void prepareMetrics() {
+  }
 
   /**
    * Append any additional metrics directly to the builder when
    * {@link #getMetrics(MetricsCollector, boolean)} is called, after any metrics in the
    * {@link MetricsRegistry} have already been added.
    */
-  protected void getMoreMetrics(MetricsRecordBuilder builder, boolean all) {}
+  protected void getMoreMetrics(MetricsRecordBuilder builder, boolean all) {
+  }
 
-  @Override
-  public final void getMetrics(MetricsCollector collector, boolean all) {
+  @Override public final void getMetrics(MetricsCollector collector, boolean all) {
     log.trace("getMetrics called with collector: {} (all: {})", collector, all);
     prepareMetrics();
     MetricsRecordBuilder builder = collector.addRecord(record).setContext(context);

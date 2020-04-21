@@ -19,6 +19,7 @@
 package org.apache.accumulo.core.metrics;
 
 import org.apache.accumulo.start.classloader.AccumuloClassLoader;
+import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -28,7 +29,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,23 +50,136 @@ public class DefaultMetricsRegistrationTest {
 
   }
 
+  @Test public void x() {
+
+    MyReg r = new MyReg();
+    log.info("Cfg: {}", r);
+    log.info("Cfg K: {}", r.lookup("X"));
+    log.info("Cfg S: {}", Cfg.DEFAULT.step());
+    log.info("Cfg H: {}", Cfg.DEFAULT.sayHello());
+  }
+
+  interface CfgParent {
+    String get(String key);
+
+    default String sayHello() {
+      return "hello";
+    }
+
+    ;
+  }
+
+  interface Cfg extends CfgParent {
+    Cfg DEFAULT = k -> "foo";
+
+    default String step() {
+      return "bar";
+    }
+  }
+
+  class MyReg {
+
+    private Cfg cfg;
+
+    public MyReg() {
+      this(Cfg.DEFAULT);
+    }
+
+    public MyReg(Cfg cfg) {
+      this.cfg = cfg;
+    }
+
+    public String lookup(String key) {
+      return cfg.get(key);
+    }
+
+    @Override public String toString() {
+      return "MyReg{" + "cfg=" + cfg + '}';
+    }
+  }
+
   @Test public void config() throws IOException {
+
+    String configFile = choosePropFile();
+    Configuration config = loadConfigOrDefault(configFile);
+
+    // access configuration properties
+    Collection<String> x = findEnabled(config);
+
+    log.info("Enabled: {}", x);
+
+  }
+
+  private Configuration loadConfigOrDefault(final String filename) {
 
     Configurations configs = new Configurations();
 
-    ClassLoader loader = AccumuloClassLoader.getClassLoader();
-    URL configFile = loader.getResource("accumulo.metrics.properties");
+    if (Objects.isNull(filename)) {
+      log.info("No configuration file provided, returning default (empty) configuration.");
+      return new DefaultConfig();
+    }
 
     try {
-      Configuration config = configs.properties(configFile.getFile());
-      // access configuration properties
-      Collection<String> x = findEnabled(config);
 
-      log.info("Enabled: {}", x);
+      return configs.properties(filename);
 
     } catch (ConfigurationException ex) {
-      log.error("Could not read properties", ex);
+      log.warn("No configuration file provided, returning default (empty) configuration.", ex);
+      return new DefaultConfig();
     }
+  }
+
+  static class DefaultConfig extends AbstractConfiguration {
+
+    @Override protected void addPropertyDirect(String s, Object o) {
+
+    }
+
+    @Override protected void clearPropertyDirect(String s) {
+
+    }
+
+    @Override protected Iterator<String> getKeysInternal() {
+      return null;
+    }
+
+    @Override protected Object getPropertyInternal(String s) {
+      return null;
+    }
+
+    @Override protected boolean isEmptyInternal() {
+      return false;
+    }
+
+    @Override protected boolean containsKeyInternal(String s) {
+      return false;
+    }
+  }
+  private String choosePropFile() throws IOException {
+
+    var METRICS_PROP_FILENAME = "accumulo.metrics.properties";
+    var METRICS_TEST_PROP_FILENAME = "accumulo.metrics-test.properties";
+
+    ClassLoader loader = AccumuloClassLoader.getClassLoader();
+
+    URL configFile = loader.getResource(METRICS_PROP_FILENAME);
+    URL configTestFile = loader.getResource(METRICS_TEST_PROP_FILENAME);
+
+    if (Objects.nonNull(configTestFile)) {
+      if (Objects.nonNull(configFile)) {
+        log.info("Metrics test properties overriding file: {}", configFile.getPath());
+      }
+      log.info("Using metrics test properties: {}", configTestFile.getPath());
+      return configTestFile.getFile();
+    }
+
+    if(Objects.nonNull(configFile)) {
+      log.info("Using metrics properties file: {}", configFile.getPath());
+      return configFile.getFile();
+    }
+
+    log.info("No metrics property file found on classpath");
+    return null;
   }
 
   private Collection<String> findEnabled(final Configuration config) {
