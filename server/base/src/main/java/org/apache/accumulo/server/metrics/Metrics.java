@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.server.metrics;
 
+import java.util.ServiceLoader;
+
 import org.apache.accumulo.core.metrics.MetricsRegistration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.hadoop.metrics2.MetricsCollector;
@@ -32,8 +34,6 @@ import org.apache.hadoop.metrics2.source.JvmMetrics;
 import org.apache.hadoop.metrics2.source.JvmMetricsInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ServiceLoader;
 
 /**
  * Accumulo will search for a file named hadoop-metrics-accumulo.properties on the Accumulo
@@ -74,9 +74,10 @@ public abstract class Metrics implements MetricsSource {
     return ms;
   }
 
-  private static Configuration loadMetricsConfig(){
-
+  private static Configuration loadMetricsConfig() {
+    return null;
   }
+
   private void register(MetricsRegistration registrar) {
     try {
       registrar.register();
@@ -114,18 +115,17 @@ public abstract class Metrics implements MetricsSource {
    * Runs prior to {@link #getMetrics(MetricsCollector, boolean)} in order to prepare metrics in the
    * {@link MetricsRegistry} to be published.
    */
-  protected void prepareMetrics() {
-  }
+  protected void prepareMetrics() {}
 
   /**
    * Append any additional metrics directly to the builder when
    * {@link #getMetrics(MetricsCollector, boolean)} is called, after any metrics in the
    * {@link MetricsRegistry} have already been added.
    */
-  protected void getMoreMetrics(MetricsRecordBuilder builder, boolean all) {
-  }
+  protected void getMoreMetrics(MetricsRecordBuilder builder, boolean all) {}
 
-  @Override public final void getMetrics(MetricsCollector collector, boolean all) {
+  @Override
+  public final void getMetrics(MetricsCollector collector, boolean all) {
     log.trace("getMetrics called with collector: {} (all: {})", collector, all);
     prepareMetrics();
     MetricsRecordBuilder builder = collector.addRecord(record).setContext(context);

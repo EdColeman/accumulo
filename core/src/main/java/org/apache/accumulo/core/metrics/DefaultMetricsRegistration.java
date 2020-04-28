@@ -37,6 +37,7 @@ public class DefaultMetricsRegistration implements MetricsRegistration {
   public void register() {
     // search for micrometer-registry-X jars?
 
-    log.warn("REGISTER - DefaultMetricsRegistration metrics registration called - you should do something");
+    log.warn(
+        "REGISTER - DefaultMetricsRegistration metrics registration called - you should do something");
   }
 }

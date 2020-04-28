@@ -37,7 +37,8 @@ public class PrometheusMetricsRegistration implements MetricsRegistration {
 
   @Override
   public void register() throws UnsupportedOperationException {
-    log.warn("REGISTER - PrometheusMetricsRegistration metrics registration called - you should do something");
+    log.warn(
+        "REGISTER - PrometheusMetricsRegistration metrics registration called - you should do something");
 
     try {
       ClassLoader loader = AccumuloClassLoader.getClassLoader();

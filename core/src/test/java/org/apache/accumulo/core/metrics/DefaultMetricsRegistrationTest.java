@@ -18,15 +18,6 @@
  */
 package org.apache.accumulo.core.metrics;
 
-import org.apache.accumulo.start.classloader.AccumuloClassLoader;
-import org.apache.commons.configuration2.AbstractConfiguration;
-import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.builder.fluent.Configurations;
-import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -37,12 +28,22 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.accumulo.start.classloader.AccumuloClassLoader;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class DefaultMetricsRegistrationTest {
 
   private static final Logger log = LoggerFactory.getLogger(DefaultMetricsRegistrationTest.class);
   public static final String ENABLED_SUFFIX = ".enabled";
 
-  @Test public void jarSearch() throws IOException {
+  @Test
+  public void jarSearch() throws IOException {
 
     log.info("classpath: " + System.getProperty("java.class.path"));
     log.info("ext: " + System.getProperty("java.ext.dir"));
@@ -50,7 +51,8 @@ public class DefaultMetricsRegistrationTest {
 
   }
 
-  @Test public void x() {
+  @Test
+  public void x() {
 
     MyReg r = new MyReg();
     log.info("Cfg: {}", r);
@@ -93,12 +95,14 @@ public class DefaultMetricsRegistrationTest {
       return cfg.get(key);
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
       return "MyReg{" + "cfg=" + cfg + '}';
     }
   }
 
-  @Test public void config() throws IOException {
+  @Test
+  public void config() throws IOException {
 
     String configFile = choosePropFile();
     Configuration config = loadConfigOrDefault(configFile);
@@ -131,30 +135,37 @@ public class DefaultMetricsRegistrationTest {
 
   static class DefaultConfig extends AbstractConfiguration {
 
-    @Override protected void addPropertyDirect(String s, Object o) {
+    @Override
+    protected void addPropertyDirect(String s, Object o) {
 
     }
 
-    @Override protected void clearPropertyDirect(String s) {
+    @Override
+    protected void clearPropertyDirect(String s) {
 
     }
 
-    @Override protected Iterator<String> getKeysInternal() {
+    @Override
+    protected Iterator<String> getKeysInternal() {
       return null;
     }
 
-    @Override protected Object getPropertyInternal(String s) {
+    @Override
+    protected Object getPropertyInternal(String s) {
       return null;
     }
 
-    @Override protected boolean isEmptyInternal() {
+    @Override
+    protected boolean isEmptyInternal() {
       return false;
     }
 
-    @Override protected boolean containsKeyInternal(String s) {
+    @Override
+    protected boolean containsKeyInternal(String s) {
       return false;
     }
   }
+
   private String choosePropFile() throws IOException {
 
     var METRICS_PROP_FILENAME = "accumulo.metrics.properties";
@@ -173,7 +184,7 @@ public class DefaultMetricsRegistrationTest {
       return configTestFile.getFile();
     }
 
-    if(Objects.nonNull(configFile)) {
+    if (Objects.nonNull(configFile)) {
       log.info("Using metrics properties file: {}", configFile.getPath());
       return configFile.getFile();
     }
