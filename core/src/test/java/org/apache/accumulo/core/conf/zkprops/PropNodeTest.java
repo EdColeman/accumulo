@@ -18,18 +18,18 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.io.IOException;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
 
 public class PropNodeTest {
 
   private static final Logger log = LoggerFactory.getLogger(PropNodeTest.class);
 
-  @Test public void jsonTest() {
+  @Test
+  public void jsonTest() {
     PropNode n1 = createSample1();
 
     log.debug("N1:{}", n1);
@@ -41,7 +41,8 @@ public class PropNodeTest {
     log.debug("R1:{}", r1);
   }
 
-  @Test public void bytesTest() throws IOException {
+  @Test
+  public void bytesTest() throws IOException {
     PropNode n1 = createSample1();
 
     byte[] b = n1.toByteBuffer();

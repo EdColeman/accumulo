@@ -18,9 +18,7 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import com.google.gson.Gson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,11 +27,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 public class PropNode {
 
@@ -63,7 +65,7 @@ public class PropNode {
 
   public byte[] toByteBuffer() throws IOException {
 
-    byte[] p = gson.toJson(props, Map.class).getBytes(StandardCharsets.UTF_8);
+    byte[] p = gson.toJson(props, Map.class).getBytes(UTF_8);
 
     byte[] d = compress();
 
@@ -90,16 +92,16 @@ public class PropNode {
 
       int len = dis.readInt();
 
-//      byte[] c = new byte[80];
-//      dis.read(c, 0, len);
+      // byte[] c = new byte[80];
+      // dis.read(c, 0, len);
 
       Map<String,String> m = PropNode.decompress(bis, len);
 
-      //    String s = new String(b.array(),9,len,StandardCharsets.UTF_8);
-      //    log.debug("s: '{}'", s);
+      // String s = new String(b.array(),9,len,StandardCharsets.UTF_8);
+      // log.debug("s: '{}'", s);
       //
-      //    Type typeOfHashMap = new TypeToken<Map<String, String>>() { }.getType();
-      //    Map<String,String> m = gson.fromJson(s, Map.class);
+      // Type typeOfHashMap = new TypeToken<Map<String, String>>() { }.getType();
+      // Map<String,String> m = gson.fromJson(s, Map.class);
 
       r.props = m;
 
@@ -124,23 +126,27 @@ public class PropNode {
 
     return compressed;
   }
+
   public static Map<String,String> decompress(InputStream inputStream, int len) throws IOException {
 
     try (GZIPInputStream gis = new GZIPInputStream(inputStream, len)) {
-      return gson.fromJson(new InputStreamReader(gis, "UTF-8"), Map.class);
+      return gson.fromJson(new InputStreamReader(gis, UTF_8), Map.class);
     }
   }
+
   public static Map<String,String> decompress(byte[] compressed) throws IOException {
 
     log.debug("x:{}", compressed[0]);
 
     try (ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
         GZIPInputStream gis = new GZIPInputStream(bis)) {
-      return gson.fromJson(new InputStreamReader(gis, "UTF-8"), Map.class);
+      return gson.fromJson(new InputStreamReader(gis, UTF_8), Map.class);
     }
   }
 
-  @Override public String toString() {
-    return "PropNode{" + "dataVersion=" + dataVersion + ", compressed=" + compressed + ", props=" + props + '}';
+  @Override
+  public String toString() {
+    return "PropNode{" + "dataVersion=" + dataVersion + ", compressed=" + compressed + ", props="
+        + props + '}';
   }
 }

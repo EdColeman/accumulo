@@ -18,13 +18,13 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 public class SentinelRoot {
 
@@ -38,7 +38,7 @@ public class SentinelRoot {
   private final String[] nodes = new String[NUM_SENTINEL_NODES];
 
   public int lookup(final String id) {
-    int bin = hasher.hashString(id, StandardCharsets.UTF_8).hashCode() & MASK;
-
+    int bin = hasher.hashString(id, UTF_8).hashCode() & MASK;
+    return bin;
   }
 }

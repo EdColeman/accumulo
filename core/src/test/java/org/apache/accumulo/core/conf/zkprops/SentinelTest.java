@@ -18,5 +18,4 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-public class SentinelTest {
-}
+public class SentinelTest {}

@@ -18,10 +18,10 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 public class SentinelNode {
 
@@ -37,7 +37,7 @@ public class SentinelNode {
 
   private Map<String,WatchedNode> nodeMap;
 
-  public void addWatchedNode(final String path){
+  public void addWatchedNode(final String path) {
 
   }
 }
