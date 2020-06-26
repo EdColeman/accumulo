@@ -18,19 +18,79 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import org.apache.accumulo.core.data.NamespaceId;
-import org.apache.accumulo.core.data.TableId;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ScopedIdTest {
+
+  private static final Logger log = LoggerFactory.getLogger(ScopedIdTest.class);
+
   @Test
-  public void builder() {
+  public void simple() {
 
     ScopedId id = new ScopedId.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.DEFAULT;
-      $.namespaceId = NamespaceId.of("foo");
-      $.tableId = TableId.of("bar");
+      $.scope = PropScope.TABLE;
+      $.id = "foo.bar";
     }).build();
+
+    log.debug("ScopedId: {}", id);
+
+    assertTrue(id.hasNamespace());
+    assertEquals("foo", id.getNamespaceId().canonical());
+
+    assertTrue(id.hasTableId());
+    assertEquals("bar", id.getTableId().canonical());
+
   }
+
+  /**
+   * Validate that setting Scope.NAMESPACE and the id parses correctly
+   */
+  @Test
+  public void namespaceScope() {
+
+    ScopedId id = new ScopedId.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.NAMESPACE;
+      $.id = "foo";
+    }).build();
+
+    log.debug("ScopedId: {}", id);
+
+    assertTrue(id.hasNamespace());
+    assertEquals("foo", id.getNamespaceId().canonical());
+
+    assertFalse(id.hasTableId());
+    assertTrue(id.getTableId().canonical().isEmpty());
+
+  }
+
+  /**
+   * Validate that setting Scope.NAMESPACE and the id parses correctly
+   */
+  @Test
+  public void tableScope() {
+
+    ScopedId id = new ScopedId.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.TABLE;
+      $.id = "foo";
+    }).build();
+
+    log.debug("ScopedId: {}", id);
+
+    assertFalse(id.hasNamespace());
+    assertEquals("", id.getNamespaceId().canonical());
+
+    assertTrue(id.hasTableId());
+    assertEquals("foo", id.getTableId().canonical());
+
+  }
+
 }

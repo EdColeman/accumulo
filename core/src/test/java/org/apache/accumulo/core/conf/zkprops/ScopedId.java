@@ -18,10 +18,14 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 
+import org.apache.accumulo.core.clientImpl.Namespace;
+import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.core.util.Pair;
 
 public class ScopedId {
   final String name;
@@ -36,6 +40,28 @@ public class ScopedId {
     this.namespaceId = namespaceId;
   }
 
+  public boolean hasNamespace() {
+    if (Objects.isNull(namespaceId) || namespaceId.canonical().isEmpty()) {
+      return false;
+    }
+    return true;
+  }
+
+  public NamespaceId getNamespaceId() {
+    return namespaceId;
+  }
+
+  public boolean hasTableId() {
+    if (Objects.isNull(tableId) || tableId.canonical().isEmpty()) {
+      return false;
+    }
+    return true;
+  }
+
+  public TableId getTableId() {
+    return tableId;
+  }
+
   @Override
   public String toString() {
     return "ScopeId{" + "name='" + name + '\'' + ", scope=" + scope + ", tableId=" + tableId
@@ -43,10 +69,13 @@ public class ScopedId {
   }
 
   public static class Builder {
+
     String name;
-    TableId tableId;
-    NamespaceId namespaceId;
-    PropScope scope;
+    PropScope scope = PropScope.DEFAULT;
+    String id;
+
+    private TableId tableId;
+    private NamespaceId namespaceId;
 
     public ScopedId.Builder with(Consumer<ScopedId.Builder> builder) {
       builder.accept(this);
@@ -54,7 +83,21 @@ public class ScopedId {
     }
 
     public ScopedId build() {
-      return new ScopedId(name, scope, tableId, namespaceId);
+      Objects.requireNonNull(name, "name must be provided, cannot be null");
+
+      Pair<String,String> p = Tables.qualify(id, Namespace.DEFAULT.name());
+
+      NamespaceId nid = null;
+      TableId tid = null;
+
+      if (scope.equals(PropScope.NAMESPACE) && p.getFirst().isEmpty()) {
+        nid = NamespaceId.of(p.getSecond());
+        tid = TableId.of("");
+      } else {
+        nid = NamespaceId.of(p.getFirst());
+        tid = TableId.of(p.getSecond());
+      }
+      return new ScopedId(name, scope, tid, nid);
     }
   }
 }
