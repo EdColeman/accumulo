@@ -21,11 +21,14 @@ package org.apache.accumulo.core.conf.zkprops;
 import java.util.List;
 import java.util.Map;
 
-public interface PropZkCache {
+public interface PropCache {
 
-  Map<String,String> getProperty(final String tableId);
+  Map<String,String> getProperty(String name, final String tableId);
+
+  void setProperty(String name, String value, ScopedId scopedId);
+
   String getScopedProperty(final String tableId);
 
-  Map<String,List<String>> getAllProperty(final String tableId);
+  Map<String,List<String>> getAllProperties(final String tableId);
 
 }

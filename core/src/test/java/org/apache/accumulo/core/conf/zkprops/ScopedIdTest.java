@@ -18,10 +18,19 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-/**
- * Stub class to reflect property scope. Properties are hierarchical ordered from general to
- * specific scope. When accessing a property the most specific value is returned.
- */
-public enum PropScope {
-  DEFAULT, SITE, SYSTEM, NAMESPACE, TABLE
+import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.core.data.TableId;
+import org.junit.Test;
+
+public class ScopedIdTest {
+  @Test
+  public void builder() {
+
+    ScopedId id = new ScopedId.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.DEFAULT;
+      $.namespaceId = NamespaceId.of("foo");
+      $.tableId = TableId.of("bar");
+    }).build();
+  }
 }

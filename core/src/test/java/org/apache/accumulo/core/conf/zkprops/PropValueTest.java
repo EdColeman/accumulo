@@ -18,27 +18,78 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.Set;
+import java.util.TreeSet;
+
+import org.apache.accumulo.core.clientImpl.Namespace;
+import org.apache.accumulo.core.clientImpl.Tables;
+import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.core.util.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PropValueTest {
 
-  private static final Logger log = LoggerFactory.getLogger(SentinelRoot.class);
+  private static final Logger log = LoggerFactory.getLogger(PropValueTest.class);
 
   @Test
-  public void compare(){
-    PropValue p1 = PropValue.Builder.builder().withName("n1").withScope(PropScope.DEFAULT).withValue("abc").build();
-    PropValue p2 = PropValue.Builder.builder().withName("n1").withScope(PropScope.SYSTEM).withValue("abc").build();
+  public void compare() {
+    Set<PropValue> aSet = new TreeSet<>();
 
-    PropValue p3 = PropValue.Builder.builder().withName("n2").withScope(PropScope.DEFAULT).withValue("abc").build();
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.DEFAULT;
+      $.value = "default";
+    }).build());
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.SITE;
+      $.value = "site";
+    }).build());
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.SYSTEM;
+      $.value = "system";
+    }).build());
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.NAMESPACE;
+      $.value = "namespace";
+    }).build());
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "abc";
+      $.scope = PropScope.TABLE;
+      $.value = "table";
+    }).build());
+    aSet.add(new PropValue.Builder().with($ -> {
+      $.name = "zed";
+      $.scope = PropScope.TABLE;
+      $.value = "table";
+    }).build());
 
-    log.info("c:{}", p1.compareTo(p2));
-    log.info("c:{}", p2.compareTo(p1));
+    aSet.forEach((p) -> log.info("p:{}", p));
 
-    log.info("c:{}", p1.compareTo(p3));
-    log.info("c:{}", p2.compareTo(p3));
-    log.info("c:{}", p3.compareTo(p1));
+  }
 
+  @Test
+  public void namespaces() {
+
+    Pair<String,String> p = Tables.qualify("bar", Namespace.DEFAULT.name());
+    NamespaceId nid = NamespaceId.of(p.getFirst());
+    TableId tid = TableId.of(p.getSecond());
+
+    log.info("NID:{}, TID:{}", nid, tid);
+
+    p = Tables.qualify("accumulo.bar", Namespace.DEFAULT.name());
+    nid = NamespaceId.of(p.getFirst());
+    tid = TableId.of(p.getSecond());
+
+    log.info("NID:{}, TID:{}", nid, tid);
+
+    log.info("q:{}", Tables.qualify("bar", Namespace.DEFAULT.name()));
+    log.info("q:{}", Tables.qualify("foo.bar", Namespace.DEFAULT.name()));
+    log.info("q:{}", Tables.qualify("accumulo.bar", Namespace.DEFAULT.name()));
   }
 }

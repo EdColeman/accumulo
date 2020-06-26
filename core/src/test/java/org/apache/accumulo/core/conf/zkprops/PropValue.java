@@ -20,14 +20,15 @@ package org.apache.accumulo.core.conf.zkprops;
 
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.function.Consumer;
 
-public class PropValue implements Comparable<PropValue>{
+public class PropValue implements Comparable<PropValue> {
 
   final String name;
   final PropScope scope;
   final String value;
 
-  private PropValue(final String name, final PropScope scope, final String value){
+  private PropValue(final String name, final PropScope scope, final String value) {
     this.name = Objects.requireNonNull(name, "Property name must be provided, cannot be null");
     this.scope = Objects.requireNonNull(scope, "Scope must be provided,cannot be null");
     this.value = value;
@@ -46,39 +47,47 @@ public class PropValue implements Comparable<PropValue>{
   }
 
   public static class Builder {
-
     String name;
     PropScope scope;
     String value;
 
-    static Builder builder(){
-      return new Builder();
-    }
-
-    public Builder withName(final String name){
-      this.name = name;
-      return this;
-    }
-    public Builder withScope(final PropScope scope){
-      this.scope = scope;
-      return this;
-    }
-    public Builder withValue(final String value){
-      this.value = value;
+    public Builder with(Consumer<Builder> builder) {
+      builder.accept(this);
       return this;
     }
 
-    public PropValue build(){
-      this.name = Objects.requireNonNull(name, "Property name must be provided, cannot be null");
-      this.scope = Objects.requireNonNull(scope, "Scope must be provided,cannot be null");
-      this.value = value;
-         return new PropValue(name, scope, value);
+    public PropValue build() {
+      return new PropValue(name, scope, value);
     }
   }
-  private static Comparator<PropValue> compareNameThenScope = Comparator.comparing(PropValue::getName)
-      .thenComparingInt(p -> p.getScope().ordinal());
 
-  @Override public int compareTo(PropValue other) {
-    return compareNameThenScope.compare(this,other);
+  private static Comparator<PropValue> compareNameThenScope =
+      Comparator.comparing(PropValue::getName).thenComparingInt(p -> p.getScope().ordinal());
+
+  @Override
+  public int compareTo(PropValue other) {
+    return compareNameThenScope.compare(this, other);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o)
+      return true;
+    if (o == null || getClass() != o.getClass())
+      return false;
+    PropValue propValue = (PropValue) o;
+    return name.equals(propValue.name) && scope == propValue.scope
+        && Objects.equals(value, propValue.value);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, scope, value);
+  }
+
+  @Override
+  public String toString() {
+    return "PropValue{" + "name='" + name + '\'' + ", scope=" + scope + ", value='" + value + '\''
+        + '}';
   }
 }

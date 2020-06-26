@@ -18,10 +18,29 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * Stub class to reflect property scope. Properties are hierarchical ordered from general to
- * specific scope. When accessing a property the most specific value is returned.
+ * Implementation of a PropCache that keeps values in memory to aid in development and testing.
  */
-public enum PropScope {
-  DEFAULT, SITE, SYSTEM, NAMESPACE, TABLE
+public class PropMemCache implements PropCache {
+
+  @Override
+  public Map<String,String> getProperty(String name, String tableId) {
+    return null;
+  }
+
+  @Override
+  public void setProperty(String name, String value, ScopedId scopedId) {}
+
+  @Override
+  public String getScopedProperty(String tableId) {
+    return null;
+  }
+
+  @Override
+  public Map<String,List<String>> getAllProperties(String tableId) {
+    return null;
+  }
 }
