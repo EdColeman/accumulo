@@ -171,6 +171,17 @@ public class PropNode {
     return compressed;
   }
 
+  /**
+   * Re-hydrate a PropNode from a gzip'd compressed json string.
+   *
+   * @param inputStream
+   *          an input stream pointing to the compressed json data
+   * @param len
+   *          the length of the compressed data
+   * @return a PropNode
+   * @throws IOException
+   *           thrown if there is a failure processing the compressed data
+   */
   public static PropNode decompress(InputStream inputStream, int len) throws IOException {
 
     try (GZIPInputStream gis = new GZIPInputStream(inputStream, len)) {
@@ -178,6 +189,15 @@ public class PropNode {
     }
   }
 
+  /**
+   * Re-hydrate a PropNode stored compressed in a byte array[]
+   *
+   * @param compressed
+   *          the compressed PropNode json string
+   * @return a PropNode
+   * @throws IOException
+   *           thrown if there is an error processing the compressed data.
+   */
   public static PropNode decompress(byte[] compressed) throws IOException {
 
     log.debug("x:{}", compressed[0]);
