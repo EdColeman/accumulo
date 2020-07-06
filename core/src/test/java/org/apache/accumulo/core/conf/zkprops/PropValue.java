@@ -25,10 +25,10 @@ import java.util.function.Consumer;
 public class PropValue implements Comparable<PropValue> {
 
   final String name;
-  final PropScope scope;
+  final PropId.Scope scope;
   final String value;
 
-  private PropValue(final String name, final PropScope scope, final String value) {
+  private PropValue(final String name, final PropId.Scope scope, final String value) {
     this.name = Objects.requireNonNull(name, "Property name must be provided, cannot be null");
     this.scope = Objects.requireNonNull(scope, "Scope must be provided,cannot be null");
     this.value = value;
@@ -38,7 +38,7 @@ public class PropValue implements Comparable<PropValue> {
     return name;
   }
 
-  public PropScope getScope() {
+  public PropId.Scope getScope() {
     return scope;
   }
 
@@ -48,7 +48,7 @@ public class PropValue implements Comparable<PropValue> {
 
   public static class Builder {
     String name;
-    PropScope scope;
+    PropId.Scope scope;
     String value;
 
     public Builder with(Consumer<Builder> builder) {

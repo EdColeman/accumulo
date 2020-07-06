@@ -18,17 +18,13 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.util.List;
-import java.util.Map;
+/**
+ * A backing store for property nodes.
+ */
+public interface PropStore {
 
-public interface PropCache {
+  PropNode get(PropId id);
 
-  Map<String,String> getProperty(String name, final String tableId);
-
-  void setProperty(String name, String value, ScopedId scopedId);
-
-  String getScopedProperty(final String tableId);
-
-  Map<String,List<String>> getAllProperties(final String tableId);
+  void store(PropNode node);
 
 }

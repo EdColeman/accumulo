@@ -18,10 +18,23 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * Stub class to reflect property scope. Properties are hierarchical ordered from general to
- * specific scope. When accessing a property the most specific value is returned.
+ * Implementation of a PropStore that keeps values in memory to aid in development and testing.
  */
-public enum PropScope {
-  DEFAULT, SITE, SYSTEM, NAMESPACE, TABLE
+public class PropMemStore implements PropStore {
+
+  private Map<PropId,PropNode> store = new HashMap<>();
+
+  @Override
+  public PropNode get(PropId id) {
+    return null;
+  }
+
+  @Override
+  public void store(PropNode node) {
+
+  }
 }

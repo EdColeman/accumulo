@@ -22,30 +22,33 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Optional;
+
+import org.apache.accumulo.core.data.TableId;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ScopedIdTest {
+public class PropIdTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ScopedIdTest.class);
+  private static final Logger log = LoggerFactory.getLogger(PropIdTest.class);
 
   @Test
   public void simple() {
 
-    ScopedId id = new ScopedId.Builder().with($ -> {
-      $.name = "abc";
-      $.scope = PropScope.TABLE;
+    PropId id = new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.TABLE;
       $.id = "foo.bar";
     }).build();
 
-    log.debug("ScopedId: {}", id);
+    log.debug("PropId: {}", id);
 
     assertTrue(id.hasNamespace());
-    assertEquals("foo", id.getNamespaceId().canonical());
+    assertEquals("foo", id.getNamespaceId().get().canonical());
 
     assertTrue(id.hasTableId());
-    assertEquals("bar", id.getTableId().canonical());
+    assertEquals("bar", id.getTableId().get().canonical());
 
   }
 
@@ -55,19 +58,19 @@ public class ScopedIdTest {
   @Test
   public void namespaceScope() {
 
-    ScopedId id = new ScopedId.Builder().with($ -> {
-      $.name = "abc";
-      $.scope = PropScope.NAMESPACE;
+    PropId id = new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.NAMESPACE;
       $.id = "foo";
     }).build();
 
-    log.debug("ScopedId: {}", id);
+    log.debug("PropId: {}", id);
 
     assertTrue(id.hasNamespace());
-    assertEquals("foo", id.getNamespaceId().canonical());
+    assertEquals("foo", id.getNamespaceId().get().canonical());
 
     assertFalse(id.hasTableId());
-    assertTrue(id.getTableId().canonical().isEmpty());
+    assertTrue(id.getTableId().get().canonical().isEmpty());
 
   }
 
@@ -77,20 +80,28 @@ public class ScopedIdTest {
   @Test
   public void tableScope() {
 
-    ScopedId id = new ScopedId.Builder().with($ -> {
-      $.name = "abc";
-      $.scope = PropScope.TABLE;
+    PropId id = new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.TABLE;
       $.id = "foo";
     }).build();
 
-    log.debug("ScopedId: {}", id);
+    log.debug("PropId: {}", id);
 
     assertFalse(id.hasNamespace());
-    assertEquals("", id.getNamespaceId().canonical());
+    assertTrue("", id.getNamespaceId().isEmpty());
 
     assertTrue(id.hasTableId());
-    assertEquals("foo", id.getTableId().canonical());
+    assertEquals("foo", id.getTableId().get().canonical());
 
   }
 
+  @Test
+  public void x() {
+    TableId tableId = null;
+
+    Optional<TableId> tiopt = Optional.ofNullable(tableId).filter(t -> !t.canonical().isEmpty());
+
+    log.info("Null: {}", tiopt);
+  }
 }

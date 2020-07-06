@@ -40,32 +40,32 @@ public class PropValueTest {
 
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.DEFAULT;
+      $.scope = PropId.Scope.DEFAULT;
       $.value = "default";
     }).build());
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.SITE;
+      $.scope = PropId.Scope.SITE;
       $.value = "site";
     }).build());
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.SYSTEM;
+      $.scope = PropId.Scope.SYSTEM;
       $.value = "system";
     }).build());
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.NAMESPACE;
+      $.scope = PropId.Scope.NAMESPACE;
       $.value = "namespace";
     }).build());
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "abc";
-      $.scope = PropScope.TABLE;
+      $.scope = PropId.Scope.TABLE;
       $.value = "table";
     }).build());
     aSet.add(new PropValue.Builder().with($ -> {
       $.name = "zed";
-      $.scope = PropScope.TABLE;
+      $.scope = PropId.Scope.TABLE;
       $.value = "table";
     }).build());
 

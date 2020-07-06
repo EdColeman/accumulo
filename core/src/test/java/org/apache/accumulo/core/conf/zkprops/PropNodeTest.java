@@ -28,9 +28,11 @@ public class PropNodeTest {
 
   private static final Logger log = LoggerFactory.getLogger(PropNodeTest.class);
 
+  private PropStore store = new PropMemStore();
+
   @Test
   public void jsonTest() {
-    PropNode n1 = createSample1();
+    PropNode n1 = createTableProp();
 
     log.debug("N1:{}", n1);
     String j = n1.toJson();
@@ -43,7 +45,9 @@ public class PropNodeTest {
 
   @Test
   public void bytesTest() throws IOException {
-    PropNode n1 = createSample1();
+    PropNode n1 = createTableProp();
+
+    log.info("NNN: {}", n1.toString());
 
     byte[] b = n1.toByteBuffer();
 
@@ -51,8 +55,42 @@ public class PropNodeTest {
 
   }
 
-  private PropNode createSample1() {
-    PropNode n1 = new PropNode();
+  @Test
+  public void systemPropsTest() throws IOException {
+
+    PropId id = new PropId.Builder().with($ -> {
+      $.propName = "SYSTEM";
+      $.scope = PropId.Scope.SYSTEM;
+    }).build();
+
+    PropNode n1 = new PropNode.Factory().with($ -> {
+      $.id = id;
+      $.store = this.store;
+    }).create();
+
+    n1.setProp("a", "123");
+    n1.setProp("b", "234");
+
+    log.info("NNN: {}", n1.toString());
+
+    byte[] b = n1.toByteBuffer();
+
+    log.debug("from bytes len: {}, R:{}", b.length, PropNode.fromBytes(b));
+
+  }
+
+  private PropNode createTableProp() {
+
+    PropId id = new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.TABLE;
+      $.id = "foo.bar";
+    }).build();
+
+    PropNode n1 = new PropNode.Factory().with($ -> {
+      $.id = id;
+      $.store = this.store;
+    }).create();
 
     n1.setProp("a", "123");
     n1.setProp("b", "234");

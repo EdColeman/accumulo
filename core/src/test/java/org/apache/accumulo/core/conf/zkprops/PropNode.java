@@ -27,8 +27,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -36,7 +40,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 
+/**
+ * A PropNode manages a collection of properties for a single scope as a unit. Properties for a
+ * scope are accessed with a Map&lt;String,String&gt; interface. The storage and serialization are
+ * managed internally.
+ *
+ */
 public class PropNode {
 
   public enum Compression {
@@ -44,12 +61,42 @@ public class PropNode {
   }
 
   private static final Logger log = LoggerFactory.getLogger(PropNode.class);
-  private static final Gson gson = new Gson();
+  private static Gson gson;
+
+  static {
+    GsonBuilder builder = new GsonBuilder();
+    builder.registerTypeAdapter(Optional.class, new OptionalSerDes());
+    gson = builder.create();
+  }
+
+  private PropId id;
 
   private int dataVersion = 1;
-  private Compression compressed = Compression.NONE;
+  private Compression compressed = Compression.GZIP;
 
   private Map<String,String> props = new TreeMap<>();
+
+  private PropNode(final PropId id) {
+    this.id = id;
+  }
+
+  /** default for serialization */
+  private PropNode() {}
+
+  public static class Factory {
+
+    PropId id;
+    PropStore store;
+
+    public PropNode.Factory with(Consumer<PropNode.Factory> factory) {
+      factory.accept(this);
+      return this;
+    }
+
+    public PropNode create() {
+      return new PropNode(id);
+    }
+  }
 
   public void setProp(final String name, final String value) {
     props.put(name, value);
@@ -65,11 +112,13 @@ public class PropNode {
 
   public byte[] toByteBuffer() throws IOException {
 
-    byte[] p = gson.toJson(props, Map.class).getBytes(UTF_8);
+    byte[] p = gson.toJson(this, PropNode.class).getBytes(UTF_8);
 
     byte[] d = compress();
 
-    ByteArrayOutputStream bos = new ByteArrayOutputStream(9 + p.length);
+    log.info("Compression stats: before {} - after {} ", p.length, d.length);
+
+    ByteArrayOutputStream bos = new ByteArrayOutputStream(9 + d.length);
     DataOutputStream dos = new DataOutputStream(bos);
 
     dos.writeInt(dataVersion);
@@ -92,10 +141,7 @@ public class PropNode {
 
       int len = dis.readInt();
 
-      // byte[] c = new byte[80];
-      // dis.read(c, 0, len);
-
-      Map<String,String> m = PropNode.decompress(bis, len);
+      PropNode m = PropNode.decompress(bis, len);
 
       // String s = new String(b.array(),9,len,StandardCharsets.UTF_8);
       // log.debug("s: '{}'", s);
@@ -103,15 +149,13 @@ public class PropNode {
       // Type typeOfHashMap = new TypeToken<Map<String, String>>() { }.getType();
       // Map<String,String> m = gson.fromJson(s, Map.class);
 
-      r.props = m;
-
-      return r;
+      return m;
     }
   }
 
   public byte[] compress() throws IOException {
 
-    byte[] data = gson.toJson(props, Map.class).getBytes();
+    byte[] data = gson.toJson(this, PropNode.class).getBytes();
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length);
     GZIPOutputStream gzip = new GZIPOutputStream(bos);
@@ -127,26 +171,49 @@ public class PropNode {
     return compressed;
   }
 
-  public static Map<String,String> decompress(InputStream inputStream, int len) throws IOException {
+  public static PropNode decompress(InputStream inputStream, int len) throws IOException {
 
     try (GZIPInputStream gis = new GZIPInputStream(inputStream, len)) {
-      return gson.fromJson(new InputStreamReader(gis, UTF_8), Map.class);
+      return gson.fromJson(new InputStreamReader(gis, UTF_8), PropNode.class);
     }
   }
 
-  public static Map<String,String> decompress(byte[] compressed) throws IOException {
+  public static PropNode decompress(byte[] compressed) throws IOException {
 
     log.debug("x:{}", compressed[0]);
 
     try (ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
         GZIPInputStream gis = new GZIPInputStream(bis)) {
-      return gson.fromJson(new InputStreamReader(gis, UTF_8), Map.class);
+      return gson.fromJson(new InputStreamReader(gis, UTF_8), PropNode.class);
+    }
+  }
+
+  /**
+   * handle java Optional types in json serialization.
+   *
+   * @param <T>
+   *          an instance of an Optional - any type.
+   */
+  private static class OptionalSerDes<T>
+      implements JsonSerializer<Optional<T>>, JsonDeserializer<Optional<T>> {
+    @Override
+    public Optional<T> deserialize(JsonElement json, Type typeOfT,
+        JsonDeserializationContext context) throws JsonParseException {
+      final T value =
+          context.deserialize(json, ((ParameterizedType) typeOfT).getActualTypeArguments()[0]);
+      return Optional.of(value);
+    }
+
+    @Override
+    public JsonElement serialize(Optional<T> src, Type typeOfSrc,
+        JsonSerializationContext context) {
+      return context.serialize(src.orElse(null));
     }
   }
 
   @Override
   public String toString() {
-    return "PropNode{" + "dataVersion=" + dataVersion + ", compressed=" + compressed + ", props="
-        + props + '}';
+    return "PropNode{dataVersion=" + dataVersion + ", compressed=" + compressed + ", id=" + id
+        + ", props=" + props + '}';
   }
 }
