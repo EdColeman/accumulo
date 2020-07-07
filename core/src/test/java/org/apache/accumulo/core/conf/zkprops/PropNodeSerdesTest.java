@@ -108,7 +108,6 @@ public class PropNodeSerdesTest {
 
     PropNode n1 = new PropNode.Factory().with($ -> {
       $.id = id;
-      $.store = this.store;
     }).create();
 
     n1.setProp("a", "123");
@@ -134,7 +133,6 @@ public class PropNodeSerdesTest {
 
     PropNode n1 = new PropNode.Factory().with($ -> {
       $.id = id;
-      $.store = this.store;
     }).create();
 
     n1.setProp("a", "123");

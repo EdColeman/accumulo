@@ -19,6 +19,7 @@
 package org.apache.accumulo.core.conf.zkprops;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
@@ -54,6 +55,10 @@ public class PropNode {
     props.put(name, value);
   }
 
+  public Optional<String> getProp(final String name){
+    return Optional.ofNullable(props.get(name));
+  }
+
   @Override
   public String toString() {
     return "PropNode{" + "id=" + nodeId + ", props=" + props + '}';
@@ -62,7 +67,6 @@ public class PropNode {
   public static class Factory {
 
     PropId id;
-    PropStore store;
 
     public PropNode.Factory with(Consumer<PropNode.Factory> factory) {
       factory.accept(this);
