@@ -18,28 +18,33 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PropNodeTest {
+public class PropNodeSerdesTest {
 
-  private static final Logger log = LoggerFactory.getLogger(PropNodeTest.class);
+  private static final Logger log = LoggerFactory.getLogger(PropNodeSerdesTest.class);
 
   private PropStore store = new PropMemStore();
 
   @Test
   public void jsonTest() {
-    PropNode n1 = createTableProp();
 
+    PropNode n1 = createTableProp();
     log.debug("N1:{}", n1);
-    String j = n1.toJson();
+
+    PropNodeSerdes serdes = new PropNodeSerdes();
+
+    String j = serdes.toJson(n1);
 
     log.debug("len: {}, json: {}", j.length(), j);
 
-    PropNode r1 = PropNode.fromJson(n1.toJson());
+    PropNode r1 = serdes.fromJson(serdes.toJson(n1));
     log.debug("R1:{}", r1);
   }
 
@@ -49,21 +54,48 @@ public class PropNodeTest {
 
     log.info("NNN: {}", n1.toString());
 
-    byte[] b = n1.toByteBuffer();
+    PropNodeSerdes serdes = new PropNodeSerdes();
 
-    log.debug("len: {}, R:{}", b.length, PropNode.fromBytes(b));
+    byte[] b = serdes.toByteBuffer(n1);
+
+    log.debug("len: {}, R:{}", b.length, serdes.fromBytes(b));
 
   }
 
-  @Test public void writeUncompressedTest() throws IOException {
+  @Test
+  public void writeUncompressedTest() throws IOException {
     PropNode n1 = createTableProp();
-    n1.disableCompression();
+    PropNodeSerdes serdes = new PropNodeSerdes();
+    serdes.disableCompression();
 
     log.info("NNN: {}", n1.toString());
 
-    byte[] b = n1.toByteBuffer();
+    byte[] b = serdes.toByteBuffer(n1);
 
-    log.debug("len: {}, R:{}", b.length, PropNode.fromBytes(b));
+    log.debug("len: {}, R:{}", b.length, serdes.fromBytes(b));
+  }
+
+  /**
+   * The use of compression / decompression is encoded with the data written. Check that the data
+   * value take precedence when reading.
+   *
+   * @throws IOException
+   *           if error processing occurs
+   */
+  @Test
+  public void checkDataCompressionOnRead() throws IOException {
+
+    PropNode n1 = createTableProp();
+    PropNodeSerdes serdes = new PropNodeSerdes();
+    serdes.enableCompression();
+
+    byte[] b = serdes.toByteBuffer(n1);
+
+    serdes.disableCompression();
+
+    PropNode n2 = serdes.fromBytes(b);
+
+    assertEquals(n1.getNodeId(), n2.getNodeId());
   }
 
   @Test
@@ -84,9 +116,11 @@ public class PropNodeTest {
 
     log.info("NNN: {}", n1.toString());
 
-    byte[] b = n1.toByteBuffer();
+    PropNodeSerdes serdes = new PropNodeSerdes();
 
-    log.debug("from bytes len: {}, R:{}", b.length, PropNode.fromBytes(b));
+    byte[] b = serdes.toByteBuffer(n1);
+
+    log.debug("from bytes len: {}, R:{}", b.length, serdes.fromBytes(b));
 
   }
 
@@ -107,4 +141,5 @@ public class PropNodeTest {
     n1.setProp("b", "234");
     return n1;
   }
+
 }

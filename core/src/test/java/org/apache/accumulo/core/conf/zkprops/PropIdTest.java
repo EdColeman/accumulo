@@ -21,8 +21,12 @@ package org.apache.accumulo.core.conf.zkprops;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.accumulo.core.data.TableId;
 import org.junit.Test;
@@ -93,6 +97,64 @@ public class PropIdTest {
 
     assertTrue(id.hasTableId());
     assertEquals("foo", id.getTableId().get().canonical());
+
+  }
+
+  @Test
+  public void sortOrder() {
+
+    Set<PropId> sorter = new TreeSet<>();
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "zzz";
+      $.scope = PropId.Scope.TABLE;
+      $.id = "foo.bar";
+    }).build());
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.DEFAULT;
+    }).build());
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.SITE;
+    }).build());
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.SYSTEM;
+    }).build());
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.NAMESPACE;
+      $.id = "foo";
+    }).build());
+
+    sorter.add(new PropId.Builder().with($ -> {
+      $.propName = "abc";
+      $.scope = PropId.Scope.TABLE;
+      $.id = "foo.bar";
+    }).build());
+
+    sorter.forEach(id -> log.trace("{}", id));
+
+    // the expected order should match precedence of scope.
+    Iterator<PropId> ids = sorter.iterator();
+    for (PropId.Scope s : PropId.Scope.values()) {
+      assertEquals(ids.next().scope, s);
+    }
+
+    // last entry
+    PropId last = ids.next();
+
+    assertEquals(last.propName, "zzz");
+    assertEquals(last.scope, PropId.Scope.TABLE);
+    last.namespaceId.ifPresentOrElse(n -> assertEquals(n.canonical(), "foo"),
+        () -> fail("expected namespace to be present"));
+    last.tableId.ifPresentOrElse(t -> assertEquals(t.canonical(), "bar"),
+        () -> fail("expected tableId to be present"));
 
   }
 
