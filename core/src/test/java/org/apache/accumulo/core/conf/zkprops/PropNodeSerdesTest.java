@@ -55,6 +55,17 @@ public class PropNodeTest {
 
   }
 
+  @Test public void writeUncompressedTest() throws IOException {
+    PropNode n1 = createTableProp();
+    n1.disableCompression();
+
+    log.info("NNN: {}", n1.toString());
+
+    byte[] b = n1.toByteBuffer();
+
+    log.debug("len: {}, R:{}", b.length, PropNode.fromBytes(b));
+  }
+
   @Test
   public void systemPropsTest() throws IOException {
 
