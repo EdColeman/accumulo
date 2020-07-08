@@ -55,7 +55,7 @@ public class PropNode {
     props.put(name, value);
   }
 
-  public Optional<String> getProp(final String name){
+  public Optional<String> getProp(final String name) {
     return Optional.ofNullable(props.get(name));
   }
 

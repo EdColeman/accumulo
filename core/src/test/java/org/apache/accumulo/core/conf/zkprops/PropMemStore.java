@@ -34,7 +34,14 @@ public class PropMemStore implements PropStore {
   }
 
   @Override
-  public void store(PropNode node) {
+  public void store(PropNode node) {}
+
+  @Override
+  public void setProperty(PropId.Scope scope, String path, String name, String value) {
+
+    // if node in local cache, use node id
+
+    // ? if same, update anyway?
 
   }
 }

@@ -18,11 +18,11 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Optional;
 
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 public class PropMemStoreTest {
 
@@ -43,6 +43,8 @@ public class PropMemStoreTest {
 
     Optional<String> v = node1.getProp("prop1");
 
+    store.store(node1);
+
     assertTrue(v.isEmpty());
   }
 
@@ -56,5 +58,7 @@ public class PropMemStoreTest {
     }).create();
 
     node1.setProp("prop1", "value1");
+
+    store.store(node1);
   }
 }

@@ -27,4 +27,5 @@ public interface PropStore {
 
   void store(PropNode node);
 
+  void setProperty(PropId.Scope scope, String path, String name, String value);
 }
