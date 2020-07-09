@@ -23,9 +23,10 @@ package org.apache.accumulo.core.conf.zkprops;
  */
 public interface PropStore {
 
-  PropNode get(PropId id);
+  PropData get(String path);
 
-  void store(PropNode node);
+  void store(PropData data);
 
   void setProperty(PropId.Scope scope, String path, String name, String value);
+
 }

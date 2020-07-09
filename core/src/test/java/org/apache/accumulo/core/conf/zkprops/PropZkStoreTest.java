@@ -18,16 +18,36 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class PropMemStoreTest {
+public class PropZkStoreTest {
+
+  private static ZooKeeperTestingServer szk = null;
+
+  private static String MOCK_ZK_ROOT = "/accumulo/1234/props";
+
+  @BeforeClass
+  public static void setupZk() {
+    // using default zookeeper port - we don't have a full configuration
+    szk = new ZooKeeperTestingServer();
+    szk.initPaths(MOCK_ZK_ROOT);
+  }
+
+  @AfterClass
+  public static void shutdownZK() throws Exception {
+    szk.close();
+  }
 
   @Test
   public void emptyStore() {
-    PropStore store = new PropMemStore();
+    PropStore store = new PropZkStore();
     PropData data = store.get("/unknown");
   }
 
   @Test
-  public void simpleStore() {}
+  public void simpleStore() {
+
+  }
 }

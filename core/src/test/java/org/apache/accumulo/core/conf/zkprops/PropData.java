@@ -18,16 +18,31 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import org.junit.Test;
+import java.util.Map;
+import java.util.TreeMap;
 
-public class PropMemStoreTest {
+public class PropData {
 
-  @Test
-  public void emptyStore() {
-    PropStore store = new PropMemStore();
-    PropData data = store.get("/unknown");
+  private NodeVersionedId id;
+  private final Map<String,String> propMap = new TreeMap<>();
+
+  public PropData(final String path, final int version) {
+    this.id = new NodeVersionedId.Builder().with($ -> {
+      $.path = path;
+      $.dataVersion = version;
+    }).build();
+
   }
 
-  @Test
-  public void simpleStore() {}
+  public void updateVersion(final int version) {
+    id = new NodeVersionedId.Builder().updateVersion(id, version).build();
+  }
+
+  public int getVersion() {
+    return id.getDataVersion();
+  }
+
+  public void setProperty(String propName, String value) {
+    propMap.put(propName, value);
+  }
 }

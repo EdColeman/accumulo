@@ -25,11 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of a PropStore that keeps values in memory to aid in development and testing.
+ * Implementation of a PropStore that uses ZooKeeper.
  */
-public class PropMemStore implements PropStore {
+public class PropZkStore implements PropStore {
 
-  private static final Logger log = LoggerFactory.getLogger(PropMemStore.class);
+  private static final Logger log = LoggerFactory.getLogger(PropZkStore.class);
 
   private Map<String,PropData> store = new HashMap<>();
 

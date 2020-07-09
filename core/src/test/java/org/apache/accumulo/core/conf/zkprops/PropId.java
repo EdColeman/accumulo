@@ -89,8 +89,8 @@ public class PropId implements Comparable<PropId> {
   }
 
   private static Comparator<PropId> getComparator() {
-    OptionalComparator<TableId> tableIdComparator = new OptionalComparator();
-    OptionalComparator<NamespaceId> namespaceIdComparator = new OptionalComparator();
+    OptionalComparator<TableId> tableIdComparator = new OptionalComparator<>();
+    OptionalComparator<NamespaceId> namespaceIdComparator = new OptionalComparator<>();
 
     Comparator<PropId> result = comparing(PropId::getPropName).thenComparing(PropId::getScope)
         .thenComparing(n -> n.namespaceId, namespaceIdComparator)
