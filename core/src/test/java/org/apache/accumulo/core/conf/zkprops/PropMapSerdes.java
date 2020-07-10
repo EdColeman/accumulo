@@ -25,12 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility class to handle serialization / deserialization of PropData. Supports json encoding an
+ * A utility class to handle serialization / deserialization of PropMap. Supports json encoding an
  * optionally compressing the output with Gzip compression.
  */
-public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerdes<PropData> {
+public class PropMapSerdes extends SerdesBase<PropMap> implements JsonSerdes<PropMap> {
 
-  private static final Logger log = LoggerFactory.getLogger(PropDataSerdesBase.class);
+  private static final Logger log = LoggerFactory.getLogger(PropMapSerdes.class);
 
   /**
    * Read son encoded string and return a new instance.
@@ -39,8 +39,8 @@ public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerd
    *          a json encoded PropNode string.
    * @return a new instance.
    */
-  public PropData fromJson(final String payload) {
-    return gson.fromJson(payload, PropData.class);
+  public PropMap fromJson(final String payload) {
+    return fromJson(payload, PropMap.class);
   }
 
   /**
@@ -50,8 +50,8 @@ public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerd
    *          and input stream of a json encoded prop node.
    * @return a new instance from the json data.
    */
-  public PropData fromJsonStream(final InputStream payload) {
-    return fromJsonStream(payload, PropData.class);
+  public PropMap fromJson(final InputStream payload) {
+    return fromJson(payload, PropMap.class);
   }
 
   /**
@@ -63,8 +63,8 @@ public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerd
    * @throws IOException
    *           if am error occurs processing the underlying array.
    */
-  public PropData fromBytes(final byte[] array) throws IOException {
-    return fromBytes(array, PropData.class);
+  public PropMap fromBytes(final byte[] array) throws IOException {
+    return fromBytes(array, PropMap.class);
   }
 
   /**
@@ -78,8 +78,8 @@ public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerd
    * @throws IOException
    *           thrown if there is a failure processing the compressed data
    */
-  public PropData decompress(InputStream inputStream, int len) throws IOException {
-    return decompress(inputStream, len, PropData.class);
+  public PropMap decompress(InputStream inputStream, int len) throws IOException {
+    return decompress(inputStream, len, PropMap.class);
   }
 
   /**
@@ -91,20 +91,20 @@ public class PropDataSerdesBase extends SerdesBase<PropData> implements JsonSerd
    * @throws IOException
    *           thrown if there is an error processing the compressed data.
    */
-  public PropData decompress(byte[] compressed) throws IOException {
-    return decompress(compressed, PropData.class);
+  public PropMap decompress(byte[] compressed) throws IOException {
+    return decompress(compressed, PropMap.class);
   }
 
   public String toJson(final PropNode node) {
     return gson.toJson(node, PropNode.class);
   }
 
-  public byte[] toByteBuffer(final PropData target) throws IOException {
-    return toByteBuffer(target, PropData.class);
+  public byte[] toByteBuffer(final PropMap target) throws IOException {
+    return toByteBuffer(target, PropMap.class);
   }
 
-  public byte[] compress(final PropData target) throws IOException {
-    return compress(target, PropData.class);
+  public byte[] compress(final PropMap target) throws IOException {
+    return compress(target, PropMap.class);
   }
 
 }

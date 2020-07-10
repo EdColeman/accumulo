@@ -63,7 +63,7 @@ public class PropZkStoreTest {
   @Test
   public void emptyStore() {
     PropStore store = new PropZkStore(szk.getZooKeeper());
-    PropData data = store.get("/unknown");
+    CacheablePropMap data = store.get("/unknown");
   }
 
   @Test
@@ -72,7 +72,7 @@ public class PropZkStoreTest {
     PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZK_TABLE_PROPS_BASE + "table1";
 
-    PropData data = store.get(tablePath);
+    CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
     store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");

@@ -31,28 +31,28 @@ public class PropMemStore implements PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropMemStore.class);
 
-  private Map<String,PropData> store = new HashMap<>();
+  private Map<String,PropMap> store = new HashMap<>();
 
   // fake transaction id;
   private int txid = 1;
 
   @Override
-  public PropData get(String path) {
+  public CacheablePropMap get(String path) {
     return null;
   }
 
   @Override
-  public void store(PropData node) {}
+  public void store(CacheablePropMap node) {}
 
   @Override
   public void setProperty(PropId.Scope scope, String path, String propName, String value) {
 
     // if node in local cache, use node id
-    PropData node = store.computeIfAbsent(path, n -> lookup(path));
+    // PropMap node = store.computeIfAbsent(path, n -> lookup(path));
 
-    node.setProperty(propName, value);
+    // node.setProperty(propName, value);
 
-    save(node);
+    // save(node);
 
     // use node id
     // node.setProp(propName, value);
@@ -71,16 +71,16 @@ public class PropMemStore implements PropStore {
    *          path in zookeeper
    * @return the properties stored in zookeeper.
    */
-  private PropData lookup(final String path) {
+  private CacheablePropMap lookup(final String path) {
     return createTestNode(path);
   }
 
-  private void save(PropData node) {
+  private void save(CacheablePropMap node) {
     node.updateVersion(node.getVersion() + 1);
   }
 
-  private PropData createTestNode(final String path) {
-    return new PropData(path, 1);
+  private CacheablePropMap createTestNode(final String path) {
+    return new CacheablePropMap(path, 1);
   }
 
   private int getTxId() {

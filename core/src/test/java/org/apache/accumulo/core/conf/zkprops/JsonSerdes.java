@@ -40,7 +40,7 @@ public interface JsonSerdes<T> {
    *          and input stream of a json encoded prop node.
    * @return a new instance from the json data.
    */
-  T fromJsonStream(final InputStream payload);
+  T fromJson(final InputStream payload);
 
   /**
    * Re-hydrate a prop node from a byte array

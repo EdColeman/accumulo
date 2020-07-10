@@ -89,13 +89,24 @@ public class SerdesBase<T> {
   }
 
   /**
+   * Read son encoded string and return a new instance.
+   *
+   * @param payload
+   *          a json encoded PropNode string.
+   * @return a new instance.
+   */
+  public T fromJson(final String payload, final Class<T> clazz) {
+    return gson.fromJson(payload, clazz);
+  }
+
+  /**
    * Read json encoded PropNode from a stream an return a new instance.
    *
    * @param payload
    *          and input stream of a json encoded prop node.
    * @return a new instance from the json data.
    */
-  public T fromJsonStream(final InputStream payload, final Class<T> clazz) {
+  public T fromJson(final InputStream payload, final Class<T> clazz) {
     return gson.fromJson(new InputStreamReader(payload), clazz);
   }
 
@@ -124,7 +135,7 @@ public class SerdesBase<T> {
         return decompress(bis, len, clazz);
       }
 
-      return fromJsonStream(dis, clazz);
+      return fromJson(dis, clazz);
     }
   }
 

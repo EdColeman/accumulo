@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -39,7 +40,9 @@ public class PropZkStore implements PropStore {
 
   private final ZooKeeper zkClient;
 
-  private Map<String,PropData> cache = new HashMap<>();
+  PropMapSerdes serdes = new PropMapSerdes();
+
+  private Map<String,CacheablePropMap> cache = new HashMap<>();
 
   // fake transaction id;
   private int txid = 1;
@@ -49,24 +52,26 @@ public class PropZkStore implements PropStore {
   }
 
   @Override
-  public PropData get(String path) {
-    return null;
+  public CacheablePropMap get(String path) {
+    return cache.get(path);
   }
 
   @Override
-  public void store(PropData node) {}
+  public void store(CacheablePropMap node) {}
 
   @Override
   public void setProperty(PropId.Scope scope, String path, String propName, String value) {
 
     try {
 
-      // if node in local cache, use node id
-      PropData node = cache.computeIfAbsent(path, n -> lookup(path, true));
+      // if entry in local cache, use entry id
+      CacheablePropMap entry = cache.computeIfAbsent(path, n -> lookup(path, true));
 
-      node.setProperty(propName, value);
+      log.debug("Lookup returned {}", entry);
 
-      save(node);
+      entry.setProperty(propName, value);
+
+      save(entry);
 
     } catch (IllegalStateException ex) {
       throw new IllegalStateException("Received interrupt trying to set path " + path, ex);
@@ -90,24 +95,41 @@ public class PropZkStore implements PropStore {
    * @return the properties stored in zookeeper.
    * @Param create if true - create the node if missing, otherwise return null.
    */
-  private PropData lookup(final String path, final boolean create) {
+  private CacheablePropMap lookup(final String path, final boolean create) {
 
     try {
 
       Stat stat = zkClient.exists(path, false);
+
+      log.debug("initial lookup {}", ZooKeeperTestingServer.prettyStat(stat));
+
       if (Objects.nonNull(stat)) {
         byte[] data = zkClient.getData(path, false, stat);
-        log.debug("d:", data.length);
-      } else {
-        if (create) {
-          stat = new Stat();
-          zkClient.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, stat);
-          PropData data = new PropData(path, stat.getVersion());
-          log.debug("D:{}", data);
+        PropMap propMap = serdes.fromBytes(data);
+        CacheablePropMap entry = new CacheablePropMap(path, stat.getVersion(), propMap);
+
+        if (stat.getVersion() == entry.getVersion()) {
+          log.debug("Data in zookeeper matches current version");
         } else {
-          return null;
+          log.debug("Updating version to match zookeeper");
+          entry.updateVersion(stat.getVersion());
         }
+
+        return entry;
+
       }
+
+      if (create) {
+        log.debug("Creating node");
+        stat = new Stat();
+        PropMap propMap = new PropMap(path);
+        zkClient.create(path, serdes.compress(propMap, PropMap.class), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            CreateMode.PERSISTENT, stat);
+        return new CacheablePropMap(path, stat.getVersion(), propMap);
+      }
+
+      log.debug("Don't know what to do?");
+      return null;
 
     } catch (KeeperException ex) {
       throw new IllegalStateException("Could not lookup node for path " + path, ex);
@@ -115,17 +137,29 @@ public class PropZkStore implements PropStore {
       // propagate the interrupt
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted accessing zookeeper for path " + path, ex);
+    } catch (IOException ex) {
+      throw new IllegalStateException("Could not decode prop data", ex);
     }
-
-    return createTestNode(path);
   }
 
-  private void save(PropData node) {
-    node.updateVersion(node.getVersion() + 1);
-  }
+  /**
+   * Write entry updates back to zookeeper. Use version in cache entry as expected value in the put.
+   *
+   * @param entry
+   *          a cache entry with a valid version
+   */
+  private void save(CacheablePropMap entry) {
+    try {
 
-  private PropData createTestNode(final String path) {
-    return new PropData(path, 1);
+      Stat stat = zkClient.setData(entry.getPath(),
+          serdes.compress(entry.getPropMap(), PropMap.class), entry.getVersion());
+      log.debug("Save? Save what? {}", entry, ZooKeeperTestingServer.prettyStat(stat));
+
+      // node.updateVersion(node.getVersion() + 1);
+    } catch (Exception ex) {
+      // TODO replace with actual handling.
+      ex.printStackTrace();
+    }
   }
 
   private int getTxId() {

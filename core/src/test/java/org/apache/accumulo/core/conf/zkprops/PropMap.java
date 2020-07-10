@@ -18,10 +18,28 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import org.junit.Test;
+import java.util.Map;
+import java.util.TreeMap;
 
-public class PropMemStoreTest {
+public class PropMap {
 
-  @Test
-  public void simpleStore() {}
+  private final String path;
+  private final Map<String,String> propMap = new TreeMap<>();
+
+  public PropMap(final String path) {
+    this.path = path;
+  }
+
+  public String getPath() {
+    return path;
+  }
+
+  public void setProperty(String propName, String value) {
+    propMap.put(propName, value);
+  }
+
+  @Override
+  public String toString() {
+    return "PropMap{" + "path=" + path + ", propMap=" + propMap + '}';
+  }
 }

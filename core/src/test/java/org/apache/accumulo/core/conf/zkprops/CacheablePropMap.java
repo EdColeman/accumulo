@@ -18,28 +18,30 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.util.Map;
-import java.util.TreeMap;
+public class CacheablePropMap {
 
-import com.google.gson.Gson;
-
-public class PropData {
-
+  private final PropMap propMap;
   private NodeVersionedId id;
-  private final Map<String,String> propMap = new TreeMap<>();
 
-  private static final Gson gson = null;
+  public CacheablePropMap(final String path, final int version) {
+    this(path, version, new PropMap(path));
+  }
 
-  public PropData(final String path, final int version) {
+  public CacheablePropMap(final String path, final int version, final PropMap propMap) {
     this.id = new NodeVersionedId.Builder().with($ -> {
       $.path = path;
       $.dataVersion = version;
     }).build();
 
+    this.propMap = propMap;
   }
 
   public void updateVersion(final int version) {
     id = new NodeVersionedId.Builder().updateVersion(id, version).build();
+  }
+
+  public String getPath() {
+    return id.getPath();
   }
 
   public int getVersion() {
@@ -47,11 +49,15 @@ public class PropData {
   }
 
   public void setProperty(String propName, String value) {
-    propMap.put(propName, value);
+    propMap.setProperty(propName, value);
   }
 
   @Override
   public String toString() {
-    return "PropData{" + "id=" + id + ", propMap=" + propMap + '}';
+    return "PropMap{" + "id=" + id + ", propMap=" + propMap + '}';
+  }
+
+  public PropMap getPropMap() {
+    return propMap;
   }
 }

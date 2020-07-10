@@ -23,9 +23,9 @@ package org.apache.accumulo.core.conf.zkprops;
  */
 public interface PropStore {
 
-  PropData get(String path);
+  CacheablePropMap get(String path);
 
-  void store(PropData data);
+  void store(CacheablePropMap data);
 
   void setProperty(PropId.Scope scope, String path, String name, String value);
 
