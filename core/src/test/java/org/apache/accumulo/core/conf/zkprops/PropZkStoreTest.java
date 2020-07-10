@@ -18,21 +18,41 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+
+import org.apache.zookeeper.data.Stat;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PropZkStoreTest {
 
+  private static final Logger log = LoggerFactory.getLogger(PropZkStoreTest.class);
+
   private static ZooKeeperTestingServer szk = null;
 
-  private static String MOCK_ZK_ROOT = "/accumulo/1234/props";
+  private static final String INSTANCE = "1234";
+
+  public static final String ZK_PROPS_BASE = "/accumulo/" + INSTANCE + "/props";;
+  public static final String ZK_SENTINEL_ROOT = ZK_PROPS_BASE + "/sentinel";
+  public static final String ZK_SYSTEM_PROPS_PATH = ZK_PROPS_BASE + "/system";
+  public static final String ZK_NS_PROPS_BASE = ZK_PROPS_BASE + "/namespace/";
+  public static final String ZK_TABLE_PROPS_BASE = ZK_PROPS_BASE + "/table/";
 
   @BeforeClass
   public static void setupZk() {
     // using default zookeeper port - we don't have a full configuration
     szk = new ZooKeeperTestingServer();
-    szk.initPaths(MOCK_ZK_ROOT);
+
+    szk.initPaths(ZK_PROPS_BASE);
+    szk.initPaths(ZK_SENTINEL_ROOT);
+    szk.initPaths(ZK_SYSTEM_PROPS_PATH);
+    szk.initPaths(ZK_NS_PROPS_BASE);
+    szk.initPaths(ZK_TABLE_PROPS_BASE);
+
   }
 
   @AfterClass
@@ -42,12 +62,27 @@ public class PropZkStoreTest {
 
   @Test
   public void emptyStore() {
-    PropStore store = new PropZkStore();
+    PropStore store = new PropZkStore(szk.getZooKeeper());
     PropData data = store.get("/unknown");
   }
 
   @Test
-  public void simpleStore() {
+  public void simpleStore() throws Exception {
 
+    PropStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZK_TABLE_PROPS_BASE + "table1";
+
+    PropData data = store.get(tablePath);
+    assertNull(data);
+
+    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+
+    Stat s = szk.getZooKeeper().exists(tablePath, false);
+
+    data = store.get(tablePath);
+
+    assertNotNull(data);
+
+    log.info("Stat: {}", ZooKeeperTestingServer.prettyStat(s));
   }
 }

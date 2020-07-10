@@ -1,0 +1,84 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.accumulo.core.conf.zkprops;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+public interface JsonSerdes<T> {
+
+  /**
+   * Read son encoded string and return a new instance. The class type is determined by the subtype.
+   *
+   * @param payload
+   *          a json encoded string.
+   * @return a new instance.
+   */
+  T fromJson(final String payload);
+
+  /**
+   * Read json encoded PropNode from a stream an return a new instance. Type class provided by
+   * subclass.
+   *
+   * @param payload
+   *          and input stream of a json encoded prop node.
+   * @return a new instance from the json data.
+   */
+  T fromJsonStream(final InputStream payload);
+
+  /**
+   * Re-hydrate a prop node from a byte array
+   *
+   * @param array
+   *          the serialized prop node in an array
+   * @return an prop node from the deserialized input.
+   * @throws IOException
+   *           if am error occurs processing the underlying array.
+   */
+  T fromBytes(final byte[] array) throws IOException;
+
+  /**
+   * Re-hydrate a PropNode from a gzip'd compressed json string.
+   *
+   * @param inputStream
+   *          an input stream pointing to the compressed json data
+   * @param len
+   *          the length of the compressed data
+   * @return a PropNode
+   * @throws IOException
+   *           thrown if there is a failure processing the compressed data
+   */
+  T decompress(InputStream inputStream, int len) throws IOException;
+
+  /**
+   * Re-hydrate a PropNode stored compressed in a byte array[]
+   *
+   * @param compressed
+   *          the compressed PropNode json string
+   * @return a PropNode
+   * @throws IOException
+   *           thrown if there is an error processing the compressed data.
+   */
+  T decompress(byte[] compressed) throws IOException;
+
+  enum Compression {
+    NONE, GZIP
+  }
+
+}

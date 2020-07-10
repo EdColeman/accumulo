@@ -20,7 +20,13 @@ package org.apache.accumulo.core.conf.zkprops;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,10 +37,16 @@ public class PropZkStore implements PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropZkStore.class);
 
-  private Map<String,PropData> store = new HashMap<>();
+  private final ZooKeeper zkClient;
+
+  private Map<String,PropData> cache = new HashMap<>();
 
   // fake transaction id;
   private int txid = 1;
+
+  public PropZkStore(final ZooKeeper zkClient) {
+    this.zkClient = zkClient;
+  }
 
   @Override
   public PropData get(String path) {
@@ -47,12 +59,18 @@ public class PropZkStore implements PropStore {
   @Override
   public void setProperty(PropId.Scope scope, String path, String propName, String value) {
 
-    // if node in local cache, use node id
-    PropData node = store.computeIfAbsent(path, n -> lookup(path));
+    try {
 
-    node.setProperty(propName, value);
+      // if node in local cache, use node id
+      PropData node = cache.computeIfAbsent(path, n -> lookup(path, true));
 
-    save(node);
+      node.setProperty(propName, value);
+
+      save(node);
+
+    } catch (IllegalStateException ex) {
+      throw new IllegalStateException("Received interrupt trying to set path " + path, ex);
+    }
 
     // use node id
     // node.setProp(propName, value);
@@ -70,8 +88,35 @@ public class PropZkStore implements PropStore {
    * @param path
    *          path in zookeeper
    * @return the properties stored in zookeeper.
+   * @Param create if true - create the node if missing, otherwise return null.
    */
-  private PropData lookup(final String path) {
+  private PropData lookup(final String path, final boolean create) {
+
+    try {
+
+      Stat stat = zkClient.exists(path, false);
+      if (Objects.nonNull(stat)) {
+        byte[] data = zkClient.getData(path, false, stat);
+        log.debug("d:", data.length);
+      } else {
+        if (create) {
+          stat = new Stat();
+          zkClient.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, stat);
+          PropData data = new PropData(path, stat.getVersion());
+          log.debug("D:{}", data);
+        } else {
+          return null;
+        }
+      }
+
+    } catch (KeeperException ex) {
+      throw new IllegalStateException("Could not lookup node for path " + path, ex);
+    } catch (InterruptedException ex) {
+      // propagate the interrupt
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted accessing zookeeper for path " + path, ex);
+    }
+
     return createTestNode(path);
   }
 

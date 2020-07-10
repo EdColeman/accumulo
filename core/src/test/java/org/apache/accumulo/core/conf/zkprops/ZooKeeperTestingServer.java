@@ -22,14 +22,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +43,9 @@ import org.slf4j.LoggerFactory;
 public class ZooKeeperTestingServer {
 
   private static final Logger log = LoggerFactory.getLogger(ZooKeeperTestingServer.class);
-
-  private TestingServer zkServer;
-  private final ZooKeeper zoo;
-
   private static final Random rand = new SecureRandom();
+  private final ZooKeeper zoo;
+  private TestingServer zkServer;
 
   /**
    * Instantiate a running zookeeper server - this call will block until the server is ready for
@@ -108,6 +109,20 @@ public class ZooKeeperTestingServer {
     return rand.nextInt((maxPort - minPort) + 1) + minPort;
   }
 
+  public static String prettyStat(final Stat stat) {
+
+    if (stat == null) {
+      return "{Stat:[null]}";
+    }
+
+    return "{Stat:[" + "czxid:" + stat.getCzxid() + ", mzxid:" + stat.getMzxid() + ", ctime: "
+        + stat.getCtime() + ", mtime: " + stat.getMtime() + ", version: " + stat.getVersion()
+        + ", cversion: " + stat.getCversion() + ", aversion: " + stat.getAversion()
+        + ", eph owner: " + stat.getEphemeralOwner() + ", dataLength: " + stat.getDataLength()
+        + ", numChildren: " + stat.getNumChildren() + ", pzxid: " + stat.getPzxid() + "}";
+
+  }
+
   public ZooKeeper getZooKeeper() {
     return zoo;
   }
@@ -127,8 +142,16 @@ public class ZooKeeperTestingServer {
       for (String p : paths) {
         if (!p.isEmpty()) {
           path = path + slash + p;
-          log.debug("building default paths, creating node {}", path);
-          zoo.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+          try {
+            Stat info = zoo.exists(path, false);
+            if (Objects.isNull(info)) {
+              log.debug("initializing paths, creating node {}", path);
+              zoo.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+          } catch (KeeperException.NodeExistsException ex) {
+            log.trace("initializing paths, skipping node {} it already exists", path);
+          }
         }
       }
 
@@ -142,5 +165,4 @@ public class ZooKeeperTestingServer {
       zkServer.stop();
     }
   }
-
 }

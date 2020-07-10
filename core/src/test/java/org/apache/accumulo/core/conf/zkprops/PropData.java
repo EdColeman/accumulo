@@ -21,10 +21,14 @@ package org.apache.accumulo.core.conf.zkprops;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.gson.Gson;
+
 public class PropData {
 
   private NodeVersionedId id;
   private final Map<String,String> propMap = new TreeMap<>();
+
+  private static final Gson gson = null;
 
   public PropData(final String path, final int version) {
     this.id = new NodeVersionedId.Builder().with($ -> {
@@ -44,5 +48,10 @@ public class PropData {
 
   public void setProperty(String propName, String value) {
     propMap.put(propName, value);
+  }
+
+  @Override
+  public String toString() {
+    return "PropData{" + "id=" + id + ", propMap=" + propMap + '}';
   }
 }

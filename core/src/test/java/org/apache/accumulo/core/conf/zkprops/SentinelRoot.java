@@ -41,11 +41,11 @@ public class SentinelRoot {
   private final String[] tablePropNodes = new String[NUM_TABLE_SENTINEL_NODES];
   private final String[] namespacePropNodes = new String[NUM_NS_SENTINEL_NODES];
 
-  private final String ZK_PROPS_BASE;
-  private final String ZK_SENTINEL_ROOT;
-  private final String ZK_SYSTEM_PROPS_PATH;
-  private final String ZK_NS_PROPS_BASE;
-  private final String ZK_TABLE_PROPS_BASE;
+  public final String ZK_SENTINEL_ROOT;
+  public final String ZK_PROPS_BASE;
+  public final String ZK_SYSTEM_PROPS_PATH;
+  public final String ZK_NS_PROPS_BASE;
+  public final String ZK_TABLE_PROPS_BASE;
 
   // stub for development
   private PropStore store = new PropMemStore();
