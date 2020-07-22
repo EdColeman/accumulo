@@ -74,7 +74,7 @@ public class PropIdTest {
     assertEquals("foo", id.getNamespaceId().get().canonical());
 
     assertFalse(id.hasTableId());
-    assertTrue(id.getTableId().get().canonical().isEmpty());
+    assertTrue(id.getTableId().isEmpty());
 
   }
 
