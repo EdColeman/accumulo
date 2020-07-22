@@ -18,87 +18,66 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.util.Comparator;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class ZkPropPath implements Comparable<ZkPropPath>{
+import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.data.AbstractId;
 
-  // the general form is /accumulo/[instance-id][base][id]
-  private static final Pattern pathPattern = Pattern.compile("^/(?<root>\\w*)/(?<instanceId>\\w*)(?<base>/.*)*/(?<id>\\w*)$");
+public class ZkPropPath extends AbstractId<ZkPropPath> {
 
-  private final static String root = "/accumulo";
-  private final String instance;
-  private final String base;
-  private final String id;
+  private ZkPropPath(final String canonical) {
 
-  private final String canonical;
+    super(canonical);
 
-  public ZkPropPath(final String instance, final String base, final String id){
-    this.instance = instance;
-    this.base = base;
-    this.id = id;
-
-    this.canonical = root + "/" + instance + "/" + base + "/" + id;
-  }
-
-  public ZkPropPath(final String path){
-    Matcher m = pathPattern.matcher(path);
-    if(!m.matches() || m.groupCount() != 4){
-      throw new IllegalArgumentException("Invalid zookeepr path provided '" + path
-          + "' expected form /accumulo/instance/[path]/id");
+    if (!canonical.startsWith(Constants.ZROOT)) {
+      throw new IllegalArgumentException("Zookeeper path should start with " + Constants.ZROOT
+          + ", received: '" + canonical + "'");
     }
-    canonical = path;
-
-    instance = m.group("instanceId");
-    base = m.group("base");
-    id = m.group("id");
   }
 
-  public String getCanonical(){
-    return canonical;
+  public static ZkPropPath of(final String path) {
+    return new ZkPropPath(path);
   }
 
-  public static String getRoot() {
-    return root;
+  public static Parts parse(ZkPropPath path) {
+    return new Parts(Objects.requireNonNull(path, "Path cannot be null"));
   }
 
-  public String getInstance() {
-    return instance;
-  }
+  public static class Parts {
 
-  public String getBase() {
-    return base;
-  }
+    private final String instance;
+    private final String base;
+    private final String node;
 
-  public String getId() {
-    return id;
-  }
+    // the general form is /accumulo/[instance-id][base][id]
+    private static final Pattern pathPattern =
+        Pattern.compile("^/(?<root>\\w*)/(?<instanceId>\\w*)(?<base>/.*)*/(?<node>\\w*)$");
 
-  @Override public String toString() {
-    return "ZkPropPath{" + "canonical='" + canonical + '\'' + '}';
-  }
+    private Parts(ZkPropPath path) {
 
-  private static Comparator<ZkPropPath> compareIdThenBase =
-      Comparator.comparing(ZkPropPath::getId).thenComparing(ZkPropPath::getBase)
-          .thenComparing(ZkPropPath::getInstance);
+      Matcher m = pathPattern.matcher(path.canonical());
+      if (!m.matches() || m.groupCount() != 4) {
+        throw new IllegalArgumentException("Invalid zookeeper path provided '" + path.canonical()
+            + "' expected form /accumulo/instance/[path]/node");
+      }
 
-  @Override public int compareTo(ZkPropPath other) {
-    return compareIdThenBase.compare(this, other);
-  }
+      instance = m.group("instanceId");
+      base = m.group("base");
+      node = m.group("node");
+    }
 
-  @Override public boolean equals(Object o) {
-    if (this == o)
-      return true;
-    if (o == null || getClass() != o.getClass())
-      return false;
-    ZkPropPath that = (ZkPropPath) o;
-    return base.equals(that.base) && id.equals(that.id) && instance.equals(that.instance);
-  }
+    public String getInstance() {
+      return instance;
+    }
 
-  @Override public int hashCode() {
-    return Objects.hash(id, base, instance);
+    public String getBase() {
+      return base;
+    }
+
+    public String getNode() {
+      return node;
+    }
   }
 }

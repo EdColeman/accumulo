@@ -23,10 +23,10 @@ package org.apache.accumulo.core.conf.zkprops;
  */
 public interface PropStore {
 
-  CacheablePropMap get(String path);
+  CacheablePropMap get(ZkPropPath path);
 
   void store(CacheablePropMap data);
 
-  void setProperty(PropId.Scope scope, String path, String name, String value);
+  void setProperty(PropId.Scope scope, ZkPropPath path, String name, String value);
 
 }

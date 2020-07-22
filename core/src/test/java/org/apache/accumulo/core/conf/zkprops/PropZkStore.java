@@ -42,7 +42,7 @@ public class PropZkStore implements PropStore {
 
   PropMapSerdes serdes = new PropMapSerdes();
 
-  private Map<String,CacheablePropMap> cache = new HashMap<>();
+  private Map<ZkPropPath,CacheablePropMap> cache = new HashMap<>();
 
   // fake transaction id;
   private int txid = 1;
@@ -52,7 +52,7 @@ public class PropZkStore implements PropStore {
   }
 
   @Override
-  public CacheablePropMap get(String path) {
+  public CacheablePropMap get(ZkPropPath path) {
     return cache.get(path);
   }
 
@@ -60,7 +60,7 @@ public class PropZkStore implements PropStore {
   public void store(CacheablePropMap node) {}
 
   @Override
-  public void setProperty(PropId.Scope scope, String path, String propName, String value) {
+  public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
 
     try {
 
@@ -95,16 +95,16 @@ public class PropZkStore implements PropStore {
    * @return the properties stored in zookeeper.
    * @Param create if true - create the node if missing, otherwise return null.
    */
-  private CacheablePropMap lookup(final String path, final boolean create) {
+  private CacheablePropMap lookup(final ZkPropPath path, final boolean create) {
 
     try {
 
-      Stat stat = zkClient.exists(path, false);
+      Stat stat = zkClient.exists(path.canonical(), false);
 
       log.debug("initial lookup {}", ZooKeeperTestingServer.prettyStat(stat));
 
       if (Objects.nonNull(stat)) {
-        byte[] data = zkClient.getData(path, false, stat);
+        byte[] data = zkClient.getData(path.canonical(), false, stat);
         PropMap propMap = serdes.fromBytes(data);
         CacheablePropMap entry = new CacheablePropMap(path, stat.getVersion(), propMap);
 
@@ -123,8 +123,8 @@ public class PropZkStore implements PropStore {
         log.debug("Creating node");
         stat = new Stat();
         PropMap propMap = new PropMap(path);
-        zkClient.create(path, serdes.compress(propMap, PropMap.class), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-            CreateMode.PERSISTENT, stat);
+        zkClient.create(path.canonical(), serdes.compress(propMap, PropMap.class),
+            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, stat);
         return new CacheablePropMap(path, stat.getVersion(), propMap);
       }
 
@@ -151,7 +151,7 @@ public class PropZkStore implements PropStore {
   private void save(CacheablePropMap entry) {
     try {
 
-      Stat stat = zkClient.setData(entry.getPath(),
+      Stat stat = zkClient.setData(entry.getPath().canonical(),
           serdes.compress(entry.getPropMap(), PropMap.class), entry.getVersion());
       log.debug("Save? Save what? {}", entry, ZooKeeperTestingServer.prettyStat(stat));
 

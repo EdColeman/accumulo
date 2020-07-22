@@ -27,10 +27,8 @@ public class NodeVersionedIdTest {
   @Test
   public void buildDefaultVersion() {
 
-    var path = "/a/b/c/def";
-    NodeVersionedId id = new NodeVersionedId.Builder().with($ -> {
-      $.path = path;
-    }).build();
+    var path = ZkPropPath.of("/accumulo/a/b/c/def");
+    NodeVersionedId id = new NodeVersionedId.Builder().with($ -> $.path = path).build();
 
     assertEquals(-1, id.getDataVersion());
     assertEquals(path, id.getPath());
@@ -39,7 +37,7 @@ public class NodeVersionedIdTest {
   @Test
   public void buildNewVersion() {
 
-    var path = "/a/b/c/def";
+    var path = ZkPropPath.of("/accumulo/a/b/c/def");
     var ver = 123;
 
     NodeVersionedId id = new NodeVersionedId.Builder().with($ -> {
@@ -54,7 +52,7 @@ public class NodeVersionedIdTest {
   @Test
   public void updateVersion() {
 
-    var path = "/a/b/c/def";
+    var path = ZkPropPath.of("/accumulo/a/b/c/def");
     var ver = 123;
 
     NodeVersionedId id = new NodeVersionedId.Builder().with($ -> {

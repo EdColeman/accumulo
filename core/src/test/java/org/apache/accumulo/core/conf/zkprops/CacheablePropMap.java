@@ -23,11 +23,11 @@ public class CacheablePropMap {
   private final PropMap propMap;
   private NodeVersionedId id;
 
-  public CacheablePropMap(final String path, final int version) {
+  public CacheablePropMap(final ZkPropPath path, final int version) {
     this(path, version, new PropMap(path));
   }
 
-  public CacheablePropMap(final String path, final int version, final PropMap propMap) {
+  public CacheablePropMap(final ZkPropPath path, final int version, final PropMap propMap) {
     this.id = new NodeVersionedId.Builder().with($ -> {
       $.path = path;
       $.dataVersion = version;
@@ -40,7 +40,7 @@ public class CacheablePropMap {
     id = new NodeVersionedId.Builder().updateVersion(id, version).build();
   }
 
-  public String getPath() {
+  public ZkPropPath getPath() {
     return id.getPath();
   }
 

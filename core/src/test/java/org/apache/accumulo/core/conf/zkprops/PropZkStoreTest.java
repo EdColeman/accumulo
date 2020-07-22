@@ -63,21 +63,21 @@ public class PropZkStoreTest {
   @Test
   public void emptyStore() {
     PropStore store = new PropZkStore(szk.getZooKeeper());
-    CacheablePropMap data = store.get("/unknown");
+    CacheablePropMap data = store.get(ZkPropPath.of("/accumulo/unknown"));
   }
 
   @Test
   public void simpleStore() throws Exception {
 
     PropStore store = new PropZkStore(szk.getZooKeeper());
-    var tablePath = ZK_TABLE_PROPS_BASE + "table1";
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
     store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
 
-    Stat s = szk.getZooKeeper().exists(tablePath, false);
+    Stat s = szk.getZooKeeper().exists(tablePath.canonical(), false);
 
     data = store.get(tablePath);
 

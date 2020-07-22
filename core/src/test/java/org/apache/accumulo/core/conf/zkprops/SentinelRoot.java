@@ -69,21 +69,21 @@ public class SentinelRoot {
   }
 
   public void setSystemProperty(final String propName, final String value) {
-    setProperty(PropId.Scope.SYSTEM, ZK_SYSTEM_PROPS_PATH, propName, value);
+    setProperty(PropId.Scope.SYSTEM, ZkPropPath.of(ZK_SYSTEM_PROPS_PATH), propName, value);
   }
 
   public void setNamespaceProperty(final String namespace, final String propName,
       final String value) {
     var nsPath = ZK_NS_PROPS_BASE + namespace;
-    setProperty(PropId.Scope.NAMESPACE, nsPath, propName, value);
+    setProperty(PropId.Scope.NAMESPACE, ZkPropPath.of(nsPath), propName, value);
   }
 
   public void setTableProperty(final String tablename, final String propName, final String value) {
     var tablePath = ZK_NS_PROPS_BASE + tablename;
-    setProperty(PropId.Scope.TABLE, tablePath, propName, value);
+    setProperty(PropId.Scope.TABLE, ZkPropPath.of(tablePath), propName, value);
   }
 
-  private void setProperty(final PropId.Scope scope, final String path, final String name,
+  private void setProperty(final PropId.Scope scope, final ZkPropPath path, final String name,
       final String value) {
     store.setProperty(scope, path, name, value);
   }

@@ -30,6 +30,9 @@ import org.slf4j.LoggerFactory;
  */
 public class PropMapSerdes extends SerdesBase<PropMap> implements JsonSerdes<PropMap> {
 
+  // TODO - replace with all static methods?
+  public PropMapSerdes() {}
+
   private static final Logger log = LoggerFactory.getLogger(PropMapSerdes.class);
 
   /**

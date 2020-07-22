@@ -26,15 +26,15 @@ import java.util.function.Consumer;
 
 public class NodeVersionedId implements Comparable<NodeVersionedId> {
 
-  private final String path;
+  private final ZkPropPath path;
   private final int dataVersion;
 
-  private NodeVersionedId(final String path, final int dataVersion) {
+  private NodeVersionedId(final ZkPropPath path, final int dataVersion) {
     this.path = path;
     this.dataVersion = dataVersion;
   }
 
-  public String getPath() {
+  public ZkPropPath getPath() {
     return path;
   }
 
@@ -44,7 +44,8 @@ public class NodeVersionedId implements Comparable<NodeVersionedId> {
 
   @Override
   public String toString() {
-    return "NodeVersionedId{" + "path='" + path + '\'' + ", dataVersion=" + dataVersion + '}';
+    return "NodeVersionedId{" + "path='" + path.canonical() + '\'' + ", dataVersion=" + dataVersion
+        + '}';
   }
 
   /**
@@ -90,7 +91,7 @@ public class NodeVersionedId implements Comparable<NodeVersionedId> {
 
   public static class Builder {
 
-    String path;
+    ZkPropPath path;
     int dataVersion = -1;
 
     public NodeVersionedId.Builder with(Consumer<NodeVersionedId.Builder> builder) {

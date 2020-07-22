@@ -23,14 +23,14 @@ import java.util.TreeMap;
 
 public class PropMap {
 
-  private final String path;
+  private final ZkPropPath path;
   private final Map<String,String> propMap = new TreeMap<>();
 
-  public PropMap(final String path) {
+  public PropMap(final ZkPropPath path) {
     this.path = path;
   }
 
-  public String getPath() {
+  public ZkPropPath getPath() {
     return path;
   }
 

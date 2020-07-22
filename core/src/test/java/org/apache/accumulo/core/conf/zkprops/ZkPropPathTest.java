@@ -18,38 +18,49 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 public class ZkPropPathTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZkPropPathTest.class);
 
-  @Test public void regex(){
+  /**
+   * exercise path splitting with a path with multiple parts
+   */
+  @Test
+  public void parse1() {
 
-    ZkPropPath p = new ZkPropPath("/accumulo/instance_id/c/d/e/f/g");
+    ZkPropPath p = ZkPropPath.of("/accumulo/instance_id/c/d/e/f/g");
 
-    assertEquals("instance_id", p.getInstance());
-    assertEquals("/c/d/e/f", p.getBase());
-    assertEquals("g", p.getId());
-
-  }
-
-  @Test public void regex2(){
-
-    ZkPropPath p = new ZkPropPath("/accumulo/instance_id/x");
-
-    assertEquals("instance_id", p.getInstance());
-    assertNull("/", p.getBase());
-    assertEquals("x", p.getId());
+    ZkPropPath.Parts parts = ZkPropPath.parse(p);
+    assertEquals("instance_id", parts.getInstance());
+    assertEquals("/c/d/e/f", parts.getBase());
+    assertEquals("g", parts.getNode());
 
   }
 
+  /**
+   * exercise path with just a node and no parth. i.e /accumulo/instance_id/[NAME]
+   */
+  @Test
+  public void parse2() {
+
+    ZkPropPath p = ZkPropPath.of("/accumulo/instance_id/x");
+    ZkPropPath.Parts parts = ZkPropPath.parse(p);
+
+    assertEquals("instance_id", parts.getInstance());
+    assertNull("/", parts.getBase());
+    assertEquals("x", parts.getNode());
+
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void invalidRootTest() {
+    ZkPropPath p = ZkPropPath.of("/INVALID/instance_id/c/d/e/f/g");
+  }
 }

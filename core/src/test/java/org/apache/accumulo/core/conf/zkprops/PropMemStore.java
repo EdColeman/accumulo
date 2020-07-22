@@ -37,7 +37,7 @@ public class PropMemStore implements PropStore {
   private int txid = 1;
 
   @Override
-  public CacheablePropMap get(String path) {
+  public CacheablePropMap get(ZkPropPath path) {
     return null;
   }
 
@@ -45,7 +45,7 @@ public class PropMemStore implements PropStore {
   public void store(CacheablePropMap node) {}
 
   @Override
-  public void setProperty(PropId.Scope scope, String path, String propName, String value) {
+  public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
 
     // if node in local cache, use node id
     // PropMap node = store.computeIfAbsent(path, n -> lookup(path));
@@ -71,7 +71,7 @@ public class PropMemStore implements PropStore {
    *          path in zookeeper
    * @return the properties stored in zookeeper.
    */
-  private CacheablePropMap lookup(final String path) {
+  private CacheablePropMap lookup(final ZkPropPath path) {
     return createTestNode(path);
   }
 
@@ -79,7 +79,7 @@ public class PropMemStore implements PropStore {
     node.updateVersion(node.getVersion() + 1);
   }
 
-  private CacheablePropMap createTestNode(final String path) {
+  private CacheablePropMap createTestNode(final ZkPropPath path) {
     return new CacheablePropMap(path, 1);
   }
 
