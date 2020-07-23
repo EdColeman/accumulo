@@ -30,6 +30,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 public class PropZkStoreTest {
 
   private static final String INSTANCE = "1234";
@@ -38,7 +43,7 @@ public class PropZkStoreTest {
   public static final String ZK_SENTINEL_ROOT = ZK_PROPS_BASE + "/sentinel";
   public static final String ZK_SYSTEM_PROPS_PATH = ZK_PROPS_BASE + "/system";
   public static final String ZK_NS_PROPS_BASE = ZK_PROPS_BASE + "/namespace/";
-  public static final String ZK_TABLE_PROPS_BASE = ZK_PROPS_BASE + "/table/";;
+  public static final String ZK_TABLE_PROPS_BASE = ZK_PROPS_BASE + "/table/";
   private static final Logger log = LoggerFactory.getLogger(PropZkStoreTest.class);
   private static ZooKeeperTestingServer szk = null;
 
@@ -123,10 +128,64 @@ public class PropZkStoreTest {
     log.info("Forced update: {}", ZooKeeperTestingServer.prettyStat(stat));
     store.setProperty(PropId.Scope.TABLE, tablePath, "bProp", "bValue");
 
+    log.debug("Version conflicts: {}", ((PropZkStore) store).getCacheInvalidVerCount() );
+
     assertTrue(((PropZkStore) store).getCacheInvalidVerCount() > cacheInvalidVerCount);
 
     log.info("Data: {}", data);
     log.info("Stat: {}", ZooKeeperTestingServer.prettyStat(s));
 
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void deleteTest(){
+    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+
+    CacheablePropMap data = store.get(tablePath);
+    assertNull(data);
+
+    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+
+    store.deleteProp(tablePath, "aProp");
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void deleteAllTest(){
+    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+
+    CacheablePropMap data = store.get(tablePath);
+    assertNull(data);
+
+    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+
+    store.deleteAll(tablePath);
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void clonePropertiesTest(){
+    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+    var clonePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "copy_table1");
+
+    CacheablePropMap data = store.get(tablePath);
+    assertNull(data);
+
+    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+
+    store.cloneProperties(tablePath, clonePath); }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void setPropertiesTest(){
+    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+    
+    CacheablePropMap data = store.get(tablePath);
+    assertNull(data);
+
+    List<AbstractMap.SimpleEntry<String, String>> list = new ArrayList<>();
+
+    store.setProperties(list);
   }
 }

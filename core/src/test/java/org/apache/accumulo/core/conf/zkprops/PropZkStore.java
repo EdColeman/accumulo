@@ -19,6 +19,8 @@
 package org.apache.accumulo.core.conf.zkprops;
 
 import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -40,23 +42,22 @@ public class PropZkStore implements PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropZkStore.class);
 
-  private static int ZK_WRITE_RETRY_LIMIT = 3;
+  private static final int ZK_WRITE_RETRY_LIMIT = 3;
 
   private final ZooKeeper zkClient;
   private final Map<ZkPropPath,CacheablePropMap> cache = new HashMap<>();
-  PropMapSerdes serdes = new PropMapSerdes();
-  // fake transaction id;
-  private int txid = 1;
+
+  private final PropMapSerdes serdes = new PropMapSerdes();
 
   // METRICS Placeholder
-  AtomicInteger zkWriteErrorCount = new AtomicInteger(0);
-  AtomicInteger cacheHitsCount = new AtomicInteger(0);
+  // AtomicInteger zkWriteErrorCount = new AtomicInteger(0);
+  // AtomicInteger cacheHitsCount = new AtomicInteger(0);
+  AtomicInteger cacheInvalidVerCount = new AtomicInteger(0);
 
   public int getCacheInvalidVerCount() {
     return cacheInvalidVerCount.get();
   }
 
-  AtomicInteger cacheInvalidVerCount = new AtomicInteger(0);
 
   public PropZkStore(final ZooKeeper zkClient) {
     this.zkClient = zkClient;
@@ -69,6 +70,22 @@ public class PropZkStore implements PropStore {
 
   @Override
   public void store(CacheablePropMap node) {}
+
+  public void deleteProp(ZkPropPath path, String propName){
+    throw new UnsupportedOperationException("todo");
+  }
+
+  public void deleteAll(ZkPropPath path){
+    throw new UnsupportedOperationException("todo");
+  }
+
+  public void cloneProperties(final ZkPropPath source, final ZkPropPath dest){
+    throw new UnsupportedOperationException("todo");
+  }
+
+  public void setProperties(Collection<AbstractMap.SimpleEntry<String, String>> properties){
+    throw new UnsupportedOperationException("todo");
+  }
 
   @Override
   public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
@@ -102,8 +119,6 @@ public class PropZkStore implements PropStore {
           } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
           }
-
-          continue;
         }
       }
     } catch (IllegalStateException ex) {
@@ -137,16 +152,14 @@ public class PropZkStore implements PropStore {
 
       byte[] data = zkClient.getData(path.canonical(), false, stat);
       PropMap propMap = serdes.fromBytes(data);
-      CacheablePropMap entry = new CacheablePropMap(path, stat.getVersion(), propMap);
-
-      return entry;
+      return new CacheablePropMap(path, stat.getVersion(), propMap);
 
     } catch (KeeperException.NoNodeException ex) {
       if (create) {
         return createNode(path);
       }
     } catch (KeeperException | IOException ex) {
-      log.info("general zookeeper exception looking update path: ", path, ex);
+      log.info("general zookeeper exception looking update path: {}", path, ex);
       throw new IllegalStateException("Error accessing zookeeper path: " + path, ex);
     } catch (InterruptedException ex) {
       // propagate the interrupt
@@ -173,7 +186,7 @@ public class PropZkStore implements PropStore {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted accessing zookeeper for path " + path, ex);
     } catch (KeeperException | IOException ex) {
-      log.info("general zookeeper exception looking update path: ", path, ex);
+      log.info("general zookeeper exception looking update path: {}", path, ex);
     }
     return null;
   }
@@ -196,7 +209,7 @@ public class PropZkStore implements PropStore {
 
       entry.updateVersion(stat.getVersion());
 
-      log.debug("Save? Save what? {}", entry, ZooKeeperTestingServer.prettyStat(stat));
+      log.debug("Save? Save what? {}, {}", entry, ZooKeeperTestingServer.prettyStat(stat));
 
       return true;
 
@@ -207,7 +220,4 @@ public class PropZkStore implements PropStore {
     }
   }
 
-  private int getTxId() {
-    return ++txid;
-  }
 }

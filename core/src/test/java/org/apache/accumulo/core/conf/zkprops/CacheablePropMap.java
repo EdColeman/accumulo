@@ -21,31 +21,30 @@ package org.apache.accumulo.core.conf.zkprops;
 public class CacheablePropMap {
 
   private final PropMap propMap;
-  private NodeVersionedId id;
+  private ZkPropPath path;
+  private int version;
 
   public CacheablePropMap(final ZkPropPath path, final int version) {
     this(path, version, new PropMap(path));
   }
 
   public CacheablePropMap(final ZkPropPath path, final int version, final PropMap propMap) {
-    this.id = new NodeVersionedId.Builder().with($ -> {
-      $.path = path;
-      $.dataVersion = version;
-    }).build();
+    this.path = path;
+    this.version = version;
 
     this.propMap = propMap;
   }
 
   public void updateVersion(final int version) {
-    id = new NodeVersionedId.Builder().updateVersion(id, version).build();
+    this.version = version;
   }
 
   public ZkPropPath getPath() {
-    return id.getPath();
+    return path;
   }
 
   public int getVersion() {
-    return id.getDataVersion();
+    return version;
   }
 
   public void setProperty(String propName, String value) {
@@ -54,7 +53,7 @@ public class CacheablePropMap {
 
   @Override
   public String toString() {
-    return "PropMap{" + "id=" + id + ", propMap=" + propMap + '}';
+    return "PropMap{" + "path=" + path.canonical() + ", version=" + version + ", propMap=" + propMap + '}';
   }
 
   public PropMap getPropMap() {

@@ -18,22 +18,29 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.data.AbstractId;
+
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.accumulo.core.Constants;
-import org.apache.accumulo.core.data.AbstractId;
-
 public class ZkPropPath extends AbstractId<ZkPropPath> {
+
+  private static final long serialVersionUID = 1;
+
+  public static int DEFAULT_VERSION = -1;
+
+  private final int nodeVersion;
 
   private ZkPropPath(final String canonical) {
 
     super(canonical);
+    this.nodeVersion = DEFAULT_VERSION;
 
     if (!canonical.startsWith(Constants.ZROOT)) {
-      throw new IllegalArgumentException("Zookeeper path should start with " + Constants.ZROOT
-          + ", received: '" + canonical + "'");
+      throw new IllegalArgumentException(
+          "Zookeeper path should start with " + Constants.ZROOT + ", received: '" + canonical + "'");
     }
   }
 
@@ -47,20 +54,19 @@ public class ZkPropPath extends AbstractId<ZkPropPath> {
 
   public static class Parts {
 
-    private final String instance;
-    private final String base;
-    private final String node;
-
     // the general form is /accumulo/[instance-id][base][id]
     private static final Pattern pathPattern =
         Pattern.compile("^/(?<root>\\w*)/(?<instanceId>\\w*)(?<base>/.*)*/(?<node>\\w*)$");
+    private final String instance;
+    private final String base;
+    private final String node;
 
     private Parts(ZkPropPath path) {
 
       Matcher m = pathPattern.matcher(path.canonical());
       if (!m.matches() || m.groupCount() != 4) {
-        throw new IllegalArgumentException("Invalid zookeeper path provided '" + path.canonical()
-            + "' expected form /accumulo/instance/[path]/node");
+        throw new IllegalArgumentException("Invalid zookeeper path provided '" + path
+            .canonical() + "' expected form /accumulo/instance/[path]/node");
       }
 
       instance = m.group("instanceId");
