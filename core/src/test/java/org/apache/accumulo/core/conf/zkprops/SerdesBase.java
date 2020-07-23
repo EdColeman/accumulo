@@ -125,7 +125,7 @@ public class SerdesBase<T> {
         DataInputStream dis = new DataInputStream(bis)) {
 
       int ver = dis.readInt();
-      validateVersion(ver);
+      validateEncodingVersion(ver);
 
       JsonSerdes.Compression compression = JsonSerdes.Compression.values()[dis.readByte()];
 
@@ -166,7 +166,7 @@ public class SerdesBase<T> {
     }
   }
 
-  private void validateVersion(final int received) {
+  private void validateEncodingVersion(final int received) {
     if (received != encodingVersion) {
       throw new IllegalStateException("Unsupported data version " + received);
     }
@@ -185,7 +185,7 @@ public class SerdesBase<T> {
    * @throws IOException
    *           thrown if there is a failure processing the compressed data
    */
-  public T decompress(InputStream inputStream, int len, Class<T> clazz) throws IOException {
+  protected T decompress(InputStream inputStream, int len, Class<T> clazz) throws IOException {
 
     try (GZIPInputStream gis = new GZIPInputStream(inputStream, len)) {
       return gson.fromJson(new InputStreamReader(gis, UTF_8), clazz);
@@ -201,7 +201,7 @@ public class SerdesBase<T> {
    * @throws IOException
    *           thrown if there is an error processing the compressed data.
    */
-  public T decompress(byte[] compressed, Class<T> clazz) throws IOException {
+  protected T decompress(byte[] compressed, Class<T> clazz) throws IOException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
         GZIPInputStream gis = new GZIPInputStream(bis)) {
       return gson.fromJson(new InputStreamReader(gis, UTF_8), clazz);
@@ -212,7 +212,7 @@ public class SerdesBase<T> {
     return gson.toJson(data, clazz);
   }
 
-  public byte[] toByteBuffer(final T target, Class<T> clazz) throws IOException {
+  public byte[] toBytes(final T target, Class<T> clazz) throws IOException {
 
     byte[] bytesOut;
     if (isCompressionEnabled()) {
@@ -229,7 +229,7 @@ public class SerdesBase<T> {
       dos.writeByte(compressed.ordinal());
       dos.writeInt(bytesOut.length);
       dos.write(bytesOut);
-
+      dos.flush();
       return bos.toByteArray();
     } catch (IOException ex) {
       log.debug("Failed to write byte buffer", ex);
@@ -237,7 +237,7 @@ public class SerdesBase<T> {
     }
   }
 
-  public byte[] compress(final T target, final Class<T> clazz) throws IOException {
+  protected byte[] compress(final T target, final Class<T> clazz) throws IOException {
 
     byte[] bytes = gson.toJson(target, clazz).getBytes();
 

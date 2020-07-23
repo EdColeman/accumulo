@@ -100,7 +100,7 @@ public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<P
   }
 
   public byte[] toByteBuffer(final PropNode node) throws IOException {
-    return toByteBuffer(node, PropNode.class);
+    return toBytes(node, PropNode.class);
   }
 
   public byte[] compress(final PropNode node) throws IOException {

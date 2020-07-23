@@ -21,6 +21,8 @@ package org.apache.accumulo.core.conf.zkprops;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -37,14 +39,23 @@ public class PropZkStore implements PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropZkStore.class);
 
+  private static int ZK_WRITE_RETRY_LIMIT = 3;
+
   private final ZooKeeper zkClient;
-
-  PropMapSerdes serdes = new PropMapSerdes();
-
   private final Map<ZkPropPath,CacheablePropMap> cache = new HashMap<>();
-
+  PropMapSerdes serdes = new PropMapSerdes();
   // fake transaction id;
   private int txid = 1;
+
+  // METRICS Placeholder
+  AtomicInteger zkWriteErrorCount = new AtomicInteger(0);
+  AtomicInteger cacheHitsCount = new AtomicInteger(0);
+
+  public int getCacheInvalidVerCount() {
+    return cacheInvalidVerCount.get();
+  }
+
+  AtomicInteger cacheInvalidVerCount = new AtomicInteger(0);
 
   public PropZkStore(final ZooKeeper zkClient) {
     this.zkClient = zkClient;
@@ -61,19 +72,38 @@ public class PropZkStore implements PropStore {
   @Override
   public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
 
+    var retryCount = 0;
+
     try {
 
-      // if entry in local cache, use entry id
-      CacheablePropMap entry = cache.computeIfAbsent(path, n -> getFromZookeeper(path, true));
+      while (retryCount++ < ZK_WRITE_RETRY_LIMIT) {
 
-      log.debug("Lookup returned {}", entry);
+        // if entry in local cache, use entry id
+        CacheablePropMap entry = cache.computeIfAbsent(path, n -> getFromZookeeper(path, true));
 
-      if (entry != null) {
+        if (Objects.isNull(entry)) {
+          continue;
+        }
+
+        log.debug("Lookup returned {}", entry);
+
         entry.setProperty(propName, value);
-        save(entry);
-      } else {
-        // todo lookup failed - is recovery possible?
-        log.warn("Failed to find and could not create node path: " + path);
+
+        if (save(entry)) {
+          break;
+        } else {
+          // save failed, remove from cache because cache version is out of date. retry if
+          // more attempts are possible.
+          cache.remove(path);
+          cacheInvalidVerCount.incrementAndGet();
+          try {
+            Thread.sleep(100 * retryCount);
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+          }
+
+          continue;
+        }
       }
     } catch (IllegalStateException ex) {
       throw new IllegalStateException("Received interrupt trying to set path " + path, ex);
@@ -134,7 +164,7 @@ public class PropZkStore implements PropStore {
       Stat stat = new Stat();
       log.debug("Creating node");
       PropMap propMap = new PropMap(path);
-      zkClient.create(path.canonical(), serdes.compress(propMap, PropMap.class),
+      zkClient.create(path.canonical(), serdes.toBytes(propMap, PropMap.class),
           ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, stat);
       return new CacheablePropMap(path, stat.getVersion(), propMap);
     } catch (InterruptedException ex) {
@@ -154,21 +184,25 @@ public class PropZkStore implements PropStore {
    *
    * @param entry
    *          a cache entry with a valid version
+   * @return true is zookeeper write succeeded, false if the data version do not match
    */
-  private void save(CacheablePropMap entry) {
-
-    // TODO - write, fail retry.
+  private boolean save(CacheablePropMap entry) {
 
     try {
 
       Stat stat = zkClient.setData(entry.getPath().canonical(),
-          serdes.compress(entry.getPropMap(), PropMap.class), entry.getVersion());
+          serdes.toBytes(entry.getPropMap(), PropMap.class), entry.getVersion());
+
+      entry.updateVersion(stat.getVersion());
+
       log.debug("Save? Save what? {}", entry, ZooKeeperTestingServer.prettyStat(stat));
 
-      // node.updateVersion(node.getVersion() + 1);
+      return true;
+
+    } catch (KeeperException.BadVersionException ex) {
+      return false;
     } catch (Exception ex) {
-      // TODO replace with actual handling.
-      ex.printStackTrace();
+      throw new IllegalStateException("Could not save data to zookeeper", ex);
     }
   }
 

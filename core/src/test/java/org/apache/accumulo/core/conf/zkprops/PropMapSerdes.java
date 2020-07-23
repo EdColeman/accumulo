@@ -103,7 +103,7 @@ public class PropMapSerdes extends SerdesBase<PropMap> implements JsonSerdes<Pro
   }
 
   public byte[] toByteBuffer(final PropMap target) throws IOException {
-    return toByteBuffer(target, PropMap.class);
+    return toBytes(target, PropMap.class);
   }
 
   public byte[] compress(final PropMap target) throws IOException {
