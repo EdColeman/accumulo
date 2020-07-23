@@ -16,21 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.core.conf.zkprops;
+package org.apache.accumulo.core.conf.zkprops.serdes;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.accumulo.core.conf.zkprops.JsonSerdes;
+import org.apache.accumulo.core.conf.zkprops.PropMap;
+import org.apache.accumulo.core.conf.zkprops.PropNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A utility class to handle serialization / deserialization of PropNodes. Supports json encoding an
+ * A utility class to handle serialization / deserialization of PropMap. Supports json encoding an
  * optionally compressing the output with Gzip compression.
  */
-public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<PropNode> {
+public class PropMapSerdes extends SerdesBase<PropMap> implements JsonSerdes<PropMap> {
 
-  private static final Logger log = LoggerFactory.getLogger(PropNodeSerdes.class);
+  // TODO - replace with all static methods?
+  public PropMapSerdes() {}
+
+  private static final Logger log = LoggerFactory.getLogger(PropMapSerdes.class);
 
   /**
    * Read son encoded string and return a new instance.
@@ -39,19 +45,19 @@ public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<P
    *          a json encoded PropNode string.
    * @return a new instance.
    */
-  public PropNode fromJson(final String payload) {
-    return fromJson(payload, PropNode.class);
+  public PropMap fromJson(final String payload) {
+    return fromJson(payload, PropMap.class);
   }
 
   /**
    * Read json encoded PropNode from a stream an return a new instance.
    *
-   * @param stream
+   * @param payload
    *          and input stream of a json encoded prop node.
    * @return a new instance from the json data.
    */
-  public PropNode fromJson(final InputStream stream) {
-    return fromJson(stream, PropNode.class);
+  public PropMap fromJson(final InputStream payload) {
+    return fromJson(payload, PropMap.class);
   }
 
   /**
@@ -63,8 +69,8 @@ public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<P
    * @throws IOException
    *           if am error occurs processing the underlying array.
    */
-  public PropNode fromBytes(final byte[] array) throws IOException {
-    return fromBytes(array, PropNode.class);
+  public PropMap fromBytes(final byte[] array) throws IOException {
+    return fromBytes(array, PropMap.class);
   }
 
   /**
@@ -78,8 +84,8 @@ public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<P
    * @throws IOException
    *           thrown if there is a failure processing the compressed data
    */
-  public PropNode decompress(InputStream inputStream, int len) throws IOException {
-    return decompress(inputStream, len, PropNode.class);
+  public PropMap decompress(InputStream inputStream, int len) throws IOException {
+    return decompress(inputStream, len, PropMap.class);
   }
 
   /**
@@ -91,19 +97,20 @@ public class PropNodeSerdes extends SerdesBase<PropNode> implements JsonSerdes<P
    * @throws IOException
    *           thrown if there is an error processing the compressed data.
    */
-  public PropNode decompress(byte[] compressed) throws IOException {
-    return decompress(compressed, PropNode.class);
+  public PropMap decompress(byte[] compressed) throws IOException {
+    return decompress(compressed, PropMap.class);
   }
 
   public String toJson(final PropNode node) {
-    return toJson(node, PropNode.class);
+    return gson.toJson(node, PropNode.class);
   }
 
-  public byte[] toByteBuffer(final PropNode node) throws IOException {
-    return toBytes(node, PropNode.class);
+  public byte[] toByteBuffer(final PropMap target) throws IOException {
+    return toBytes(target, PropMap.class);
   }
 
-  public byte[] compress(final PropNode node) throws IOException {
-    return compress(node, PropNode.class);
+  public byte[] compress(final PropMap target) throws IOException {
+    return compress(target, PropMap.class);
   }
+
 }

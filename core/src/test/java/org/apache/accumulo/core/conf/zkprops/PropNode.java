@@ -66,7 +66,7 @@ public class PropNode {
 
   public static class Factory {
 
-    PropId id;
+    public PropId id;
 
     public PropNode.Factory with(Consumer<PropNode.Factory> factory) {
       factory.accept(this);

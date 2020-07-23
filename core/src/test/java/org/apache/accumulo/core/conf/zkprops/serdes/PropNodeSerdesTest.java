@@ -16,12 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.core.conf.zkprops;
+package org.apache.accumulo.core.conf.zkprops.serdes;
 
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 
+import org.apache.accumulo.core.conf.zkprops.PropId;
+import org.apache.accumulo.core.conf.zkprops.PropMemStore;
+import org.apache.accumulo.core.conf.zkprops.PropNode;
+import org.apache.accumulo.core.conf.zkprops.PropStore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

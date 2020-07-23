@@ -168,9 +168,10 @@ public class PropId implements Comparable<PropId> {
 
   public static class Builder {
 
-    String propName;
-    Scope scope = Scope.DEFAULT;
-    String id;
+    // public for fluent builder
+    public String propName;
+    public Scope scope = Scope.DEFAULT;
+    public String id;
 
     public PropId.Builder with(Consumer<PropId.Builder> builder) {
       builder.accept(this);

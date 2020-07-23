@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.core.conf.zkprops;
+package org.apache.accumulo.core.conf.zkprops.serdes;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.accumulo.core.conf.zkprops.JsonSerdes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,7 +186,7 @@ public class SerdesBase<T> {
    * @throws IOException
    *           thrown if there is a failure processing the compressed data
    */
-  protected T decompress(InputStream inputStream, int len, Class<T> clazz) throws IOException {
+  T decompress(InputStream inputStream, int len, Class<T> clazz) throws IOException {
 
     try (GZIPInputStream gis = new GZIPInputStream(inputStream, len)) {
       return gson.fromJson(new InputStreamReader(gis, UTF_8), clazz);
@@ -201,7 +202,7 @@ public class SerdesBase<T> {
    * @throws IOException
    *           thrown if there is an error processing the compressed data.
    */
-  protected T decompress(byte[] compressed, Class<T> clazz) throws IOException {
+  T decompress(byte[] compressed, Class<T> clazz) throws IOException {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
         GZIPInputStream gis = new GZIPInputStream(bis)) {
       return gson.fromJson(new InputStreamReader(gis, UTF_8), clazz);
@@ -237,7 +238,7 @@ public class SerdesBase<T> {
     }
   }
 
-  protected byte[] compress(final T target, final Class<T> clazz) throws IOException {
+  byte[] compress(final T target, final Class<T> clazz) throws IOException {
 
     byte[] bytes = gson.toJson(target, clazz).getBytes();
 
