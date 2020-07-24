@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,7 +47,7 @@ public class PropMemStore implements PropStore {
   public void store(CacheablePropMap node) {}
 
   @Override
-  public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
+  public void setProperty(ZkPropPath path, String propName, String value) {
 
     // if node in local cache, use node id
     // PropMap node = store.computeIfAbsent(path, n -> lookup(path));
@@ -60,6 +62,23 @@ public class PropMemStore implements PropStore {
     // catch and handle KeeperException.BadVersion
 
     // ? if same, update anyway?
+
+  }
+
+  @Override
+  public void setProperties(Collection<Map.Entry<String,String>> properties) {
+
+  }
+
+  @Override public void deleteProp(ZkPropPath path, String propName) {
+
+  }
+
+  @Override public void deleteAll(ZkPropPath path) {
+
+  }
+
+  @Override public void cloneProperties(ZkPropPath source, ZkPropPath dest) {
 
   }
 

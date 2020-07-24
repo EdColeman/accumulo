@@ -71,24 +71,28 @@ public class PropZkStore implements PropStore {
   @Override
   public void store(CacheablePropMap node) {}
 
+  @Override
   public void deleteProp(ZkPropPath path, String propName){
     throw new UnsupportedOperationException("todo");
   }
 
+  @Override
   public void deleteAll(ZkPropPath path){
     throw new UnsupportedOperationException("todo");
   }
 
+  @Override
   public void cloneProperties(final ZkPropPath source, final ZkPropPath dest){
     throw new UnsupportedOperationException("todo");
   }
 
-  public void setProperties(Collection<AbstractMap.SimpleEntry<String, String>> properties){
+  @Override
+  public void setProperties(Collection<Map.Entry<String, String>> properties){
     throw new UnsupportedOperationException("todo");
   }
 
   @Override
-  public void setProperty(PropId.Scope scope, ZkPropPath path, String propName, String value) {
+  public void setProperty(ZkPropPath path, String propName, String value) {
 
     var retryCount = 0;
 

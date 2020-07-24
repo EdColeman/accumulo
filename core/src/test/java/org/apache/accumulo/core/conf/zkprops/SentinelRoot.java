@@ -85,7 +85,8 @@ public class SentinelRoot {
 
   private void setProperty(final PropId.Scope scope, final ZkPropPath path, final String name,
       final String value) {
-    store.setProperty(scope, path, name, value);
+    // todo use scope to select proper store / path?
+    store.setProperty(path, name, value);
   }
 
   public String getProperty(final String name) {

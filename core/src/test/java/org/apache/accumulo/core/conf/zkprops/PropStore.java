@@ -18,6 +18,9 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
  * A backing store for property nodes.
  */
@@ -27,6 +30,13 @@ public interface PropStore {
 
   void store(CacheablePropMap data);
 
-  void setProperty(PropId.Scope scope, ZkPropPath path, String name, String value);
+  void setProperty(ZkPropPath path, String name, String value);
 
+  void setProperties(Collection<Map.Entry<String,String>> properties);
+
+  void deleteProp(ZkPropPath path, String propName);
+
+  void deleteAll(ZkPropPath path);
+
+  void cloneProperties(final ZkPropPath source, final ZkPropPath dest);
 }

@@ -18,10 +18,6 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import org.apache.accumulo.core.Constants;
 import org.apache.zookeeper.data.Stat;
 import org.junit.AfterClass;
@@ -32,8 +28,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class PropZkStoreTest {
 
@@ -47,8 +47,7 @@ public class PropZkStoreTest {
   private static final Logger log = LoggerFactory.getLogger(PropZkStoreTest.class);
   private static ZooKeeperTestingServer szk = null;
 
-  @BeforeClass
-  public static void setupZk() {
+  @BeforeClass public static void setupZk() {
     // using default zookeeper port - we don't have a full configuration
     szk = new ZooKeeperTestingServer();
 
@@ -60,19 +59,16 @@ public class PropZkStoreTest {
 
   }
 
-  @AfterClass
-  public static void shutdownZK() throws Exception {
+  @AfterClass public static void shutdownZK() throws Exception {
     szk.close();
   }
 
-  @Test
-  public void emptyStore() {
+  @Test public void emptyStore() {
     PropStore store = new PropZkStore(szk.getZooKeeper());
     CacheablePropMap data = store.get(ZkPropPath.of("/accumulo/unknown"));
   }
 
-  @Test
-  public void simpleStore() throws Exception {
+  @Test public void simpleStore() throws Exception {
 
     PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
@@ -80,7 +76,8 @@ public class PropZkStoreTest {
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    // store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    store.setProperty(tablePath, "aProp", "aValue");
 
     Stat s = szk.getZooKeeper().exists(tablePath.canonical(), false);
 
@@ -95,11 +92,9 @@ public class PropZkStoreTest {
    * This test simulates concurrent modifications to the underlying props by directly using
    * zookeeper between updates. This test may need rework if watchers are implemented.
    *
-   * @throws Exception
-   *           is an error occurs
+   * @throws Exception is an error occurs
    */
-  @Test
-  public void forceInvalidCache() throws Exception {
+  @Test public void forceInvalidCache() throws Exception {
 
     PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
@@ -107,7 +102,7 @@ public class PropZkStoreTest {
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    store.setProperty(tablePath, "aProp", "aValue");
 
     Stat s = szk.getZooKeeper().exists(tablePath.canonical(), false);
 
@@ -126,9 +121,9 @@ public class PropZkStoreTest {
     stat = szk.getZooKeeper().setData(tablePath.canonical(), bytes, stat.getVersion());
 
     log.info("Forced update: {}", ZooKeeperTestingServer.prettyStat(stat));
-    store.setProperty(PropId.Scope.TABLE, tablePath, "bProp", "bValue");
+    store.setProperty(tablePath, "bProp", "bValue");
 
-    log.debug("Version conflicts: {}", ((PropZkStore) store).getCacheInvalidVerCount() );
+    log.debug("Version conflicts: {}", ((PropZkStore) store).getCacheInvalidVerCount());
 
     assertTrue(((PropZkStore) store).getCacheInvalidVerCount() > cacheInvalidVerCount);
 
@@ -137,34 +132,31 @@ public class PropZkStoreTest {
 
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void deleteTest(){
+  @Test(expected = UnsupportedOperationException.class) public void deleteTest() {
     PropZkStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    store.setProperty(tablePath, "aProp", "aValue");
 
     store.deleteProp(tablePath, "aProp");
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void deleteAllTest(){
+  @Test(expected = UnsupportedOperationException.class) public void deleteAllTest() {
     PropZkStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    store.setProperty(tablePath, "aProp", "aValue");
 
     store.deleteAll(tablePath);
   }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void clonePropertiesTest(){
+  @Test(expected = UnsupportedOperationException.class) public void clonePropertiesTest() {
     PropZkStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
     var clonePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "copy_table1");
@@ -172,19 +164,19 @@ public class PropZkStoreTest {
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
+    store.setProperty(tablePath, "aProp", "aValue");
 
-    store.cloneProperties(tablePath, clonePath); }
+    store.cloneProperties(tablePath, clonePath);
+  }
 
-  @Test(expected = UnsupportedOperationException.class)
-  public void setPropertiesTest(){
+  @Test(expected = UnsupportedOperationException.class) public void setPropertiesTest() {
     PropZkStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
-    
+
     CacheablePropMap data = store.get(tablePath);
     assertNull(data);
 
-    List<AbstractMap.SimpleEntry<String, String>> list = new ArrayList<>();
+    List<Map.Entry<String,String>> list = new ArrayList<>();
 
     store.setProperties(list);
   }
