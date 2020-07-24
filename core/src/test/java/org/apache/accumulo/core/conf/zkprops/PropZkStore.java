@@ -18,14 +18,6 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.accumulo.core.conf.zkprops.serdes.PropMapSerdes;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -34,6 +26,18 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 /**
  * Implementation of a PropStore that uses ZooKeeper.
@@ -54,45 +58,69 @@ public class PropZkStore implements PropStore {
   // AtomicInteger cacheHitsCount = new AtomicInteger(0);
   AtomicInteger cacheInvalidVerCount = new AtomicInteger(0);
 
-  public int getCacheInvalidVerCount() {
-    return cacheInvalidVerCount.get();
-  }
-
-
   public PropZkStore(final ZooKeeper zkClient) {
     this.zkClient = zkClient;
   }
 
-  @Override
-  public CacheablePropMap get(ZkPropPath path) {
-    return cache.get(path);
+  public int getCacheInvalidVerCount() {
+    return cacheInvalidVerCount.get();
   }
 
-  @Override
-  public void store(CacheablePropMap node) {}
+  @Override public Optional<String> getProperty(final ZkPropPath path, final String name) {
 
-  @Override
-  public void deleteProp(ZkPropPath path, String propName){
+    CacheablePropMap entry = cache.computeIfAbsent(path, n -> getFromZookeeper(path, false));
+
+    if (Objects.isNull(entry)) {
+      return Optional.empty();
+    }
+
+    String p = entry.getPropMap().getProperty(name);
+    if (Objects.isNull(p)) {
+      return Optional.empty();
+    }
+
+    return Optional.of(p);
+  }
+
+  @Override public Map<String,String> getAll(ZkPropPath path) {
+    CacheablePropMap s = cache.get(path);
+    if(Objects.nonNull(s)){
+      return s.getPropMap().getAll();
+    }
+   return null;
+  }
+
+  @Override public void deleteProp(ZkPropPath path, String propName) {
     throw new UnsupportedOperationException("todo");
   }
 
-  @Override
-  public void deleteAll(ZkPropPath path){
+  @Override public void deleteAll(ZkPropPath path) {
+
+    //TODO retries.
+
+    try {
+
+      zkClient.delete(path.canonical(), -1);
+
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (KeeperException.NoNodeException e) {
+      // ignore, node does not exits.
+    } catch (KeeperException e) {
+      e.printStackTrace();
+    }
+
+  }
+
+  @Override public void cloneProperties(final ZkPropPath source, final ZkPropPath dest) {
     throw new UnsupportedOperationException("todo");
   }
 
-  @Override
-  public void cloneProperties(final ZkPropPath source, final ZkPropPath dest){
+  @Override public void setProperties(Collection<Map.Entry<String,String>> properties) {
     throw new UnsupportedOperationException("todo");
   }
 
-  @Override
-  public void setProperties(Collection<Map.Entry<String, String>> properties){
-    throw new UnsupportedOperationException("todo");
-  }
-
-  @Override
-  public void setProperty(ZkPropPath path, String propName, String value) {
+  @Override public void setProperty(ZkPropPath path, String propName, String value) {
 
     var retryCount = 0;
 
@@ -142,10 +170,8 @@ public class PropZkStore implements PropStore {
    * Stub zookeeper functionality. With Zookeeper this would check if the node exists and either
    * retrieve it or create a new node.
    *
-   * @param path
-   *          path in zookeeper
-   * @param create
-   *          if true - create the node if missing, otherwise return null.
+   * @param path   path in zookeeper
+   * @param create if true - create the node if missing, otherwise return null.
    * @return the properties stored in zookeeper.
    */
   private CacheablePropMap getFromZookeeper(final ZkPropPath path, final boolean create) {
@@ -200,16 +226,16 @@ public class PropZkStore implements PropStore {
    * entry as the expected version that is in zookeeper - if the version has changed, update from
    * zookeeper and try again
    *
-   * @param entry
-   *          a cache entry with a valid version
+   * @param entry a cache entry with a valid version
    * @return true is zookeeper write succeeded, false if the data version do not match
    */
   private boolean save(CacheablePropMap entry) {
 
     try {
 
-      Stat stat = zkClient.setData(entry.getPath().canonical(),
-          serdes.toBytes(entry.getPropMap(), PropMap.class), entry.getVersion());
+      Stat stat = zkClient
+          .setData(entry.getPath().canonical(), serdes.toBytes(entry.getPropMap(), PropMap.class),
+              entry.getVersion());
 
       entry.updateVersion(stat.getVersion());
 
@@ -224,4 +250,25 @@ public class PropZkStore implements PropStore {
     }
   }
 
+  Stat callZkWithRetries(int maxRetries, Supplier<Stat> c, Collection<Exception> fatal)
+      throws InterruptedException {
+    int count = 0;
+    while (count < maxRetries) {
+      try {
+        CompletableFuture<Stat> r = CompletableFuture.supplyAsync(c);
+        return r.get();
+      } catch (Exception ex) {
+        if (fatal.contains(ex) || (++count >= maxRetries)) {
+          return null;
+        }
+        Thread.sleep(100 * count);
+      }
+    }
+    return null;
+  }
+
+  // TODO - retries?
+  private interface ThrowingTask<T> {
+    T call() throws ExecutionException;
+  }
 }

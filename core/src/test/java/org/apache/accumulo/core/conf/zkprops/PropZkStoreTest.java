@@ -30,10 +30,13 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class PropZkStoreTest {
 
@@ -65,7 +68,7 @@ public class PropZkStoreTest {
 
   @Test public void emptyStore() {
     PropStore store = new PropZkStore(szk.getZooKeeper());
-    CacheablePropMap data = store.get(ZkPropPath.of("/accumulo/unknown"));
+    Map<String,String> data = store.getAll(ZkPropPath.of("/accumulo/unknown"));
   }
 
   @Test public void simpleStore() throws Exception {
@@ -73,7 +76,7 @@ public class PropZkStoreTest {
     PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     // store.setProperty(PropId.Scope.TABLE, tablePath, "aProp", "aValue");
@@ -81,7 +84,7 @@ public class PropZkStoreTest {
 
     Stat s = szk.getZooKeeper().exists(tablePath.canonical(), false);
 
-    data = store.get(tablePath);
+    data = store.getAll(tablePath);
 
     assertNotNull(data);
 
@@ -99,14 +102,14 @@ public class PropZkStoreTest {
     PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     store.setProperty(tablePath, "aProp", "aValue");
 
     Stat s = szk.getZooKeeper().exists(tablePath.canonical(), false);
 
-    data = store.get(tablePath);
+    data = store.getAll(tablePath);
 
     assertNotNull(data);
 
@@ -132,11 +135,43 @@ public class PropZkStoreTest {
 
   }
 
-  @Test(expected = UnsupportedOperationException.class) public void deleteTest() {
-    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+  @Test public void getTest() {
+    PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
+    assertNull(data);
+
+    store.setProperty(tablePath, "aProp", "aValue");
+
+    Optional<String> v = store.getProperty(tablePath, "aProp");
+    if(v.isPresent()){
+      assertEquals("aValue", v.get());
+    } else {
+      fail("expected value not present");
+    }
+  }
+
+  @Test public void getMissingPropTest() {
+    PropStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+
+    Map<String,String> data = store.getAll(tablePath);
+    assertNull(data);
+
+    store.setProperty(tablePath, "aProp", "aValue");
+
+    Optional<String> v = store.getProperty(tablePath, "zProp");
+    if(v.isPresent()) {
+      fail("expected value no value to be present");
+    }
+
+  }
+  @Test(expected = UnsupportedOperationException.class)  public void deleteTest() {
+    PropStore store = new PropZkStore(szk.getZooKeeper());
+    var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
+
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     store.setProperty(tablePath, "aProp", "aValue");
@@ -144,11 +179,11 @@ public class PropZkStoreTest {
     store.deleteProp(tablePath, "aProp");
   }
 
-  @Test(expected = UnsupportedOperationException.class) public void deleteAllTest() {
-    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+  @Test public void deleteAllTest() {
+    PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     store.setProperty(tablePath, "aProp", "aValue");
@@ -157,11 +192,11 @@ public class PropZkStoreTest {
   }
 
   @Test(expected = UnsupportedOperationException.class) public void clonePropertiesTest() {
-    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
     var clonePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "copy_table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     store.setProperty(tablePath, "aProp", "aValue");
@@ -170,10 +205,10 @@ public class PropZkStoreTest {
   }
 
   @Test(expected = UnsupportedOperationException.class) public void setPropertiesTest() {
-    PropZkStore store = new PropZkStore(szk.getZooKeeper());
+    PropStore store = new PropZkStore(szk.getZooKeeper());
     var tablePath = ZkPropPath.of(ZK_TABLE_PROPS_BASE + "table1");
 
-    CacheablePropMap data = store.get(tablePath);
+    Map<String,String> data = store.getAll(tablePath);
     assertNull(data);
 
     List<Map.Entry<String,String>> list = new ArrayList<>();

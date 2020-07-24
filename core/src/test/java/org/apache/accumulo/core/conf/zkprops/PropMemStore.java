@@ -18,10 +18,10 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,16 +35,14 @@ public class PropMemStore implements PropStore {
 
   private Map<String,PropMap> store = new HashMap<>();
 
-  // fake transaction id;
-  private int txid = 1;
 
-  @Override
-  public CacheablePropMap get(ZkPropPath path) {
-    return null;
+  @Override public Optional<String> getProperty(ZkPropPath path, String name) {
+    return Optional.empty();
   }
 
-  @Override
-  public void store(CacheablePropMap node) {}
+  @Override public Map<String,String> getAll(ZkPropPath path) {
+    return null;
+  }
 
   @Override
   public void setProperty(ZkPropPath path, String propName, String value) {
@@ -82,27 +80,5 @@ public class PropMemStore implements PropStore {
 
   }
 
-  /**
-   * Stub zookeeper functionality. With Zookeeper this would check if the node exists and either
-   * retrieve it or create a new node.
-   *
-   * @param path
-   *          path in zookeeper
-   * @return the properties stored in zookeeper.
-   */
-  private CacheablePropMap lookup(final ZkPropPath path) {
-    return createTestNode(path);
-  }
 
-  private void save(CacheablePropMap node) {
-    node.updateVersion(node.getVersion() + 1);
-  }
-
-  private CacheablePropMap createTestNode(final ZkPropPath path) {
-    return new CacheablePropMap(path, 1);
-  }
-
-  private int getTxId() {
-    return ++txid;
-  }
 }

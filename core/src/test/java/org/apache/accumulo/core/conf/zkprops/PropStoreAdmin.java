@@ -18,37 +18,6 @@
  */
 package org.apache.accumulo.core.conf.zkprops;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.TreeMap;
-
-public class PropMap {
-
-  private final ZkPropPath path;
-  private final Map<String,String> propMap = new TreeMap<>();
-
-  public PropMap(final ZkPropPath path) {
-    this.path = path;
-  }
-
-  public ZkPropPath getPath() {
-    return path;
-  }
-
-  public void setProperty(String propName, String value) {
-    propMap.put(propName, value);
-  }
-
-  public String getProperty(final String propName){
-    return propMap.get(propName);
-  }
-
-  public Map<String,String> getAll(){
-    return Collections.unmodifiableMap(propMap);
-  }
-
-  @Override
-  public String toString() {
-    return "PropMap{" + "path=" + path + ", propMap=" + propMap + '}';
-  }
+public interface PropStoreAdmin {
+  void store(CacheablePropMap data);
 }
