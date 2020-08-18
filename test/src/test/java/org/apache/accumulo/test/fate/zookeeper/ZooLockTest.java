@@ -24,8 +24,13 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.accumulo.fate.zookeeper.ZooLock;
@@ -43,7 +48,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
+import com.google.common.base.Stopwatch;
 /**
  *
  */
@@ -395,4 +400,111 @@ public class ZooLockTest {
     folder.delete();
   }
 
+  @Test
+  public void x() throws Exception {
+
+    long start = System.nanoTime();
+    // com.google.common.base.StopWatch sw = StopWatch.createStarted();
+
+    Random r = SecureRandom.getInstance("SHA1PRNG");
+
+    long l = r.nextLong() & (Long.MAX_VALUE);
+
+    String s = Long.toString(l, Character.MAX_RADIX);
+
+    System.out.println("L: " + s);
+
+    System.out.println("L: " + String.format("%08x", r.nextInt()));
+
+    String prefix = "xlock";
+    int eid = 0;
+
+    List<ZEName> names = new ArrayList();
+    names.add(new ZEName(String.format("%s/%s-%08x-%010d", "/root/path", prefix, r.nextInt(), eid++)));
+    names.add(new ZEName(String.format("%s/%s-%08x-%010d", "/root/path", prefix, r.nextInt(), eid++)));
+    names.add(new ZEName(String.format("%s/%s-%08x-%010d", "/root/path", prefix, r.nextInt(), eid++)));
+    names.add(new ZEName(String.format("%s/%s-%08x-%010d", "/root/path", prefix, r.nextInt(), eid++)));
+
+    Collections.<ZEName>sort(names, ZEName::compareTo);
+
+    System.out.println("A: " + names);
+
+    System.out.println("Duration: " + Duration.ofNanos(System.nanoTime() - start).toString());
+  }
+
+  static class ZEName implements Comparable<ZEName>{
+
+    String fullPath;
+    String root;
+    String nodePrefix;
+    String randId;
+    String sequence;
+
+    ZEName(final String fullPath){
+      this.fullPath = fullPath;
+    }
+    private void parse(){
+      int lastSlash = fullPath.lastIndexOf('/');
+
+      root = fullPath.substring(1, lastSlash);
+
+      String[] parts = fullPath.substring(lastSlash+1, fullPath.length()).split("-");
+
+      nodePrefix = parts[0];
+      randId = parts[1];
+      sequence = parts[2];
+    }
+
+    public String getRoot() {
+      return root;
+    }
+
+    public String getNodePrefix() {
+      return nodePrefix;
+    }
+
+    public String getRandId() {
+      return randId;
+    }
+
+    public String getSequence() {
+      return sequence;
+    }
+
+    private static final Comparator<ZEName> bySeq = Comparator.comparing(ZEName::getSequence)
+        .thenComparing(ZEName::getRandId);
+
+    private static int compareBySeqId(String lPath, String rPath){
+      int lSeq = lPath.lastIndexOf('-');
+      if(lSeq == -1){
+        throw new IllegalArgumentException("Left side, not a valid ephemeral sequence '" + lPath +"'");
+      }
+
+      int rSeq = rPath.lastIndexOf('-');
+      if(rSeq == -1){
+        throw new IllegalArgumentException("Right side, not a valid ephemeral sequence '" + lPath +"'");
+      }
+
+      int r = lPath.substring(lSeq + 1, lPath.length()).compareTo(rPath.substring(rSeq + 1, rPath.length()));
+
+      if(r != 0){
+        return r;
+      }
+
+      return lPath.compareTo(rPath);
+
+    }
+    /**
+     * Sort by the sequence number, lowest sequence first.
+     * @param other
+     * @return -1, 0, 1 if lexicographically less, equal or greater.
+     */
+    @Override public int compareTo(ZEName other) {
+      return compareBySeqId(this.fullPath, other.fullPath);
+    }
+
+    @Override public String toString() {
+      return "ZEName{" + "fullPath='" + fullPath + '\'' + ", root='" + root + '\'' + ", nodePrefix='" + nodePrefix + '\'' + ", randId='" + randId + '\'' + ", sequence='" + sequence + '\'' + '}';
+    }
+  }
 }

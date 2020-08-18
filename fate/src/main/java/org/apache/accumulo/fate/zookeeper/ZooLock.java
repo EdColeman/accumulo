@@ -18,9 +18,12 @@ package org.apache.accumulo.fate.zookeeper;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 import org.apache.accumulo.fate.zookeeper.ZooCache.ZcStat;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.LockID;
@@ -36,36 +39,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ZooLock implements Watcher {
-  private static final Logger log = LoggerFactory.getLogger(ZooLock.class);
-
   public static final String LOCK_PREFIX = "zlock-";
-
-  public enum LockLossReason {
-    LOCK_DELETED, SESSION_EXPIRED
-  }
-
-  public interface LockWatcher {
-    void lostLock(LockLossReason reason);
-
-    /**
-     * lost the ability to monitor the lock node, and its status is unknown
-     */
-    void unableToMonitorLockNode(Throwable e);
-  }
-
-  public interface AsyncLockWatcher extends LockWatcher {
-    void acquiredLock();
-
-    void failedToAcquireLock(Exception e);
-  }
-
-  private boolean lockWasAcquired;
-  final private String path;
+  private static final Logger log = LoggerFactory.getLogger(ZooLock.class);
+  private static final Random r = new SecureRandom();
+  private static ZooCache getLockDataZooCache;
   protected final IZooReaderWriter zooKeeper;
-  private String lock;
+  final private String path;
+  private boolean lockWasAcquired;
+  private RandLock lock;
+  private RandLock asyncLock;
   private LockWatcher lockWatcher;
   private boolean watchingParent = false;
-  private String asyncLock;
 
   public ZooLock(String zookeepers, int timeInMillis, String scheme, byte[] auth, String path) {
     this(new ZooCacheFactory().getZooCache(zookeepers, timeInMillis),
@@ -85,33 +69,128 @@ public class ZooLock implements Watcher {
     }
   }
 
-  private static class TryLockAsyncLockWatcher implements AsyncLockWatcher {
+  public static boolean isLockHeld(ZooCache zc, LockID lid) {
 
-    boolean acquiredLock = false;
-    LockWatcher lw;
+    List<String> children = zc.getChildren(lid.path);
 
-    public TryLockAsyncLockWatcher(LockWatcher lw2) {
-      this.lw = lw2;
+    if (children == null || children.size() == 0) {
+      return false;
     }
 
-    @Override
-    public void acquiredLock() {
-      acquiredLock = true;
+    children = new ArrayList<>(children);
+    Collections.sort(children);
+
+    String lockNode = children.get(0);
+    if (!lid.node.equals(lockNode))
+      return false;
+
+    ZcStat stat = new ZcStat();
+    return zc.get(lid.path + "/" + lid.node, stat) != null && stat.getEphemeralOwner() == lid.eid;
+  }
+
+  public static byte[] getLockData(ZooKeeper zk, String path)
+      throws KeeperException, InterruptedException {
+    List<String> children = zk.getChildren(path, false);
+
+    if (children == null || children.size() == 0) {
+      return null;
     }
 
-    @Override
-    public void failedToAcquireLock(Exception e) {}
+    Collections.sort(children);
 
-    @Override
-    public void lostLock(LockLossReason reason) {
-      lw.lostLock(reason);
+    String lockNode = children.get(0);
+
+    return zk.getData(path + "/" + lockNode, false, null);
+  }
+
+  public static byte[] getLockData(org.apache.accumulo.fate.zookeeper.ZooCache zc, String path,
+      ZcStat stat) {
+
+    List<String> children = zc.getChildren(path);
+
+    if (children == null || children.size() == 0) {
+      return null;
     }
 
-    @Override
-    public void unableToMonitorLockNode(Throwable e) {
-      lw.unableToMonitorLockNode(e);
+    children = new ArrayList<>(children);
+    Collections.sort(children);
+
+    String lockNode = children.get(0);
+
+    if (!lockNode.startsWith(LOCK_PREFIX)) {
+      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
     }
 
+    return zc.get(path + "/" + lockNode, stat);
+  }
+
+  public static long getSessionId(ZooCache zc, String path)
+      throws KeeperException, InterruptedException {
+    List<String> children = zc.getChildren(path);
+
+    if (children == null || children.size() == 0) {
+      return 0;
+    }
+
+    children = new ArrayList<>(children);
+    Collections.sort(children);
+
+    String lockNode = children.get(0);
+
+    ZcStat stat = new ZcStat();
+    if (zc.get(path + "/" + lockNode, stat) != null)
+      return stat.getEphemeralOwner();
+    return 0;
+  }
+
+  public static void deleteLock(IZooReaderWriter zk, String path)
+      throws InterruptedException, KeeperException {
+    List<String> children;
+
+    children = zk.getChildren(path);
+
+    if (children == null || children.size() == 0) {
+      throw new IllegalStateException("No lock is held at " + path);
+    }
+
+    Collections.sort(children);
+
+    String lockNode = children.get(0);
+
+    if (!lockNode.startsWith(LOCK_PREFIX)) {
+      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
+    }
+
+    zk.recursiveDelete(path + "/" + lockNode, NodeMissingPolicy.SKIP);
+
+  }
+
+  public static boolean deleteLock(IZooReaderWriter zk, String path, String lockData)
+      throws InterruptedException, KeeperException {
+    List<String> children;
+
+    children = zk.getChildren(path);
+
+    if (children == null || children.size() == 0) {
+      throw new IllegalStateException("No lock is held at " + path);
+    }
+
+    Collections.sort(children);
+
+    String lockNode = children.get(0);
+
+    if (!lockNode.startsWith(LOCK_PREFIX)) {
+      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
+    }
+
+    byte[] data = zk.getData(path + "/" + lockNode, null);
+
+    if (lockData.equals(new String(data, UTF_8))) {
+      zk.recursiveDelete(path + "/" + lockNode, NodeMissingPolicy.FAIL);
+      return true;
+    }
+
+    return false;
   }
 
   public synchronized boolean tryLock(LockWatcher lw, byte data[])
@@ -133,7 +212,7 @@ public class ZooLock implements Watcher {
     return false;
   }
 
-  private synchronized void lockAsync(final String myLock, final AsyncLockWatcher lw)
+  private synchronized void lockAsync(final RandLock myLock, final AsyncLockWatcher lw)
       throws KeeperException, InterruptedException {
 
     if (asyncLock == null) {
@@ -142,7 +221,7 @@ public class ZooLock implements Watcher {
 
     List<String> children = zooKeeper.getChildren(path);
 
-    if (!children.contains(myLock)) {
+    if (!children.contains(myLock.canonical())) {
       throw new RuntimeException("Lock attempt ephemeral node no longer exist " + myLock);
     }
 
@@ -154,7 +233,7 @@ public class ZooLock implements Watcher {
       }
     }
 
-    if (children.get(0).equals(myLock)) {
+    if (children.get(0).equals(myLock.canonical())) {
       log.trace("First candidate is my lock, acquiring");
       if (!watchingParent) {
         throw new IllegalStateException(
@@ -169,7 +248,7 @@ public class ZooLock implements Watcher {
     }
     String prev = null;
     for (String child : children) {
-      if (child.equals(myLock)) {
+      if (child.equals(myLock.canonical())) {
         break;
       }
 
@@ -300,7 +379,7 @@ public class ZooLock implements Watcher {
         return;
       }
 
-      asyncLock = asyncLockPath.substring(path.length() + 1);
+      asyncLock = new RandLock(asyncLockPath.substring(path.length() + 1));
 
       lockAsync(asyncLock, lw);
 
@@ -334,7 +413,7 @@ public class ZooLock implements Watcher {
     }
 
     LockWatcher localLw = lockWatcher;
-    String localLock = lock;
+    RandLock localLock = lock;
 
     lock = null;
     lockWatcher = null;
@@ -352,14 +431,14 @@ public class ZooLock implements Watcher {
   }
 
   public synchronized String getLockName() {
-    return lock;
+    return lock.canonical();
   }
 
   public synchronized LockID getLockID() {
     if (lock == null) {
       throw new IllegalStateException("Lock not held");
     }
-    return new LockID(path, lock, zooKeeper.getZooKeeper().getSessionId());
+    return new LockID(path, lock.canonical(), zooKeeper.getZooKeeper().getSessionId());
   }
 
   /**
@@ -400,9 +479,8 @@ public class ZooLock implements Watcher {
       } catch (Exception ex) {
         if (lock != null || asyncLock != null) {
           lockWatcher.unableToMonitorLockNode(ex);
-          log.error(
-              "Error resetting watch on ZooLock " + lock == null ? asyncLock : lock + " " + event,
-              ex);
+          log.error("Error resetting watch on ZooLock " + lock == null ? asyncLock.canonical()
+              : lock.canonical() + " " + event, ex);
         }
       }
 
@@ -410,133 +488,84 @@ public class ZooLock implements Watcher {
 
   }
 
-  public static boolean isLockHeld(ZooCache zc, LockID lid) {
-
-    List<String> children = zc.getChildren(lid.path);
-
-    if (children == null || children.size() == 0) {
-      return false;
-    }
-
-    children = new ArrayList<>(children);
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-    if (!lid.node.equals(lockNode))
-      return false;
-
-    ZcStat stat = new ZcStat();
-    return zc.get(lid.path + "/" + lid.node, stat) != null && stat.getEphemeralOwner() == lid.eid;
-  }
-
-  public static byte[] getLockData(ZooKeeper zk, String path)
-      throws KeeperException, InterruptedException {
-    List<String> children = zk.getChildren(path, false);
-
-    if (children == null || children.size() == 0) {
-      return null;
-    }
-
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-
-    return zk.getData(path + "/" + lockNode, false, null);
-  }
-
-  public static byte[] getLockData(org.apache.accumulo.fate.zookeeper.ZooCache zc, String path,
-      ZcStat stat) {
-
-    List<String> children = zc.getChildren(path);
-
-    if (children == null || children.size() == 0) {
-      return null;
-    }
-
-    children = new ArrayList<>(children);
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-
-    if (!lockNode.startsWith(LOCK_PREFIX)) {
-      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
-    }
-
-    return zc.get(path + "/" + lockNode, stat);
-  }
-
-  public static long getSessionId(ZooCache zc, String path)
-      throws KeeperException, InterruptedException {
-    List<String> children = zc.getChildren(path);
-
-    if (children == null || children.size() == 0) {
-      return 0;
-    }
-
-    children = new ArrayList<>(children);
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-
-    ZcStat stat = new ZcStat();
-    if (zc.get(path + "/" + lockNode, stat) != null)
-      return stat.getEphemeralOwner();
-    return 0;
-  }
-
-  private static ZooCache getLockDataZooCache;
-
   public long getSessionId() throws KeeperException, InterruptedException {
     return getSessionId(getLockDataZooCache, path);
   }
 
-  public static void deleteLock(IZooReaderWriter zk, String path)
-      throws InterruptedException, KeeperException {
-    List<String> children;
+  public enum LockLossReason {
+    LOCK_DELETED, SESSION_EXPIRED
+  }
 
-    children = zk.getChildren(path);
+  public interface LockWatcher {
+    void lostLock(LockLossReason reason);
 
-    if (children == null || children.size() == 0) {
-      throw new IllegalStateException("No lock is held at " + path);
+    /**
+     * lost the ability to monitor the lock node, and its status is unknown
+     */
+    void unableToMonitorLockNode(Throwable e);
+  }
+
+  public interface AsyncLockWatcher extends LockWatcher {
+    void acquiredLock();
+
+    void failedToAcquireLock(Exception e);
+  }
+
+  private static class TryLockAsyncLockWatcher implements AsyncLockWatcher {
+
+    boolean acquiredLock = false;
+    LockWatcher lw;
+
+    public TryLockAsyncLockWatcher(LockWatcher lw2) {
+      this.lw = lw2;
     }
 
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-
-    if (!lockNode.startsWith(LOCK_PREFIX)) {
-      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
+    @Override
+    public void acquiredLock() {
+      acquiredLock = true;
     }
 
-    zk.recursiveDelete(path + "/" + lockNode, NodeMissingPolicy.SKIP);
+    @Override
+    public void failedToAcquireLock(Exception e) {}
+
+    @Override
+    public void lostLock(LockLossReason reason) {
+      lw.lostLock(reason);
+    }
+
+    @Override
+    public void unableToMonitorLockNode(Throwable e) {
+      lw.unableToMonitorLockNode(e);
+    }
 
   }
 
-  public static boolean deleteLock(IZooReaderWriter zk, String path, String lockData)
-      throws InterruptedException, KeeperException {
-    List<String> children;
+  public class RandLock {
 
-    children = zk.getChildren(path);
+    private final String nodeName;
 
-    if (children == null || children.size() == 0) {
-      throw new IllegalStateException("No lock is held at " + path);
+    public RandLock(final String name) {
+      Objects.requireNonNull(name, "The lock node name must be provided");
+      nodeName = name;
     }
 
-    Collections.sort(children);
-
-    String lockNode = children.get(0);
-
-    if (!lockNode.startsWith(LOCK_PREFIX)) {
-      throw new RuntimeException("Node " + lockNode + " at " + path + " is not a lock node");
+    public String canonical() {
+      return nodeName;
     }
 
-    byte[] data = zk.getData(path + "/" + lockNode, null);
-
-    if (lockData.equals(new String(data, UTF_8))) {
-      zk.recursiveDelete(path + "/" + lockNode, NodeMissingPolicy.FAIL);
-      return true;
+    @Override
+    public boolean equals(Object o) {
+      if (this == o)
+        return true;
+      if (o == null || getClass() != o.getClass())
+        return false;
+      RandLock randLock = (RandLock) o;
+      return nodeName.equals(randLock.nodeName);
     }
 
-    return false;
+    @Override
+    public int hashCode() {
+      return Objects.hash(nodeName);
+    }
   }
 }
