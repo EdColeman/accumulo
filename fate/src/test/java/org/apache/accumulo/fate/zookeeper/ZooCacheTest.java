@@ -38,7 +38,7 @@ import org.apache.accumulo.fate.zookeeper.ZooCache.ZcStat;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
@@ -52,13 +52,13 @@ public class ZooCacheTest {
       java.util.Arrays.asList(new String[] {"huey", "dewey", "louie"});
 
   private ZooReader zr;
-  private ZooKeeper zk;
+  private DistConsensus zk;
   private ZooCache zc;
 
   @Before
   public void setUp() throws Exception {
     zr = createMock(ZooReader.class);
-    zk = createStrictMock(ZooKeeper.class);
+    zk = createStrictMock(DistConsensus.class);
     expect(zr.getZooKeeper()).andReturn(zk);
     expectLastCall().anyTimes();
     replay(zr);

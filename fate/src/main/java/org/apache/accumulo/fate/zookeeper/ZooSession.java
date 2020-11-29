@@ -28,7 +28,7 @@ import org.apache.accumulo.fate.util.UtilWaitThread;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +44,11 @@ public class ZooSession {
   private static final Logger log = LoggerFactory.getLogger(ZooSession.class);
 
   private static class ZooSessionInfo {
-    public ZooSessionInfo(ZooKeeper zooKeeper, ZooWatcher watcher) {
+    public ZooSessionInfo(DistConsensus zooKeeper, ZooWatcher watcher) {
       this.zooKeeper = zooKeeper;
     }
 
-    ZooKeeper zooKeeper;
+    DistConsensus zooKeeper;
   }
 
   private static Map<String,ZooSessionInfo> sessions = new HashMap<>();
@@ -81,19 +81,19 @@ public class ZooSession {
    * @param watcher
    *          ZK notifications, may be null
    */
-  public static ZooKeeper connect(String host, int timeout, String scheme, byte[] auth,
+  public static DistConsensus connect(String host, int timeout, String scheme, byte[] auth,
       Watcher watcher) {
     final int TIME_BETWEEN_CONNECT_CHECKS_MS = 100;
     int connectTimeWait = Math.min(10 * 1000, timeout);
     boolean tryAgain = true;
     long sleepTime = 100;
-    ZooKeeper zooKeeper = null;
+    DistConsensus zooKeeper = null;
 
     long startTime = System.currentTimeMillis();
 
     while (tryAgain) {
       try {
-        zooKeeper = new ZooKeeper(host, timeout, watcher);
+        zooKeeper = new DistConsensus(host, timeout, watcher);
         // it may take some time to get connected to zookeeper if some of the servers are down
         for (int i = 0; i < connectTimeWait / TIME_BETWEEN_CONNECT_CHECKS_MS && tryAgain; i++) {
           if (zooKeeper.getState().equals(States.CONNECTED)) {
@@ -145,7 +145,7 @@ public class ZooSession {
     return zooKeeper;
   }
 
-  public static synchronized ZooKeeper getSession(String zooKeepers, int timeout, String scheme,
+  public static synchronized DistConsensus getSession(String zooKeepers, int timeout, String scheme,
       byte[] auth) {
 
     if (sessions == null)

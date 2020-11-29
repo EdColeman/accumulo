@@ -33,7 +33,7 @@ import org.apache.zookeeper.KeeperException.ConnectionLossException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.easymock.EasyMock;
@@ -43,13 +43,13 @@ import org.junit.Test;
 public class ZooReaderWriterTest {
 
   private ZooReaderWriter zrw;
-  private ZooKeeper zk;
+  private DistConsensus zk;
   private RetryFactory retryFactory;
   private Retry retry;
 
   @Before
   public void setup() {
-    zk = EasyMock.createMock(ZooKeeper.class);
+    zk = EasyMock.createMock(DistConsensus.class);
     zrw = EasyMock.createMockBuilder(ZooReaderWriter.class)
         .addMockedMethods("getRetryFactory", "getZooKeeper").createMock();
     retryFactory = EasyMock.createMock(RetryFactory.class);

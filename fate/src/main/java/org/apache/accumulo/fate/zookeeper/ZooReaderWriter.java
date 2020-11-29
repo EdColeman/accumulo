@@ -27,7 +27,7 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.ZooKeeperConnectionInfo;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -45,7 +45,7 @@ public class ZooReaderWriter extends ZooReader implements IZooReaderWriter {
   private final ZooKeeperConnectionInfo info;
 
   @Override
-  public ZooKeeper getZooKeeper() {
+  public DistConsensus getZooKeeper() {
     SecurityManager sm = System.getSecurityManager();
     if (sm != null) {
       sm.checkPermission(ZOOWRITER_PERMISSION);

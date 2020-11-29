@@ -26,7 +26,7 @@ import org.apache.zookeeper.AsyncCallback.VoidCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -39,11 +39,11 @@ public class ZooReader implements IZooReader {
   protected int timeout;
   private final RetryFactory retryFactory;
 
-  protected ZooKeeper getSession(String keepers, int timeout, String scheme, byte[] auth) {
+  protected DistConsensus getSession(String keepers, int timeout, String scheme, byte[] auth) {
     return ZooSession.getSession(keepers, timeout, scheme, auth);
   }
 
-  protected ZooKeeper getZooKeeper() {
+  protected DistConsensus getZooKeeper() {
     return getSession(keepers, timeout, null, null);
   }
 

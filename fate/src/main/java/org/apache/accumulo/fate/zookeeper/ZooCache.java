@@ -33,7 +33,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
+// import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,7 +136,7 @@ public class ZooCache {
    *
    * @return ZooKeeper session.
    */
-  private ZooKeeper getZooKeeper() {
+  private DistConsensus getZooKeeper() {
     return zReader.getZooKeeper();
   }
 
@@ -144,8 +144,8 @@ public class ZooCache {
     @Override
     public void process(WatchedEvent event) {
 
-      if (log.isTraceEnabled()) {
-        log.trace("{}", event);
+      if (log.isDebugEnabled()) {
+        log.debug("watch event: {} - {}", event, event.getType());
       }
 
       switch (event.getType()) {
@@ -153,6 +153,8 @@ public class ZooCache {
         case NodeChildrenChanged:
         case NodeCreated:
         case NodeDeleted:
+          Exception ex = new Exception("Stack on remove event");
+          log.debug("remove: {}", event.getPath(), ex);
           remove(event.getPath());
           break;
         case None:
@@ -316,7 +318,7 @@ public class ZooCache {
             return childrenCache.get(zPath);
           }
 
-          final ZooKeeper zooKeeper = getZooKeeper();
+          final DistConsensus zooKeeper = getZooKeeper();
 
           List<String> children = zooKeeper.getChildren(zPath, watcher);
           if (children != null) {
@@ -390,12 +392,13 @@ public class ZooCache {
          */
         cacheWriteLock.lock();
         try {
-          final ZooKeeper zooKeeper = getZooKeeper();
+          final DistConsensus zooKeeper = getZooKeeper();
           Stat stat = zooKeeper.exists(zPath, watcher);
+          log.debug("get and set watch: stat {} - path {}", stat == null ? "NULL" : stat, zPath);
           byte[] data = null;
           if (stat == null) {
-            if (log.isTraceEnabled()) {
-              log.trace("zookeeper did not contain " + zPath);
+            if (log.isDebugEnabled()) {
+              log.debug("zookeeper did not contain " + zPath);
             }
           } else {
             try {
@@ -406,8 +409,8 @@ public class ZooCache {
             } catch (KeeperException.NoNodeException e2) {
               throw new ConcurrentModificationException();
             }
-            if (log.isTraceEnabled()) {
-              log.trace("zookeeper contained " + zPath + " "
+            if (log.isDebugEnabled()) {
+              log.debug("zookeeper contained " + zPath + " "
                   + (data == null ? null : new String(data, UTF_8)));
             }
           }
