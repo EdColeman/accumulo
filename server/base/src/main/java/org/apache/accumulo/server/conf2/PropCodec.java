@@ -18,15 +18,11 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PropCodec {
 
@@ -37,7 +33,7 @@ public class PropCodec {
   }
 
   public Map<String,String> decode() {
-    return Collections.EMPTY_MAP;
+    return Collections.<String,String>emptyMap();
   }
 
 }

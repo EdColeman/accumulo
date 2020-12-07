@@ -20,5 +20,6 @@ package org.apache.accumulo.server.conf2;
 
 public interface Configuration {
   String getProperty(final String key);
+
   void setProperty(final String key, final String value);
 }

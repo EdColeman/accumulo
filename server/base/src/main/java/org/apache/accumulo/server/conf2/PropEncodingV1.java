@@ -18,7 +18,11 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -29,44 +33,101 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-class PropEncodingV1 {
+public class PropEncodingV1 implements PropEncoding {
 
+  // allow for future expansion to support encoding migration.
   private static final String encodingVer = "1.0";
-  private final int dataVersion;
-  private final Instant timestamp;
+
+  // allow for deconflicting updates
+  private Instant timestamp;
+
+  // allow quick checking is data is current.
+  private int dataVersion;
+
+  // used internally for know how to handle underlying bytes.
+  private final boolean compressed;
 
   private final Map<String,String> props = new HashMap<>();
 
-  public PropEncodingV1() {
-    this(1, Instant.now());
-  }
+  private static final DateTimeFormatter tsFormatter =
+      DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
 
-  public PropEncodingV1(final int dataVersion, final Instant timestamp) {
-    this.dataVersion = 1;
+  public PropEncodingV1(final int dataVersion, final boolean compressed, final Instant timestamp) {
+    this.dataVersion = dataVersion;
+    this.compressed = compressed;
     this.timestamp = timestamp;
   }
 
-  public void add(String k, String v) {
+  public PropEncodingV1(final byte[] bytes) {
+
+    try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+        DataInputStream dis = new DataInputStream(bis)) {
+
+      // temporary - would need to change if multiple, compatible versions are developed.
+      String encodedVer = dis.readUTF();
+      if (encodingVer.compareTo(encodedVer) != 0) {
+        throw new IllegalStateException("Invalid encoding version " + encodedVer);
+      }
+
+      compressed = dis.readBoolean();
+
+      if (compressed) {
+        fromCompressed(bis);
+      } else {
+        readBytes(dis);
+      }
+
+    } catch (IOException ex) {
+      throw new IllegalStateException("Encountered error deserializing properties", ex);
+    }
+  }
+
+  @Override
+  public void addProperty(String k, String v) {
     props.put(k, v);
   }
 
+  @Override
+  public String getProperty(final String key) {
+    return props.get(key);
+  }
+
+  @Override
+  public String getEncodingVer() {
+    return encodingVer;
+  }
+
+  @Override
+  public Instant getTimestamp() {
+    return timestamp;
+  }
+
+  @Override
+  public int getDataVersion() {
+    return dataVersion;
+  }
+
+  public boolean isCompressed() {
+    return compressed;
+  }
+
+  @Override
   public byte[] toBytes() {
 
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos)) {
+
       dos.writeUTF(encodingVer);
+      dos.writeBoolean(compressed);
 
-      bos.write(toCompressed());
+      dataVersion++;
 
-//      dos.writeInt(dataVersion);
-//      dos.writeUTF(tsFormatter.format(timestamp));
-//
-//      dos.writeInt(props.size());
-//
-//      props.forEach((k, v) -> writeKV(k, v, dos));
-//
-//      dos.flush();
-//
+      if (compressed) {
+        bos.write(toCompressed());
+      } else {
+        writeData(dos);
+      }
+      dos.flush();
       return bos.toByteArray();
 
     } catch (IOException ex) {
@@ -74,18 +135,22 @@ class PropEncodingV1 {
     }
   }
 
+  private void writeData(final DataOutputStream dos) throws IOException {
+    dos.writeInt(dataVersion);
+    dos.writeUTF(tsFormatter.format(timestamp));
+
+    dos.writeInt(props.size());
+
+    props.forEach((k, v) -> writeKV(k, v, dos));
+
+    dos.flush();
+  }
+
   private byte[] toCompressed() {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos)) {
 
-      dos.writeInt(dataVersion);
-      dos.writeUTF(tsFormatter.format(timestamp));
-
-      dos.writeInt(props.size());
-
-      props.forEach((k, v) -> writeKV(k, v, dos));
-
-      dos.flush();
+      writeData(dos);
 
       ByteArrayOutputStream bos2 = new ByteArrayOutputStream();
       GZIPOutputStream gzipOut = new GZIPOutputStream(bos2);
@@ -99,54 +164,28 @@ class PropEncodingV1 {
     }
   }
 
+  private void readBytes(final DataInputStream dis) throws IOException {
 
-  public static PropEncodingV1 fromBytes(final byte[] bytes) {
-    try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-        DataInputStream dis = new DataInputStream(bis)) {
-
-      String encodingVer = dis.readUTF();
-
-      PropEncodingV1 decoded = fromCompressed(bis);
-
-//      int dataVersion = dis.readInt();
-//      Instant timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
-//
-//      PropEncodingV1 decoded = new PropEncodingV1(dataVersion, timestamp);
-//
-//      int items = dis.readInt();
-//      for (int i = 0; i < items; i++) {
-//        Map.Entry<String,String> e = readKV(dis);
-//        decoded.add(e.getKey(), e.getValue());
-//      }
-
-      return decoded;
-
-    } catch (IOException ex) {
-      throw new IllegalStateException("Encountered error deserializing properties", ex);
-    }
-  }
-
-  private static PropEncodingV1 fromCompressed(final ByteArrayInputStream bis) throws IOException {
-    GZIPInputStream gzipIn = new GZIPInputStream(bis);
-
-    DataInputStream dis = new DataInputStream(gzipIn);
-
-    int dataVersion = dis.readInt();
-    Instant timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
-
-    PropEncodingV1 decoded = new PropEncodingV1(dataVersion, timestamp);
+    dataVersion = dis.readInt();
+    timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
 
     int items = dis.readInt();
     for (int i = 0; i < items; i++) {
       Map.Entry<String,String> e = readKV(dis);
-      decoded.add(e.getKey(), e.getValue());
+      props.put(e.getKey(), e.getValue());
     }
-
-    return decoded;
 
   }
 
-  private static void writeKV(final String k, final String v, final DataOutputStream dos) {
+  private void fromCompressed(final ByteArrayInputStream bis) throws IOException {
+
+    try (GZIPInputStream gzipIn = new GZIPInputStream(bis);
+        DataInputStream dis = new DataInputStream(gzipIn)) {
+      readBytes(dis);
+    }
+  }
+
+  private void writeKV(final String k, final String v, final DataOutputStream dos) {
     try {
       dos.writeUTF(k);
       dos.writeUTF(v);
@@ -156,7 +195,7 @@ class PropEncodingV1 {
     }
   }
 
-  private static Map.Entry<String,String> readKV(final DataInputStream dis) {
+  private Map.Entry<String,String> readKV(final DataInputStream dis) {
     try {
       String k = dis.readUTF();
       String v = dis.readUTF();
@@ -167,9 +206,7 @@ class PropEncodingV1 {
     }
   }
 
-  private static final DateTimeFormatter tsFormatter =
-      DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
-
+  @Override
   public String print(boolean prettyPrint) {
     StringBuilder sb = new StringBuilder();
     sb.append("encoding=").append(encodingVer);

@@ -18,23 +18,22 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Collections;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropStore.class);
 
-  public void storeProperties(Map<String,String> properties){
+  public void storeProperties(Map<String,String> properties) {
 
   }
 
-  public Map<String, String> getProperties(){
-    return Collections.EMPTY_MAP;
+  public Map<String,String> getProperties() {
+    return Collections.<String,String>emptyMap();
   }
-
 
 }

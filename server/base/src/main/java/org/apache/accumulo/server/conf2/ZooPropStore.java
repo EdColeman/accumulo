@@ -18,5 +18,4 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public class ZooPropStore extends PropStore {
-}
+public class ZooPropStore extends PropStore {}

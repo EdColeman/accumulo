@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import java.time.Instant;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,25 +28,42 @@ public class PropEncodingV1Test {
 
   private static final Logger log = LoggerFactory.getLogger(PropEncodingV1Test.class);
 
-  @Test public void encodeTest(){
+  @Test
+  public void compressedEncodeTest() {
 
-    PropEncodingV1 props = new PropEncodingV1();
-
-    props.add("a.b.c.d.key1", "value1");
-    props.add("a.b.c.d.key2", "value2");
-    props.add("a.b.c.d.key3", "value3");
-    props.add("a.b.c.d.key4", "value4");
-    props.add("a.b.c.d.key5", "value5");
-    props.add("a.b.c.d.key6", "value6");
-    props.add("a.b.c.d.key7", "value7");
+    PropEncoding props = new PropEncodingV1(1, true, Instant.now());
+    fillMap(props);
 
     byte[] bytes = props.toBytes();
 
-    log.info("encoded length: {}", bytes.length);
+    log.info("compressed encoded length: {}", bytes.length);
 
-    PropEncodingV1 decoded = PropEncodingV1.fromBytes(bytes);
+    PropEncodingV1 decoded = new PropEncodingV1(bytes);
 
     log.info("Decoded:\n{}", decoded.print(true));
 
+  }
+
+  @Test
+  public void uncompressedEncodeTest() {
+
+    PropEncoding props = new PropEncodingV1(1, false, Instant.now());
+    fillMap(props);
+
+    byte[] bytes = props.toBytes();
+
+    log.info("uncompressed encoded length: {}", bytes.length);
+
+    PropEncodingV1 decoded = new PropEncodingV1(bytes);
+
+    log.info("Decoded:\n{}", decoded.print(true));
+
+  }
+
+  private void fillMap(final PropEncoding props) {
+    props.addProperty("key1", "value1");
+    props.addProperty("key2", "value2");
+    props.addProperty("key3", "value3");
+    props.addProperty("key4", "value4");
   }
 }

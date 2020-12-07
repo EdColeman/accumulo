@@ -18,12 +18,21 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.junit.Test;
+import java.time.Instant;
 
-public class PropCodecTest {
+public interface PropEncoding {
 
-  @Test
-  public void encodeTest() {
+  void addProperty(String key, String value);
 
-  }
+  String getProperty(String key);
+
+  String getEncodingVer();
+
+  Instant getTimestamp();
+
+  int getDataVersion();
+
+  byte[] toBytes();
+
+  String print(boolean prettyPrint);
 }
