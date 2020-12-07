@@ -35,29 +35,20 @@ import java.util.zip.GZIPOutputStream;
 
 public class PropEncodingV1 implements PropEncoding {
 
-  // allow for future expansion to support encoding migration.
-  // private static final String encodingVer = "1.0";
-
   private Header header;
 
-  // allow for deconflicting updates
-  // private final Instant timestamp;
-
-  // allow quick checking is data is current.
-  // private int dataVersion;
-
-  // used internally for know how to handle underlying bytes.
-  // private final boolean compressed;
-
   private final Map<String,String> props = new HashMap<>();
-
-  private static final DateTimeFormatter tsFormatter =
-      DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
 
   public PropEncodingV1(final int dataVersion, final boolean compressed, final Instant timestamp) {
     header = new Header(dataVersion, timestamp, compressed);
   }
 
+  /**
+   * (Re) Construct instance from byte array.
+   *
+   * @param bytes
+   *          a previously encoded instance in a byte array.
+   */
   public PropEncodingV1(final byte[] bytes) {
 
     try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
@@ -84,6 +75,11 @@ public class PropEncodingV1 implements PropEncoding {
   @Override
   public String getProperty(final String key) {
     return props.get(key);
+  }
+
+  @Override
+  public String removeProperty(final String key) {
+    return props.remove(key);
   }
 
   @Override
@@ -194,7 +190,7 @@ public class PropEncodingV1 implements PropEncoding {
     pretty(prettyPrint, sb);
     sb.append("dataVersion=").append(header.getDataVersion());
     pretty(prettyPrint, sb);
-    sb.append("timestamp=").append(tsFormatter.format(header.getTimestamp()));
+    sb.append("timestamp=").append(header.getTimestampISO());
     pretty(prettyPrint, sb);
     props.forEach((k, v) -> {
       if (prettyPrint) {
@@ -233,6 +229,9 @@ public class PropEncodingV1 implements PropEncoding {
     private final Instant timestamp;
     private final boolean compressed;
 
+    private static final DateTimeFormatter tsFormatter =
+        DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
+
     public Header(final int dataVersion, final Instant timestamp, final boolean compressed) {
       this.dataVersion = dataVersion;
       this.timestamp = timestamp;
@@ -262,6 +261,10 @@ public class PropEncodingV1 implements PropEncoding {
 
     public Instant getTimestamp() {
       return timestamp;
+    }
+
+    public String getTimestampISO() {
+      return tsFormatter.format(timestamp);
     }
 
     public boolean isCompressed() {
