@@ -55,7 +55,7 @@ public class PropEncodingV1 implements PropEncoding {
       DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
 
   public PropEncodingV1(final int dataVersion, final boolean compressed, final Instant timestamp) {
-    header = new Header(dataVersion,timestamp,compressed);
+    header = new Header(dataVersion, timestamp, compressed);
   }
 
   public PropEncodingV1(final byte[] bytes) {
@@ -108,7 +108,7 @@ public class PropEncodingV1 implements PropEncoding {
 
       int dataVersion = header.getDataVersion() + 1;
 
-      header = new Header(dataVersion,Instant.now(), header.isCompressed());
+      header = new Header(dataVersion, Instant.now(), header.isCompressed());
       header.writeHeader(dos);
 
       if (header.isCompressed()) {
@@ -132,7 +132,6 @@ public class PropEncodingV1 implements PropEncoding {
 
     dos.flush();
   }
-
 
   private void compressProps(final ByteArrayOutputStream bos) {
 
@@ -216,15 +215,16 @@ public class PropEncodingV1 implements PropEncoding {
   }
 
   /**
+   * Serialization metadata. This data should be written / appear in the encoded bytes first so that
+   * decisions can be made that may make deserilization unnecessary.
    *
-   *   // allow for deconflicting updates
-   *   // private final Instant timestamp;
-   *
-   *   // allow quick checking is data is current.
-   *   // private int dataVersion;
-   *
-   *   // used internally for know how to handle underlying bytes.
-   *   // private final boolean compressed;
+   * The header values are:
+   * <ul>
+   * <li>encodingVersion - allows for future changes to the encoding schema</li>
+   * <li>dataVersion - allows for quick comparison by comparing versions numbers</li>
+   * <li>timestamp - could allow for deconfliction of concurrent updates</li>
+   * <li>compressed - when true, the rest of the payload is compressed</li>
+   * </ul>
    */
   private static class Header {
 
@@ -275,8 +275,10 @@ public class PropEncodingV1 implements PropEncoding {
       dos.writeBoolean(compressed);
     }
 
-    @Override public String toString() {
-      return "Header{" + "encodingVer='" + encodingVer + '\'' + ", dataVersion=" + dataVersion + ", timestamp=" + timestamp + ", compressed=" + compressed + '}';
+    @Override
+    public String toString() {
+      return "Header{" + "encodingVer='" + encodingVer + '\'' + ", dataVersion=" + dataVersion
+          + ", timestamp=" + timestamp + ", compressed=" + compressed + '}';
     }
   }
 
