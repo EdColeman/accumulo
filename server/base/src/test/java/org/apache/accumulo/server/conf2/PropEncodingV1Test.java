@@ -38,12 +38,15 @@ public class PropEncodingV1Test {
 
     int ver = props.getDataVersion();
 
+    log.info("Created TS {}", props.getTimestamp());
+
     byte[] bytes = props.toBytes();
+
+    log.info("Written TS {}", props.getTimestamp());
 
     assertEquals(props.getDataVersion(), ver + 1);
 
     log.info("compressed encoded length: {}", bytes.length);
-
     PropEncodingV1 decoded = new PropEncodingV1(bytes);
 
     log.info("Decoded:\n{}", decoded.print(true));

@@ -36,16 +36,18 @@ import java.util.zip.GZIPOutputStream;
 public class PropEncodingV1 implements PropEncoding {
 
   // allow for future expansion to support encoding migration.
-  private static final String encodingVer = "1.0";
+  // private static final String encodingVer = "1.0";
+
+  private Header header;
 
   // allow for deconflicting updates
-  private Instant timestamp;
+  // private final Instant timestamp;
 
   // allow quick checking is data is current.
-  private int dataVersion;
+  // private int dataVersion;
 
   // used internally for know how to handle underlying bytes.
-  private final boolean compressed;
+  // private final boolean compressed;
 
   private final Map<String,String> props = new HashMap<>();
 
@@ -53,9 +55,7 @@ public class PropEncodingV1 implements PropEncoding {
       DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
 
   public PropEncodingV1(final int dataVersion, final boolean compressed, final Instant timestamp) {
-    this.dataVersion = dataVersion;
-    this.compressed = compressed;
-    this.timestamp = timestamp;
+    header = new Header(dataVersion,timestamp,compressed);
   }
 
   public PropEncodingV1(final byte[] bytes) {
@@ -63,17 +63,9 @@ public class PropEncodingV1 implements PropEncoding {
     try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
         DataInputStream dis = new DataInputStream(bis)) {
 
-      // temporary - would need to change if multiple, compatible versions are developed.
-      String encodedVer = dis.readUTF();
-      if (encodingVer.compareTo(encodedVer) != 0) {
-        throw new IllegalStateException("Invalid encoding version " + encodedVer);
-      }
+      header = new Header(dis);
 
-      dataVersion = dis.readInt();
-      timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
-      compressed = dis.readBoolean();
-
-      if (compressed) {
+      if (header.isCompressed()) {
         uncompressProps(bis);
       } else {
         readProps(dis);
@@ -95,22 +87,17 @@ public class PropEncodingV1 implements PropEncoding {
   }
 
   @Override
-  public String getEncodingVer() {
-    return encodingVer;
-  }
-
-  @Override
   public Instant getTimestamp() {
-    return timestamp;
+    return header.getTimestamp();
   }
 
   @Override
   public int getDataVersion() {
-    return dataVersion;
+    return header.getDataVersion();
   }
 
   public boolean isCompressed() {
-    return compressed;
+    return header.isCompressed();
   }
 
   @Override
@@ -119,14 +106,12 @@ public class PropEncodingV1 implements PropEncoding {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos)) {
 
-      dataVersion++;
+      int dataVersion = header.getDataVersion() + 1;
 
-      dos.writeUTF(encodingVer);
-      dos.writeInt(dataVersion);
-      dos.writeUTF(tsFormatter.format(timestamp));
-      dos.writeBoolean(compressed);
+      header = new Header(dataVersion,Instant.now(), header.isCompressed());
+      header.writeHeader(dos);
 
-      if (compressed) {
+      if (header.isCompressed()) {
         compressProps(bos);
       } else {
         writeProps(dos);
@@ -206,11 +191,11 @@ public class PropEncodingV1 implements PropEncoding {
   @Override
   public String print(boolean prettyPrint) {
     StringBuilder sb = new StringBuilder();
-    sb.append("encoding=").append(encodingVer);
+    sb.append("encoding=").append(header.getEncodingVer());
     pretty(prettyPrint, sb);
-    sb.append("dataVersion=").append(dataVersion);
+    sb.append("dataVersion=").append(header.getDataVersion());
     pretty(prettyPrint, sb);
-    sb.append("timestamp=").append(tsFormatter.format(timestamp));
+    sb.append("timestamp=").append(tsFormatter.format(header.getTimestamp()));
     pretty(prettyPrint, sb);
     props.forEach((k, v) -> {
       if (prettyPrint) {
@@ -227,6 +212,71 @@ public class PropEncodingV1 implements PropEncoding {
       sb.append("\n");
     } else {
       sb.append(", ");
+    }
+  }
+
+  /**
+   *
+   *   // allow for deconflicting updates
+   *   // private final Instant timestamp;
+   *
+   *   // allow quick checking is data is current.
+   *   // private int dataVersion;
+   *
+   *   // used internally for know how to handle underlying bytes.
+   *   // private final boolean compressed;
+   */
+  private static class Header {
+
+    private final String encodingVer = "1.0";
+    private final int dataVersion;
+    private final Instant timestamp;
+    private final boolean compressed;
+
+    public Header(final int dataVersion, final Instant timestamp, final boolean compressed) {
+      this.dataVersion = dataVersion;
+      this.timestamp = timestamp;
+      this.compressed = compressed;
+    }
+
+    public Header(final DataInputStream dis) throws IOException {
+
+      // temporary - would need to change if multiple, compatible versions are developed.
+      String ver = dis.readUTF();
+      if (encodingVer.compareTo(ver) != 0) {
+        throw new IllegalStateException(
+            "Invalid encoding version " + ver + ", expected " + encodingVer);
+      }
+      dataVersion = dis.readInt();
+      timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
+      compressed = dis.readBoolean();
+    }
+
+    public String getEncodingVer() {
+      return encodingVer;
+    }
+
+    public int getDataVersion() {
+      return dataVersion;
+    }
+
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    public boolean isCompressed() {
+      return compressed;
+    }
+
+    public void writeHeader(final DataOutputStream dos) throws IOException {
+      dos.writeUTF(encodingVer);
+      dos.writeInt(dataVersion);
+      dos.writeUTF(tsFormatter.format(timestamp));
+      dos.writeBoolean(compressed);
+    }
+
+    @Override public String toString() {
+      return "Header{" + "encodingVer='" + encodingVer + '\'' + ", dataVersion=" + dataVersion + ", timestamp=" + timestamp + ", compressed=" + compressed + '}';
     }
   }
 

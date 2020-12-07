@@ -26,7 +26,7 @@ public interface PropEncoding {
 
   String getProperty(String key);
 
-  String getEncodingVer();
+  // String getEncodingVer();
 
   Instant getTimestamp();
 
