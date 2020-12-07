@@ -69,12 +69,14 @@ public class PropEncodingV1 implements PropEncoding {
         throw new IllegalStateException("Invalid encoding version " + encodedVer);
       }
 
+      dataVersion = dis.readInt();
+      timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
       compressed = dis.readBoolean();
 
       if (compressed) {
-        fromCompressed(bis);
+        uncompressProps(bis);
       } else {
-        readBytes(dis);
+        readProps(dis);
       }
 
     } catch (IOException ex) {
@@ -117,15 +119,17 @@ public class PropEncodingV1 implements PropEncoding {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(bos)) {
 
-      dos.writeUTF(encodingVer);
-      dos.writeBoolean(compressed);
-
       dataVersion++;
 
+      dos.writeUTF(encodingVer);
+      dos.writeInt(dataVersion);
+      dos.writeUTF(tsFormatter.format(timestamp));
+      dos.writeBoolean(compressed);
+
       if (compressed) {
-        bos.write(toCompressed());
+        compressProps(bos);
       } else {
-        writeData(dos);
+        writeProps(dos);
       }
       dos.flush();
       return bos.toByteArray();
@@ -135,9 +139,7 @@ public class PropEncodingV1 implements PropEncoding {
     }
   }
 
-  private void writeData(final DataOutputStream dos) throws IOException {
-    dos.writeInt(dataVersion);
-    dos.writeUTF(tsFormatter.format(timestamp));
+  private void writeProps(final DataOutputStream dos) throws IOException {
 
     dos.writeInt(props.size());
 
@@ -146,42 +148,37 @@ public class PropEncodingV1 implements PropEncoding {
     dos.flush();
   }
 
-  private byte[] toCompressed() {
-    try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(bos)) {
 
-      writeData(dos);
+  private void compressProps(final ByteArrayOutputStream bos) {
 
-      ByteArrayOutputStream bos2 = new ByteArrayOutputStream();
-      GZIPOutputStream gzipOut = new GZIPOutputStream(bos2);
+    try (GZIPOutputStream gzipOut = new GZIPOutputStream(bos);
+        DataOutputStream dos = new DataOutputStream(gzipOut)) {
 
-      gzipOut.write(bos.toByteArray());
+      writeProps(dos);
 
-      gzipOut.close();
-      return bos2.toByteArray();
+      gzipOut.flush();
+      gzipOut.finish();
+
     } catch (IOException ex) {
       throw new IllegalStateException("Encountered error compressing properties", ex);
     }
   }
 
-  private void readBytes(final DataInputStream dis) throws IOException {
-
-    dataVersion = dis.readInt();
-    timestamp = tsFormatter.parse(dis.readUTF(), Instant::from);
+  private void readProps(final DataInputStream dis) throws IOException {
 
     int items = dis.readInt();
+
     for (int i = 0; i < items; i++) {
       Map.Entry<String,String> e = readKV(dis);
       props.put(e.getKey(), e.getValue());
     }
-
   }
 
-  private void fromCompressed(final ByteArrayInputStream bis) throws IOException {
+  private void uncompressProps(final ByteArrayInputStream bis) throws IOException {
 
     try (GZIPInputStream gzipIn = new GZIPInputStream(bis);
         DataInputStream dis = new DataInputStream(gzipIn)) {
-      readBytes(dis);
+      readProps(dis);
     }
   }
 
