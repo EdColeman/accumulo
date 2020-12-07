@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static org.junit.Assert.assertEquals;
+
 import java.time.Instant;
 
 import org.junit.Test;
@@ -34,7 +36,11 @@ public class PropEncodingV1Test {
     PropEncoding props = new PropEncodingV1(1, true, Instant.now());
     fillMap(props);
 
+    int ver = props.getDataVersion();
+
     byte[] bytes = props.toBytes();
+
+    assertEquals(props.getDataVersion(), ver + 1);
 
     log.info("compressed encoded length: {}", bytes.length);
 

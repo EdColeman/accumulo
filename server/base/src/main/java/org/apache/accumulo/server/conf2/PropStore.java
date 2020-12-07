@@ -18,8 +18,7 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.util.Collections;
-import java.util.Map;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +27,12 @@ public class PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(PropStore.class);
 
-  public void storeProperties(Map<String,String> properties) {
+  public void storeProperties(final PropEncoding properties) {
 
   }
 
-  public Map<String,String> getProperties() {
-    return Collections.<String,String>emptyMap();
+  public PropEncoding getProperties() {
+    return new PropEncodingV1(1, true, Instant.now());
   }
 
 }
