@@ -30,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -192,7 +193,9 @@ public class PropEncodingV1 implements PropEncoding {
     pretty(prettyPrint, sb);
     sb.append("timestamp=").append(header.getTimestampISO());
     pretty(prettyPrint, sb);
-    props.forEach((k, v) -> {
+
+    Map<String,String> sorted = new TreeMap<>(props);
+    sorted.forEach((k, v) -> {
       if (prettyPrint) {
         sb.append("  ");
       }

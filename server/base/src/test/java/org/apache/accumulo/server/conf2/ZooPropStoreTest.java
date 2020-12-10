@@ -18,56 +18,54 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.IOException;
+
+import org.apache.accumulo.core.data.TableId;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.Stat;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class ZooPropStoreTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
-
+  private static transient boolean haveZookeeper = false;
+  private static ZooKeeper zookeeper;
   private final String unoInstId = "2b0234bb-c157-4de5-bed0-0446528f50e8";
 
-  private static transient boolean haveZookeeper = false;
-
-  private static ZooKeeper zookeeper;
-
-  @BeforeClass public static void init(){
+  @BeforeClass
+  public static void init() {
     try {
       zookeeper = new ZooKeeper("localhost:2181", 10_000, new SessionWatcher());
+      zookeeper.addAuthInfo("digest", ("accumulo:uno").getBytes(UTF_8));
       haveZookeeper = true;
     } catch (IOException ex) {
       log.info("Failed to connect to zookeeper - these tests should be skipped.", ex);
-     haveZookeeper = false;
+      haveZookeeper = false;
     }
   }
 
-  @AfterClass public static void close(){
-    if(haveZookeeper){
+  @AfterClass
+  public static void close() {
+    if (haveZookeeper) {
       try {
         zookeeper.close();
-      }catch(InterruptedException ex){
+      } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
       }
     }
   }
 
-  @Test public void simpleStore() throws Exception {
+  @Test
+  public void simpleStore() {
 
-    if(!haveZookeeper){
+    if (!haveZookeeper) {
       log.info("Skipping test. Could not connect to a zookeeper on localhost:2181");
     }
 
@@ -75,34 +73,23 @@ public class ZooPropStoreTest {
 
   }
 
-  @Test public void upgradeTest() throws Exception {
+  @Test
+  public void upgradeTest() throws Exception {
 
     if (!haveZookeeper) {
       log.info("Skipping test. Could not connect to a zookeeper on localhost:2181");
     }
 
-    // original path
-    String tableId = "2";
+    ZooPropStore propStore = new ZooPropStore(zookeeper, unoInstId);
+    propStore.upgrade(TableId.of("2"));
 
-    String originalPath = String.format("/accumulo/%s/tables/%s/conf", unoInstId, tableId);
-    String newPath = String.format("/accumulo/%s/tables/%s/conf2", unoInstId, tableId);
+    String destPath = String.format("/accumulo/%s/tables/2/conf2", unoInstId);
 
-    Stat original = zookeeper.exists(originalPath, false);
-    if(Objects.nonNull(original)){
+    // read
+    byte[] r = zookeeper.getData(destPath, false, null);
 
-      PropEncoding props = new PropEncodingV1(1, true, Instant.now());
-
-      List<String> children = zookeeper.getChildren(originalPath, false);
-
-      for(String propName : children){
-        byte[] data = zookeeper.getData(originalPath + "/" + propName,null, null);
-        props.addProperty(propName, new String(data, StandardCharsets.UTF_8));
-      }
-
-      log.info("Props: {}", props.print(true));
-
-      
-    }
+    PropEncoding props2 = new PropEncodingV1(r);
+    log.info("Props2: {}", props2.print(true));
 
   }
 
@@ -110,7 +97,8 @@ public class ZooPropStoreTest {
 
     private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
 
-    @Override public void process(WatchedEvent watchedEvent) {
+    @Override
+    public void process(WatchedEvent watchedEvent) {
       log.debug("Received session event {}", watchedEvent);
     }
   }

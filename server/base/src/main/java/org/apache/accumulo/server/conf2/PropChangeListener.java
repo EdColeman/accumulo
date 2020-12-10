@@ -18,5 +18,4 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public class PropChangeListener {
-}
+public class PropChangeListener {}

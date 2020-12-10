@@ -18,26 +18,28 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import java.time.Instant;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 public class PropCache {
 
   private static final Logger log = LoggerFactory.getLogger(PropCache.class);
 
-  private final LoadingCache<String, PropEncoding> cache = CacheBuilder.newBuilder().build(
-      new CacheLoader<String,PropEncoding>() {
-        @Override public PropEncoding load(String s) throws Exception {
+  private final LoadingCache<String,PropEncoding> cache =
+      CacheBuilder.newBuilder().build(new CacheLoader<String,PropEncoding>() {
+        @Override
+        public PropEncoding load(String s) throws Exception {
           return readFromStore(s);
         }
       });
 
-  private PropEncoding readFromStore(String tableId){
-    return new PropEncodingV1(1,true, Instant.now());
+  private PropEncoding readFromStore(String tableId) {
+    return new PropEncodingV1(1, true, Instant.now());
   }
 }
