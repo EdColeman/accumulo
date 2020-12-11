@@ -21,12 +21,15 @@ package org.apache.accumulo.server.conf2;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.core.data.TableId;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -42,10 +45,21 @@ public class ZooPropStoreTest {
   @BeforeClass
   public static void init() {
     try {
-      zookeeper = new ZooKeeper("localhost:2181", 10_000, new SessionWatcher());
+      CountDownLatch connectionLatch = new CountDownLatch(1);
+      zookeeper = new ZooKeeper("localhost:2181", 10_000, watchedEvent -> {
+        if (watchedEvent.getState() == Watcher.Event.KeeperState.SyncConnected) {
+          connectionLatch.countDown();
+        }
+      });
+
+      connectionLatch.await(10, TimeUnit.SECONDS);
+
+      if (zookeeper.getState() == ZooKeeper.States.CONNECTED) {
+        haveZookeeper = true;
+      }
       zookeeper.addAuthInfo("digest", ("accumulo:uno").getBytes(UTF_8));
-      haveZookeeper = true;
-    } catch (IOException ex) {
+
+    } catch (IOException | InterruptedException ex) {
       log.info("Failed to connect to zookeeper - these tests should be skipped.", ex);
       haveZookeeper = false;
     }
@@ -65,9 +79,7 @@ public class ZooPropStoreTest {
   @Test
   public void simpleStore() {
 
-    if (!haveZookeeper) {
-      log.info("Skipping test. Could not connect to a zookeeper on localhost:2181");
-    }
+    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
     // zookeeper.exists("", false);
 
@@ -76,9 +88,7 @@ public class ZooPropStoreTest {
   @Test
   public void upgradeTest() throws Exception {
 
-    if (!haveZookeeper) {
-      log.info("Skipping test. Could not connect to a zookeeper on localhost:2181");
-    }
+    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
     ZooPropStore propStore = new ZooPropStore(zookeeper, unoInstId);
     propStore.upgrade(TableId.of("2"));
