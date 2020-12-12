@@ -28,6 +28,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.AbstractMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -76,6 +77,11 @@ public class PropEncodingV1 implements PropEncoding {
   @Override
   public String getProperty(final String key) {
     return props.get(key);
+  }
+
+  @Override
+  public Map<String,String> getAllProperties(){
+    return Collections.unmodifiableMap(props);
   }
 
   @Override

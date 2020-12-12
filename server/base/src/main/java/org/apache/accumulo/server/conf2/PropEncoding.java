@@ -19,6 +19,7 @@
 package org.apache.accumulo.server.conf2;
 
 import java.time.Instant;
+import java.util.Map;
 
 public interface PropEncoding {
 
@@ -83,4 +84,11 @@ public interface PropEncoding {
    * @return a formatted string, with optional new lines.
    */
   String print(boolean prettyPrint);
+
+  /**
+   * Get an unmodifiable map with all of the property, values.
+   *
+   * @return An unmodifiable view of the property key, values.
+   */
+  Map<String,String> getAllProperties();
 }
