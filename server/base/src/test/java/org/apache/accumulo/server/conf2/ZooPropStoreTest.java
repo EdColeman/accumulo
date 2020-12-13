@@ -40,7 +40,7 @@ public class ZooPropStoreTest {
   private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
   private static transient boolean haveZookeeper = false;
   private static ZooKeeper zookeeper;
-  private final String unoInstId = "2b0234bb-c157-4de5-bed0-0446528f50e8";
+  private final String unoInstId = "c1a80254-b507-48e3-bf2a-9c3664fca68f";
 
   @BeforeClass public static void init() {
     try {
