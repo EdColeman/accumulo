@@ -18,5 +18,11 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public class NotificationManager {
+import java.beans.PropertyChangeListener;
+
+public interface NotificationManager {
+
+  PropEncoding get(String name, PropertyChangeListener listener);
+
+  void set(String name, PropEncoding props);
 }

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2.zkflw;
+package org.apache.accumulo.server.conf2;
 
+import org.apache.accumulo.server.conf2.zkflw.WchcCommand;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,20 +26,12 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class WchcCommandTest {
+public class ZkNotificationManagerTest {
 
-  private static final Logger log = LoggerFactory.getLogger(WchcCommandTest.class);
+  private static final Logger log = LoggerFactory.getLogger(ZkNotificationManagerTest.class);
 
   @Test public void watcherSnapshot() {
 
-    String tmpFile = "/data1/tmp/wchc.txt";
 
-    WchcCommand wchcCommand = new WchcCommand("localhost", 2181, tmpFile);
-
-    wchcCommand.sendZkWchcCmd();
-
-    List<WchcCommand.SplitPath> paths = wchcCommand.filterWchcOutput(Pattern.compile("/accumulo/.*/2/conf2.*"));
-
-    log.info("Paths:{}", paths);
   }
 }

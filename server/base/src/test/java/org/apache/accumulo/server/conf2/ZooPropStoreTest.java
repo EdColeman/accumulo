@@ -19,9 +19,11 @@
 package org.apache.accumulo.server.conf2;
 
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.server.conf2.zkflw.WchcCommandTest;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -109,6 +111,24 @@ public class ZooPropStoreTest {
 
     @Override public void process(WatchedEvent watchedEvent) {
       log.debug("Received session event {}", watchedEvent);
+    }
+  }
+
+  @Test public void SessionTest() throws Exception {
+    ZkNotificationManager notifier = new ZkNotificationManager(zookeeper);
+
+    Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",notifier);
+
+
+    try {
+
+      Thread.sleep(1_000);
+      WchcCommandTest wchc = new WchcCommandTest();
+      wchc.watcherSnapshot();
+
+      Thread.sleep(60_000);
+    }catch(InterruptedException ex){
+      // empty
     }
   }
 }
