@@ -18,7 +18,6 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.apache.accumulo.core.data.AbstractId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.zookeeper.CreateMode;
@@ -64,13 +63,13 @@ public class ZooPropStore implements PropStore, Watcher {
     support.removePropertyChangeListener(pcl);
   }
 
-  @Override public PropEncoding get(final AbstractId<?> id, PropertyChangeListener pcl) {
+  @Override public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
 
     if (Objects.nonNull(pcl)) {
       addPropertyChangeListener(pcl);
     }
 
-    var propPath = String.format("%s/%s/conf2", tableConfRoot, id.canonical());
+    var propPath = String.format("%s/%s/conf2", tableConfRoot, "xx" ); // id.canonical());
 
     try {
       Stat stat = zookeeper.exists(propPath, false);
@@ -90,7 +89,7 @@ public class ZooPropStore implements PropStore, Watcher {
     }
   }
 
-  @Override public void set(AbstractId<?> name, PropEncoding props) {
+  @Override public void set(CacheId id, PropEncoding props) {
   }
 
   /**

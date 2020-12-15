@@ -20,7 +20,7 @@ package org.apache.accumulo.server.conf2;
 
 public interface Configuration {
 
-  String getProperty(final String key);
+  String getProperty(CacheId id, String propName);
 
-  void setProperty(final String key, final String value);
+  void setProperty(CacheId id, String propName, String value);
 }

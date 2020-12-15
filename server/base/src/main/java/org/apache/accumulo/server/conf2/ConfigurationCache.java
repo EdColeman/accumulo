@@ -29,12 +29,12 @@ public class ConfigurationCache implements Configuration {
   }
 
   @Override
-  public String getProperty(final String name){
+  public String getProperty(final CacheId id, final String propName){
     return "";
   }
 
   @Override
-  public void setProperty(final String name, final String value){
+  public void setProperty(final CacheId id, final String propName, final String value){
 
   }
 

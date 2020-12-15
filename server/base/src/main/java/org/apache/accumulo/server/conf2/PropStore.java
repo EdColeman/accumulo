@@ -18,15 +18,13 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.apache.accumulo.core.data.AbstractId;
-
 import java.beans.PropertyChangeListener;
 
 public interface PropStore {
 
-  PropEncoding get(AbstractId<?> id, PropertyChangeListener pcl);
+  PropEncoding get(CacheId id, PropertyChangeListener pcl);
 
-  void set(AbstractId<?> id, PropEncoding props);
+  void set(CacheId id, PropEncoding props);
 
 
 }

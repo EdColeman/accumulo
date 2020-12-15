@@ -56,5 +56,4 @@ public abstract class PropCache {
     return new PropEncodingV1(1, true, Instant.now());
   }
 
-
 }
