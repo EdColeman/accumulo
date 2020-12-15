@@ -25,9 +25,7 @@ public class WatcherMetrics {
 
   @Test public void watcherSnapshot(){
 
-    String tmpFile = "/data1/tmp/wchc.txt";
-
-    WchcCommand wchcCommand = new WchcCommand("localhost", 2181, tmpFile);
+    WchcCommand wchcCommand = new WchcCommand("localhost", 2181);
 
     wchcCommand.sendZkWchcCmd();
   }

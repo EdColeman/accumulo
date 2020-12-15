@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import org.apache.accumulo.core.data.AbstractId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.zookeeper.CreateMode;
@@ -39,7 +40,7 @@ import java.util.Objects;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class ZooPropStore extends PropStore implements Watcher {
+public class ZooPropStore implements PropStore, Watcher {
 
   private static final Logger log = LoggerFactory.getLogger(ZooPropStore.class);
 
@@ -63,13 +64,13 @@ public class ZooPropStore extends PropStore implements Watcher {
     support.removePropertyChangeListener(pcl);
   }
 
-  public PropEncoding getProperties(final TableId tableId, PropertyChangeListener pcl) {
+  @Override public PropEncoding get(final AbstractId<?> id, PropertyChangeListener pcl) {
 
     if (Objects.nonNull(pcl)) {
       addPropertyChangeListener(pcl);
     }
 
-    var propPath = String.format("%s/%s/conf2", tableConfRoot, tableId.canonical());
+    var propPath = String.format("%s/%s/conf2", tableConfRoot, id.canonical());
 
     try {
       Stat stat = zookeeper.exists(propPath, false);
@@ -87,6 +88,9 @@ public class ZooPropStore extends PropStore implements Watcher {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted getting properties for " + propPath, ex);
     }
+  }
+
+  @Override public void set(AbstractId<?> name, PropEncoding props) {
   }
 
   /**
@@ -226,5 +230,6 @@ public class ZooPropStore extends PropStore implements Watcher {
         log.debug("unhandled {}", watchedEvent.getPath());
     }
   }
+
 }
 

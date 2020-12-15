@@ -27,9 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.beans.PropertyChangeListener;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 public class ZkNotificationManager implements NotificationManager, Watcher {
 
@@ -39,26 +37,15 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
 
   private final ZooKeeper zookeeper;
 
-  public ZkNotificationManager(final ZooKeeper zookeeper){
+  public ZkNotificationManager(final ZooKeeper zookeeper) {
     this.zookeeper = zookeeper;
   }
 
-  private static class WatchedNode {
-    private final String path;
-    private final Stat stat;
-    public WatchedNode(final String path, final Stat stat){
-      this.path = path;
-      this.stat = stat;
-    }
-  }
-
-  @Override
-  public PropEncoding get(final String name, final PropertyChangeListener listener){
+  @Override public PropEncoding get(final String name, final PropertyChangeListener listener) {
     return null;
   }
 
-  @Override
-  public void set(final String name, final PropEncoding props){
+  @Override public void set(final String name, final PropEncoding props) {
 
   }
 
@@ -66,7 +53,7 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
 
     log.debug("received zookeeper event: {}", watchedEvent);
 
-    switch(watchedEvent.getType()){
+    switch (watchedEvent.getType()) {
       case None:
         log.info("Node event NONE");
         log.info("State is {}", watchedEvent.getState());
@@ -89,16 +76,16 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
       case NodeChildrenChanged:
         log.info("Node event NODE_CHILD_CHANGED");
         break;
-        default:
-          log.info("Node event UNKNOWN");
-          log.info("State is {}", watchedEvent.getState());
-          handleState(watchedEvent.getState());
-          break;
+      default:
+        log.info("Node event UNKNOWN");
+        log.info("State is {}", watchedEvent.getState());
+        handleState(watchedEvent.getState());
+        break;
     }
   }
 
   private void handleState(Event.KeeperState state) {
-    switch (state){
+    switch (state) {
       case Closed:
       case Expired:
       case AuthFailed:
@@ -140,5 +127,15 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
     };
 
     abstract ZkStateHandler handle(final WatchedEvent event);
+  }
+
+  private static class WatchedNode {
+    private final String path;
+    private final Stat stat;
+
+    public WatchedNode(final String path, final Stat stat) {
+      this.path = path;
+      this.stat = stat;
+    }
   }
 }

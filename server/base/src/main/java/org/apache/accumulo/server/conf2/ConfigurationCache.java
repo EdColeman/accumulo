@@ -18,4 +18,44 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public class PropChangeListener {}
+import org.apache.accumulo.core.data.AbstractId;
+
+public class ConfigurationCache implements Configuration {
+
+  private final PropStore store;
+
+  public ConfigurationCache(final PropStore store){
+    this.store = store;
+  }
+
+  @Override
+  public String getProperty(final String name){
+    return "";
+  }
+
+  @Override
+  public void setProperty(final String name, final String value){
+
+  }
+
+  private enum PropScope {
+    DEFAULT,
+    SYSTEM,
+    NAMESPACE,
+    TABLE,
+    NONE
+  }
+
+  private static class PropKey {
+
+    final AbstractId<?> id;
+    final PropScope scope;
+    final String name;
+
+    public PropKey(final AbstractId<?> id, final PropScope scope, final String name){
+      this.id = id;
+      this.scope = scope;
+      this.name = name;
+    }
+  }
+}

@@ -114,7 +114,7 @@ public class ZooPropStoreTest {
     }
   }
 
-  @Test public void SessionTest() throws Exception {
+  @Test public void sessionTest() throws Exception {
     ZkNotificationManager notifier = new ZkNotificationManager(zookeeper);
 
     Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",notifier);

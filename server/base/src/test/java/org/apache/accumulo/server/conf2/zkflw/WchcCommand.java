@@ -20,11 +20,12 @@ package org.apache.accumulo.server.conf2.zkflw;
 
 import org.apache.accumulo.core.rpc.TTimeoutTransport;
 import org.apache.accumulo.core.util.HostAndPort;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -43,20 +44,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class WchcCommand {
 
-  private static final Logger log = LogManager.getLogger(WchcCommand.class);
+  private static final Logger log = LoggerFactory.getLogger(WchcCommand.class);
 
   private final static String ZK_WCHC_CMD = "wchc";
 
-  private final static String DEFAULT_FILENAME = "/tmp/cmdOutput.txt";
-
+  private final static String DEFAULT_FILENAME = "/tmp/wchc.txt";
   private final String zkHost;
   private final int zkPort;
-  private final String filename;
 
-  public WchcCommand(final String zkHost, final int zkPort, final String filename) {
+  public WchcCommand(final String zkHost, final int zkPort) {
     this.zkHost = zkHost;
     this.zkPort = zkPort;
-    this.filename = filename;
   }
 
   public void sendZkWchcCmd() {
@@ -73,8 +71,7 @@ public class WchcCommand {
       String zkCmdString = ZK_WCHC_CMD + "\n";
 
       transport.write(zkCmdString.getBytes(UTF_8), 0, zkCmdString.length());
-
-      FileOutputStream fo = new FileOutputStream(filename);
+      FileOutputStream fo = new FileOutputStream(DEFAULT_FILENAME);
 
       try (WritableByteChannel out = Channels.newChannel(fo)) {
 
@@ -106,7 +103,7 @@ public class WchcCommand {
 
     List<SplitPath> paths = new ArrayList<>();
 
-    try (Stream<String> stream = Files.lines(Paths.get(filename))) {
+    try (Stream<String> stream = Files.lines(Paths.get(DEFAULT_FILENAME))) {
 
       stream.map(path -> new SplitPath(path)).filter(line -> regexFilter(pattern, line))
           .forEach(p -> paths.add(p));
@@ -117,7 +114,7 @@ public class WchcCommand {
     return paths;
   }
 
-  private boolean regexFilter(final Pattern pattern, SplitPath path){
+  private boolean regexFilter(final Pattern pattern, SplitPath path) {
     Matcher m = pattern.matcher(path.getZkPath());
     return m.matches();
   }

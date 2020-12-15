@@ -18,9 +18,11 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public interface Configuration {
+import org.junit.Test;
 
-  String getProperty(final String key);
+public class ConfigurationCacheTest {
 
-  void setProperty(final String key, final String value);
+  @Test public void x() {
+
+  }
 }

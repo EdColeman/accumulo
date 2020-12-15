@@ -18,21 +18,15 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.time.Instant;
+import org.apache.accumulo.core.data.AbstractId;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.beans.PropertyChangeListener;
 
-public class PropStore {
+public interface PropStore {
 
-  private static final Logger log = LoggerFactory.getLogger(PropStore.class);
+  PropEncoding get(AbstractId<?> id, PropertyChangeListener pcl);
 
-  public void storeProperties(final PropEncoding properties) {
+  void set(AbstractId<?> id, PropEncoding props);
 
-  }
-
-  public PropEncoding getProperties() {
-    return new PropEncodingV1(1, true, Instant.now());
-  }
 
 }

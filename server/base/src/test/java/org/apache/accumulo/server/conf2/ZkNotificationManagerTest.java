@@ -18,20 +18,15 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.apache.accumulo.server.conf2.zkflw.WchcCommand;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.regex.Pattern;
 
 public class ZkNotificationManagerTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZkNotificationManagerTest.class);
 
   @Test public void watcherSnapshot() {
-
 
   }
 }

@@ -18,9 +18,18 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public interface Configuration {
+import org.apache.accumulo.core.data.AbstractId;
 
-  String getProperty(final String key);
+import java.beans.PropertyChangeListener;
 
-  void setProperty(final String key, final String value);
+public class MemPropStore implements PropStore {
+
+  @Override public PropEncoding get(AbstractId<?> id, PropertyChangeListener pcl) {
+    return null;
+  }
+
+  @Override public void set(AbstractId<?> id, PropEncoding props) {
+
+  }
+
 }

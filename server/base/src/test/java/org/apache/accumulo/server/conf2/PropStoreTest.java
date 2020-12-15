@@ -18,13 +18,14 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PropStoreTest {
   private static final Logger log = LoggerFactory.getLogger(PropStoreTest.class);
 
-  public static class MemPropStore extends PropStore {
+  @Test public void goPath() {
 
   }
 }

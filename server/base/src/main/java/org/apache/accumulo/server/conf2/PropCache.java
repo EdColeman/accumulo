@@ -20,6 +20,7 @@ package org.apache.accumulo.server.conf2;
 
 import java.time.Instant;
 
+import org.apache.accumulo.core.data.AbstractId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,19 +28,33 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-public class PropCache {
+public abstract class PropCache {
 
   private static final Logger log = LoggerFactory.getLogger(PropCache.class);
 
   private final LoadingCache<String,PropEncoding> cache =
       CacheBuilder.newBuilder().build(new CacheLoader<String,PropEncoding>() {
         @Override
-        public PropEncoding load(String s) throws Exception {
-          return readFromStore(s);
+        public PropEncoding load(final String key) {
+          return readFromStore(key);
         }
       });
 
-  private PropEncoding readFromStore(String tableId) {
+  public String getProperty(final AbstractId<?> id, final String name){
+    return null;
+  }
+
+  public void setProperty(final AbstractId<?> id, final String name, final String value){
+
+  }
+
+  protected abstract boolean loadFromStore(final AbstractId<?> id, final String pathPrefix);
+
+  protected abstract void writeToStore(final AbstractId<?> id, final String pathPrefix, final PropEncoding props);
+
+  private PropEncoding readFromStore(final String key) {
     return new PropEncodingV1(1, true, Instant.now());
   }
+
+
 }
