@@ -109,18 +109,11 @@ public class ZooPropStoreTest {
 
   }
 
-  private static class SessionWatcher implements Watcher {
-
-    private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
-
-    @Override
-    public void process(WatchedEvent watchedEvent) {
-      log.debug("Received session event {}", watchedEvent);
-    }
-  }
-
   @Test
   public void sessionTest() throws Exception {
+
+    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
+
     ZkNotificationManager notifier = new ZkNotificationManager(zookeeper);
 
     Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",
@@ -135,6 +128,16 @@ public class ZooPropStoreTest {
       Thread.sleep(60_000);
     } catch (InterruptedException ex) {
       // empty
+    }
+  }
+
+  private static class SessionWatcher implements Watcher {
+
+    private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
+
+    @Override
+    public void process(WatchedEvent watchedEvent) {
+      log.debug("Received session event {}", watchedEvent);
     }
   }
 }

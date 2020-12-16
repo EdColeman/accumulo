@@ -55,7 +55,7 @@ public class ConfigurationCacheTest {
 
     // not set - should return default.
     String enabled = cache.getProperty(iid, "table.bloom.enabled");
-    assertEquals("false", enabled);
+    assertEquals("default", enabled);
 
     // cache.getProperty(iid, "table.split.threshold");
 
