@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public class CacheId implements Comparable<CacheId> {
 
@@ -85,6 +86,11 @@ public class CacheId implements Comparable<CacheId> {
       return IdType.NAMESPACE;
     }
     return IdType.DEFAULT;
+  }
+
+  @Override public String toString() {
+    return new StringJoiner(", ", CacheId.class.getSimpleName() + "[", "]").add("iid='" + iid + "'")
+        .add("id=" + id).toString();
   }
 
   @Override public int compareTo(CacheId other) {

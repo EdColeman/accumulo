@@ -25,7 +25,8 @@ import org.slf4j.LoggerFactory;
 public class PropStoreTest {
   private static final Logger log = LoggerFactory.getLogger(PropStoreTest.class);
 
-  @Test public void goPath() {
+  @Test
+  public void goPath() {
 
   }
 }

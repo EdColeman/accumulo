@@ -18,6 +18,16 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.zookeeper.CreateMode;
@@ -28,16 +38,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ZooPropStore implements PropStore, Watcher {
 
@@ -63,13 +63,14 @@ public class ZooPropStore implements PropStore, Watcher {
     support.removePropertyChangeListener(pcl);
   }
 
-  @Override public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
+  @Override
+  public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
 
     if (Objects.nonNull(pcl)) {
       addPropertyChangeListener(pcl);
     }
 
-    var propPath = String.format("%s/%s/conf2", tableConfRoot, "xx" ); // id.canonical());
+    var propPath = String.format("%s/%s/conf2", tableConfRoot, "xx"); // id.canonical());
 
     try {
       Stat stat = zookeeper.exists(propPath, false);
@@ -89,15 +90,16 @@ public class ZooPropStore implements PropStore, Watcher {
     }
   }
 
-  @Override public void set(CacheId id, PropEncoding props) {
-  }
+  @Override
+  public void set(CacheId id, PropEncoding props) {}
 
   /**
    * Convert the table configuration properties from individual ZooKeeper nodes (Accumulo pre-2.1
    * format) into the single node (2.1) format. If the destination configuration node exists, it
    * will be overwritten.
    *
-   * @param tableId the table id
+   * @param tableId
+   *          the table id
    */
   public void upgrade(final TableId tableId) throws KeeperException, InterruptedException {
 
@@ -125,14 +127,18 @@ public class ZooPropStore implements PropStore, Watcher {
   }
 
   /**
-   * Read the properties for a table in zookeeper under ../tables/[table_id]/conf and convert
-   * them to PropEncoded instance.
+   * Read the properties for a table in zookeeper under ../tables/[table_id]/conf and convert them
+   * to PropEncoded instance.
    *
-   * @param srcPath the path in zookeeper with configuration properties
-   * @param pzxid   the zookeeper version id of the conf node.
+   * @param srcPath
+   *          the path in zookeeper with configuration properties
+   * @param pzxid
+   *          the zookeeper version id of the conf node.
    * @return an PropEncoded instance
-   * @throws KeeperException      is a zookeeper exception occurs
-   * @throws InterruptedException if an interrupt is received.
+   * @throws KeeperException
+   *           is a zookeeper exception occurs
+   * @throws InterruptedException
+   *           if an interrupt is received.
    */
   private PropEncoding convert(final String srcPath, final long pzxid)
       throws KeeperException, InterruptedException {
@@ -154,11 +160,12 @@ public class ZooPropStore implements PropStore, Watcher {
     // validate that config has not changed while processing child nodes.
     Stat stat = zookeeper.exists(srcPath, false);
 
-    // This is checking for children additions / deletions and does not check data versions on the child nodes.
+    // This is checking for children additions / deletions and does not check data versions on the
+    // child nodes.
     if (pzxid != stat.getPzxid()) {
       // this could also retry.
-      throw new IllegalStateException(
-          "Configuration number of nodes under " + srcPath + " changed while coping to new format.");
+      throw new IllegalStateException("Configuration number of nodes under " + srcPath
+          + " changed while coping to new format.");
     }
 
     // Check the node version ids for a change.
@@ -185,7 +192,8 @@ public class ZooPropStore implements PropStore, Watcher {
    * Convert the table configuration properties from a single node into multiple nodes used by
    * Accumulo versions less than 2.1.
    *
-   * @param tableId the table id
+   * @param tableId
+   *          the table id
    */
   public void downgrade(final TableId tableId) throws KeeperException, InterruptedException {
     String destPath = String.format("%s/%s/conf", tableConfRoot, tableId.canonical());
@@ -207,15 +215,16 @@ public class ZooPropStore implements PropStore, Watcher {
       var nodePath = destPath + "/" + p.getKey();
       stat = zookeeper.exists(nodePath, false);
       if (Objects.isNull(stat)) {
-        zookeeper
-            .create(nodePath, p.getValue().getBytes(UTF_8), ZooUtil.PRIVATE, CreateMode.PERSISTENT);
+        zookeeper.create(nodePath, p.getValue().getBytes(UTF_8), ZooUtil.PRIVATE,
+            CreateMode.PERSISTENT);
       } else {
         zookeeper.setData(nodePath, p.getValue().getBytes(UTF_8), stat.getVersion());
       }
     }
   }
 
-  @Override public void process(WatchedEvent watchedEvent) {
+  @Override
+  public void process(WatchedEvent watchedEvent) {
     log.debug("Received session event {}", watchedEvent);
     switch (watchedEvent.getType()) {
       case NodeDeleted:
@@ -231,4 +240,3 @@ public class ZooPropStore implements PropStore, Watcher {
   }
 
 }
-

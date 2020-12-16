@@ -26,7 +26,8 @@ public class ZkNotificationManagerTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZkNotificationManagerTest.class);
 
-  @Test public void watcherSnapshot() {
+  @Test
+  public void watcherSnapshot() {
 
   }
 }

@@ -18,21 +18,22 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.UUID;
+
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
-
-import static org.junit.Assert.assertEquals;
-
 public class CacheIdTest {
 
   private static final Logger log = LoggerFactory.getLogger(CacheIdTest.class);
 
-  @Test public void typeTest() {
+  @Test
+  public void typeTest() {
     CacheId id1 = new CacheId("a", TableId.of("table_a"));
     assertEquals(CacheId.IdType.TABLE, id1.getType());
 
@@ -40,7 +41,8 @@ public class CacheIdTest {
     assertEquals(CacheId.IdType.NAMESPACE, id2.getType());
   }
 
-  @Test public void keyTest(){
+  @Test
+  public void keyTest() {
     UUID uuid = UUID.randomUUID();
     CacheId id1 = new CacheId(uuid.toString(), TableId.of("table_a"));
 

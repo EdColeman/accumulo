@@ -18,43 +18,44 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.time.Instant;
+import static org.junit.Assert.assertEquals;
 
-import org.apache.accumulo.core.data.AbstractId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.Instant;
+import java.util.UUID;
+
+import org.apache.accumulo.core.data.TableId;
+import org.junit.Test;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-public abstract class PropCache {
+public class SearchOrderTest {
 
-  private static final Logger log = LoggerFactory.getLogger(PropCache.class);
+  // validate search order
+  @Test
+  public void walkNotFound() {
 
-  private final LoadingCache<String,PropEncoding> cache =
-      CacheBuilder.newBuilder().build(new CacheLoader<String,PropEncoding>() {
-        @Override
-        public PropEncoding load(final String key) {
-          return readFromStore(key);
-        }
-      });
+    SearchOrder search = SearchOrder.TABLE;
+    CacheId iid = new CacheId(UUID.randomUUID().toString(), TableId.of("123"));
+    LoadingCache<CacheId,PropEncoding> cache = CacheBuilder.newBuilder().build(new CacheLoader<>() {
+      @Override
+      public PropEncoding load(CacheId cacheId) throws Exception {
+        return new PropEncodingV1(1, true, Instant.now());
+      }
+    });
 
-  public String getProperty(final AbstractId<?> id, final String name) {
-    return null;
+    SearchOrder next = search.search(iid, "invalid", cache);
+    assertEquals(SearchOrder.NAMESPACE, next);
+
+    next = next.search(iid, "invalid", cache);
+    assertEquals(SearchOrder.SYSTEM, next);
+
+    next = next.search(iid, "invalid", cache);
+    assertEquals(SearchOrder.DEFAULT, next);
+
+    next = next.search(iid, "invalid", cache);
+    assertEquals(SearchOrder.NOT_PRESENT, next);
+
   }
-
-  public void setProperty(final AbstractId<?> id, final String name, final String value) {
-
-  }
-
-  protected abstract boolean loadFromStore(final AbstractId<?> id, final String pathPrefix);
-
-  protected abstract void writeToStore(final AbstractId<?> id, final String pathPrefix,
-      final PropEncoding props);
-
-  private PropEncoding readFromStore(final String key) {
-    return new PropEncodingV1(1, true, Instant.now());
-  }
-
 }

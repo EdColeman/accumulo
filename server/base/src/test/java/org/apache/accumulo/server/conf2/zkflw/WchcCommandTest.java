@@ -18,24 +18,26 @@
  */
 package org.apache.accumulo.server.conf2.zkflw;
 
+import java.util.List;
+import java.util.regex.Pattern;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.regex.Pattern;
 
 public class WchcCommandTest {
 
   private static final Logger log = LoggerFactory.getLogger(WchcCommandTest.class);
 
-  @Test public void watcherSnapshot() {
+  @Test
+  public void watcherSnapshot() {
 
     WchcCommand wchcCommand = new WchcCommand("localhost", 2181);
 
     wchcCommand.sendZkWchcCmd();
 
-    List<WchcCommand.SplitPath> paths = wchcCommand.filterWchcOutput(Pattern.compile("/accumulo/.*/2/conf2.*"));
+    List<WchcCommand.SplitPath> paths =
+        wchcCommand.filterWchcOutput(Pattern.compile("/accumulo/.*/2/conf2.*"));
 
     log.info("Paths:{}", paths);
   }
