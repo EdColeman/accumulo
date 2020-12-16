@@ -19,8 +19,11 @@
 package org.apache.accumulo.server.conf2;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
@@ -51,5 +54,14 @@ public class CacheIdTest {
     CacheId id2 = CacheId.fromKey(id1.asKey());
 
     assertEquals(id1, id2);
+  }
+
+  @Test
+  public void uuidTest() {
+    CacheId id1 = new CacheId(UUID.randomUUID().toString(), TableId.of("table_a"));
+    String uuid = id1.getIID();
+    Pattern p = Pattern.compile("[0-9a-f\\-]{36}");
+    Matcher m = p.matcher(uuid);
+    assertTrue(m.matches());
   }
 }
