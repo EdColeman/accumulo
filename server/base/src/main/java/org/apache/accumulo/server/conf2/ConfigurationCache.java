@@ -20,8 +20,6 @@ package org.apache.accumulo.server.conf2;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.util.Objects;
-import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,22 +56,16 @@ public class ConfigurationCache implements Configuration {
   }
 
   @Override
-  public String getProperty(final CacheId id, final String propName) {
-    log.trace("get {} - {}", id, propName);
-    String propValue = "";
-    try {
-      PropEncoding props = cache.get(id);
-      propValue = props.getProperty(propName);
-      if (Objects.isNull(propValue)) {
-        log.debug("search parents...");
-        return searchParent("table", id, propName);
-      }
-      return propValue;
-    } catch (ExecutionException ex) {
-      log.error("failed", ex);
-      throw new IllegalStateException(
-          String.format("Failed to get property. id: %s, name: %s", id, propName));
+  public String getProperty(final CacheId iid, final String propName) {
+    log.trace("get {} - {}", iid, propName);
+
+    SearchOrder next = SearchOrder.TABLE;
+    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
+      next = next.search(iid, propName, cache);
     }
+
+    return next.propValue;
+
   }
 
   private String searchParent(final String level, final CacheId id, final String propName) {

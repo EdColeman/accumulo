@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.apache.accumulo.core.data.TableId;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.common.cache.CacheBuilder;
@@ -32,18 +32,27 @@ import com.google.common.cache.LoadingCache;
 
 public class SearchOrderTest {
 
+  private CacheId iid;
+  private LoadingCache<CacheId,PropEncoding> cache;
+
+  @Before
+  public void init() {
+    iid = new CacheId(UUID.randomUUID().toString(), "123");
+    cache = CacheBuilder.newBuilder().build(new CacheLoader<>() {
+      @Override
+      public PropEncoding load(CacheId cacheId) throws Exception {
+        PropEncoding props = new PropEncodingV1(1, true, Instant.now());
+        props.addProperty("table.split.threshold", "512M");
+        return props;
+      }
+    });
+  }
+
   // validate search order
   @Test
   public void walkNotFound() {
 
     SearchOrder search = SearchOrder.TABLE;
-    CacheId iid = new CacheId(UUID.randomUUID().toString(), TableId.of("123"));
-    LoadingCache<CacheId,PropEncoding> cache = CacheBuilder.newBuilder().build(new CacheLoader<>() {
-      @Override
-      public PropEncoding load(CacheId cacheId) throws Exception {
-        return new PropEncodingV1(1, true, Instant.now());
-      }
-    });
 
     SearchOrder next = search.search(iid, "invalid", cache);
     assertEquals(SearchOrder.NAMESPACE, next);
@@ -57,5 +66,38 @@ public class SearchOrderTest {
     next = next.search(iid, "invalid", cache);
     assertEquals(SearchOrder.NOT_PRESENT, next);
 
+  }
+
+  @Test
+  public void findTableProp() {
+    SearchOrder search = SearchOrder.TABLE;
+
+    SearchOrder next = search.search(iid, "table.split.threshold", cache);
+    assertEquals(SearchOrder.FOUND, next);
+    assertEquals("512M", next.propValue);
+  }
+
+  @Test
+  public void findDefaultProp() {
+    SearchOrder next = SearchOrder.TABLE;
+
+    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
+      next = next.search(iid, "table.bloom.enabled", cache);
+    }
+
+    assertEquals(SearchOrder.FOUND, next);
+    assertEquals("false", next.propValue);
+  }
+
+  @Test
+  public void findDefaultProp2() {
+    SearchOrder next = SearchOrder.TABLE;
+
+    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
+      next = next.search(iid, "table.split.endrow.size.max", cache);
+    }
+
+    assertEquals(SearchOrder.FOUND, next);
+    assertEquals("10k", next.propValue);
   }
 }

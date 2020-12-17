@@ -37,17 +37,17 @@ public class CacheIdTest {
 
   @Test
   public void typeTest() {
-    CacheId id1 = new CacheId("a", TableId.of("table_a"));
+    CacheId id1 = new CacheId("a", "table_a");
     assertEquals(CacheId.IdType.TABLE, id1.getType());
 
-    CacheId id2 = new CacheId("a", NamespaceId.of("namespace_a"));
+    CacheId id2 = new CacheId("a", NamespaceId.of("123"), null);
     assertEquals(CacheId.IdType.NAMESPACE, id2.getType());
   }
 
   @Test
   public void keyTest() {
     UUID uuid = UUID.randomUUID();
-    CacheId id1 = new CacheId(uuid.toString(), TableId.of("table_a"));
+    CacheId id1 = new CacheId(uuid.toString(), NamespaceId.of("321"), TableId.of("123"));
 
     log.debug("key: {}", id1.asKey());
 
@@ -57,8 +57,19 @@ public class CacheIdTest {
   }
 
   @Test
+  public void parse() {
+    CacheId id1 = new CacheId(UUID.randomUUID().toString(), NamespaceId.of("namespace_a"),
+        TableId.of("table_a"));
+    String uuid = id1.getIID();
+    Pattern p = Pattern.compile("[0-9a-f\\-]{36}");
+    Matcher m = p.matcher(uuid);
+    assertTrue(m.matches());
+  }
+
+  @Test
   public void uuidTest() {
-    CacheId id1 = new CacheId(UUID.randomUUID().toString(), TableId.of("table_a"));
+    CacheId id1 =
+        new CacheId(UUID.randomUUID().toString(), NamespaceId.of("321"), TableId.of("123"));
     String uuid = id1.getIID();
     Pattern p = Pattern.compile("[0-9a-f\\-]{36}");
     Matcher m = p.matcher(uuid);

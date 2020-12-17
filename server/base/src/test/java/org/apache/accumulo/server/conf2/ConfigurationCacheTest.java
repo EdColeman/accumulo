@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.apache.accumulo.core.data.TableId;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,7 +40,7 @@ public class ConfigurationCacheTest {
     t123Props.addProperty("table.split.threshold", "512M");
     t123Props.addProperty("table.file.max", "5");
 
-    iid = new CacheId(UUID.randomUUID().toString(), TableId.of("123"));
+    iid = new CacheId(UUID.randomUUID().toString(), "123");
     store.set(iid, t123Props);
 
     cache = new ConfigurationCache(store);
@@ -55,7 +54,7 @@ public class ConfigurationCacheTest {
 
     // not set - should return default.
     String enabled = cache.getProperty(iid, "table.bloom.enabled");
-    assertEquals("default", enabled);
+    assertEquals("false", enabled);
 
     // cache.getProperty(iid, "table.split.threshold");
 

@@ -32,52 +32,57 @@ public enum SearchOrder {
     @Override
     SearchOrder search(final CacheId id, final String propName,
         final LoadingCache<CacheId,PropEncoding> cache) {
-      log.trace("lookup table scope property");
+      log.trace("lookup table scope property - propName: {}", propName);
       String v = lookup(id, propName, cache);
       if (Objects.isNull(v)) {
         return NAMESPACE;
       }
-      propValue = v;
-      return FOUND;
+      SearchOrder next = FOUND;
+      next.propValue = v;
+      return next;
     }
   },
   NAMESPACE {
     @Override
     SearchOrder search(final CacheId id, final String propName,
         final LoadingCache<CacheId,PropEncoding> cache) {
-      log.trace("lookup namespace scope property");
+      log.trace("lookup namespace scope property {}", propName);
       String v = lookup(id, propName, cache);
       if (Objects.isNull(v)) {
         return SYSTEM;
       }
-      propValue = v;
-      return FOUND;
+      SearchOrder next = FOUND;
+      next.propValue = v;
+      return next;
     }
   },
   SYSTEM {
     @Override
     SearchOrder search(final CacheId id, final String propName,
         final LoadingCache<CacheId,PropEncoding> cache) {
-      log.trace("lookup system scope property");
+      log.trace("lookup system scope property {}", propName);
       String v = lookup(id, propName, cache);
       if (Objects.isNull(v)) {
         return DEFAULT;
       }
-      propValue = v;
-      return FOUND;
+      SearchOrder next = FOUND;
+      next.propValue = v;
+      return next;
     }
   },
   DEFAULT {
     @Override
     SearchOrder search(final CacheId id, final String propName,
         final LoadingCache<CacheId,PropEncoding> cache) {
-      log.trace("lookup default scope property");
+      log.trace("lookup default scope property {}", propName);
       Property p = Property.getPropertyByKey(propName);
       if (Objects.isNull(p)) {
         return NOT_PRESENT;
       }
-      propValue = p.toString();
-      return FOUND;
+      log.trace("found: {}={}", p, p.getDefaultValue());
+      SearchOrder next = FOUND;
+      next.propValue = p.getDefaultValue();
+      return next;
     }
   },
   // terminal state.
