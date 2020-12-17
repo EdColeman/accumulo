@@ -80,7 +80,7 @@ public class PropEncodingV1 implements PropEncoding {
   }
 
   @Override
-  public Map<String,String> getAllProperties(){
+  public Map<String,String> getAllProperties() {
     return Collections.unmodifiableMap(props);
   }
 

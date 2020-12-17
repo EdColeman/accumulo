@@ -23,7 +23,8 @@ import org.junit.Test;
 
 public class WatcherMetrics {
 
-  @Test public void watcherSnapshot(){
+  @Test
+  public void watcherSnapshot() {
 
     WchcCommand wchcCommand = new WchcCommand("localhost", 2181);
 

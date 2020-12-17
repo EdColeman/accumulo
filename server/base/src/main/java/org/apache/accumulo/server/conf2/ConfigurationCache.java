@@ -18,44 +18,77 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.apache.accumulo.core.data.AbstractId;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 public class ConfigurationCache implements Configuration {
 
-  private final PropStore store;
+  private static final Logger log = LoggerFactory.getLogger(ConfigurationCache.class);
 
-  public ConfigurationCache(final PropStore store){
-    this.store = store;
+  private final PropStore backingStore;
+
+  private final LoadingCache<CacheId,PropEncoding> cache;
+
+  private final PropertyChangeListener notifier = new Notifier();
+
+  public ConfigurationCache(final PropStore backingStore) {
+    this.backingStore = backingStore;
+    cache = CacheBuilder.newBuilder().build(getLoader());
+  }
+
+  private CacheLoader<CacheId,PropEncoding> getLoader() {
+    CacheLoader<CacheId,PropEncoding> loader;
+    loader = new CacheLoader<CacheId,PropEncoding>() {
+      @Override
+      public PropEncoding load(CacheId cacheId) throws Exception {
+        log.trace("Loading {} from backing store", cacheId);
+        return backingStore.get(cacheId, notifier);
+      }
+    };
+    return loader;
   }
 
   @Override
-  public String getProperty(final CacheId id, final String propName){
-    return "";
+  public String getProperty(final CacheId id, final String propName) {
+    log.trace("get {} - {}", id, propName);
+    String propValue = "";
+    try {
+      PropEncoding props = cache.get(id);
+      propValue = props.getProperty(propName);
+      if (Objects.isNull(propValue)) {
+        log.debug("search parents...");
+        return searchParent("table", id, propName);
+      }
+      return propValue;
+    } catch (ExecutionException ex) {
+      log.error("failed", ex);
+      throw new IllegalStateException(
+          String.format("Failed to get property. id: %s, name: %s", id, propName));
+    }
+  }
+
+  private String searchParent(final String level, final CacheId id, final String propName) {
+    return "default";
   }
 
   @Override
-  public void setProperty(final CacheId id, final String propName, final String value){
+  public void setProperty(final CacheId id, final String propName, final String value) {
 
   }
 
-  private enum PropScope {
-    DEFAULT,
-    SYSTEM,
-    NAMESPACE,
-    TABLE,
-    NONE
-  }
-
-  private static class PropKey {
-
-    final AbstractId<?> id;
-    final PropScope scope;
-    final String name;
-
-    public PropKey(final AbstractId<?> id, final PropScope scope, final String name){
-      this.id = id;
-      this.scope = scope;
-      this.name = name;
+  private static class Notifier implements PropertyChangeListener {
+    @Override
+    public void propertyChange(PropertyChangeEvent pce) {
+      log.debug("Received prop change event", pce);
     }
   }
 }

@@ -18,20 +18,21 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import java.util.Objects;
+import java.util.StringJoiner;
+
 import org.apache.accumulo.core.data.AbstractId;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-
 public class CacheId implements Comparable<CacheId> {
 
   private static final Logger log = LoggerFactory.getLogger(CacheId.class);
 
-  final String iid;
-  final AbstractId<?> id;
+  private final String iid;
+  private final AbstractId<?> id;
 
   public CacheId(final String instanceId, final AbstractId<?> id) {
 
@@ -87,7 +88,14 @@ public class CacheId implements Comparable<CacheId> {
     return IdType.DEFAULT;
   }
 
-  @Override public int compareTo(CacheId other) {
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", CacheId.class.getSimpleName() + "[", "]").add("iid='" + iid + "'")
+        .add("id=" + id).toString();
+  }
+
+  @Override
+  public int compareTo(CacheId other) {
     int r = iid.compareTo(other.iid);
     if (r != 0) {
       return r;
@@ -95,7 +103,8 @@ public class CacheId implements Comparable<CacheId> {
     return id.canonical().compareTo(other.id.canonical());
   }
 
-  @Override public boolean equals(Object o) {
+  @Override
+  public boolean equals(Object o) {
     if (this == o)
       return true;
     if (o == null || getClass() != o.getClass())
@@ -104,7 +113,8 @@ public class CacheId implements Comparable<CacheId> {
     return Objects.equals(iid, cacheId.iid) && Objects.equals(id, cacheId.id);
   }
 
-  @Override public int hashCode() {
+  @Override
+  public int hashCode() {
     return Objects.hash(iid, id);
   }
 

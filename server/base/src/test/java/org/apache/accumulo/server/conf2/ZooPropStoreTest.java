@@ -18,6 +18,12 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.zkflw.WchcCommandTest;
 import org.apache.zookeeper.WatchedEvent;
@@ -31,12 +37,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class ZooPropStoreTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
@@ -44,7 +44,8 @@ public class ZooPropStoreTest {
   private static ZooKeeper zookeeper;
   private final String unoInstId = "c1a80254-b507-48e3-bf2a-9c3664fca68f";
 
-  @BeforeClass public static void init() {
+  @BeforeClass
+  public static void init() {
     try {
       CountDownLatch connectionLatch = new CountDownLatch(1);
       zookeeper = new ZooKeeper("localhost:2181", 10_000, watchedEvent -> {
@@ -68,7 +69,8 @@ public class ZooPropStoreTest {
     }
   }
 
-  @AfterClass public static void close() {
+  @AfterClass
+  public static void close() {
     if (haveZookeeper) {
       try {
         zookeeper.close();
@@ -78,7 +80,8 @@ public class ZooPropStoreTest {
     }
   }
 
-  @Test public void simpleStore() {
+  @Test
+  public void simpleStore() {
 
     Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
@@ -86,7 +89,8 @@ public class ZooPropStoreTest {
 
   }
 
-  @Test public void upgradeTest() throws Exception {
+  @Test
+  public void upgradeTest() throws Exception {
 
     Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
@@ -105,20 +109,15 @@ public class ZooPropStoreTest {
 
   }
 
-  private static class SessionWatcher implements Watcher {
+  @Test
+  public void sessionTest() throws Exception {
 
-    private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
+    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
-    @Override public void process(WatchedEvent watchedEvent) {
-      log.debug("Received session event {}", watchedEvent);
-    }
-  }
-
-  @Test public void sessionTest() throws Exception {
     ZkNotificationManager notifier = new ZkNotificationManager(zookeeper);
 
-    Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",notifier);
-
+    Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",
+        notifier);
 
     try {
 
@@ -127,8 +126,18 @@ public class ZooPropStoreTest {
       wchc.watcherSnapshot();
 
       Thread.sleep(60_000);
-    }catch(InterruptedException ex){
+    } catch (InterruptedException ex) {
       // empty
+    }
+  }
+
+  private static class SessionWatcher implements Watcher {
+
+    private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
+
+    @Override
+    public void process(WatchedEvent watchedEvent) {
+      log.debug("Received session event {}", watchedEvent);
     }
   }
 }

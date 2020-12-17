@@ -19,18 +19,26 @@
 package org.apache.accumulo.server.conf2;
 
 import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MemPropStore implements PropStore {
 
-  private Map<String, String> props = new HashMap<>();
+  private final Map<CacheId,PropEncoding> store = new HashMap<>();
+  private final PropertyChangeSupport propChangeSupport;
 
-  @Override public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
-    return null;
+  public MemPropStore() {
+    propChangeSupport = new PropertyChangeSupport(this);
   }
 
-  @Override public void set(CacheId id, PropEncoding props) {
+  @Override
+  public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
+    return store.get(id);
+  }
 
+  @Override
+  public void set(CacheId id, PropEncoding props) {
+    store.put(id, props);
   }
 }

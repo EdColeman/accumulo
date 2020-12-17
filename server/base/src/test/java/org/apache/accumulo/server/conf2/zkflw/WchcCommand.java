@@ -18,14 +18,8 @@
  */
 package org.apache.accumulo.server.conf2.zkflw;
 
-import org.apache.accumulo.core.rpc.TTimeoutTransport;
-import org.apache.accumulo.core.util.HostAndPort;
-import org.apache.thrift.transport.TTransport;
-import org.apache.thrift.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,7 +34,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import org.apache.accumulo.core.rpc.TTimeoutTransport;
+import org.apache.accumulo.core.util.HostAndPort;
+import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WchcCommand {
 
@@ -149,7 +148,8 @@ public class WchcCommand {
       return parts[4];
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
       return "SplitPath{" + "zkPath='" + zkPath + '\'' + '}';
     }
   }

@@ -18,16 +18,16 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import java.beans.PropertyChangeListener;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.beans.PropertyChangeListener;
-import java.util.HashMap;
-import java.util.Map;
 
 public class ZkNotificationManager implements NotificationManager, Watcher {
 
@@ -41,15 +41,18 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
     this.zookeeper = zookeeper;
   }
 
-  @Override public PropEncoding get(final String name, final PropertyChangeListener listener) {
+  @Override
+  public PropEncoding get(final String name, final PropertyChangeListener listener) {
     return null;
   }
 
-  @Override public void set(final String name, final PropEncoding props) {
+  @Override
+  public void set(final String name, final PropEncoding props) {
 
   }
 
-  @Override public void process(WatchedEvent watchedEvent) {
+  @Override
+  public void process(WatchedEvent watchedEvent) {
 
     log.debug("received zookeeper event: {}", watchedEvent);
 
@@ -103,11 +106,14 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
 
   private enum ZkEventHandler {
     INIT {
-      @Override public ZkEventHandler handle(final WatchedEvent event) {
+      @Override
+      public ZkEventHandler handle(final WatchedEvent event) {
         return HALT;
       }
-    }, HALT {
-      @Override public ZkEventHandler handle(final WatchedEvent event) {
+    },
+    HALT {
+      @Override
+      public ZkEventHandler handle(final WatchedEvent event) {
         return HALT;
       }
     };
@@ -117,11 +123,14 @@ public class ZkNotificationManager implements NotificationManager, Watcher {
 
   private enum ZkStateHandler {
     INIT {
-      @Override public ZkStateHandler handle(final WatchedEvent event) {
+      @Override
+      public ZkStateHandler handle(final WatchedEvent event) {
         return HALT;
       }
-    }, HALT {
-      @Override public ZkStateHandler handle(final WatchedEvent event) {
+    },
+    HALT {
+      @Override
+      public ZkStateHandler handle(final WatchedEvent event) {
         return HALT;
       }
     };

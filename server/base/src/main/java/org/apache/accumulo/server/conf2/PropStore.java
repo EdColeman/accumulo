@@ -26,5 +26,4 @@ public interface PropStore {
 
   void set(CacheId id, PropEncoding props);
 
-
 }

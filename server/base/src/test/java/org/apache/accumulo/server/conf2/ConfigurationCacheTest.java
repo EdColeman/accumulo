@@ -18,11 +18,58 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static org.junit.Assert.assertEquals;
+
+import java.time.Instant;
+import java.util.UUID;
+
+import org.apache.accumulo.core.data.TableId;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ConfigurationCacheTest {
 
-  @Test public void x() {
+  private static CacheId iid = null;
+  private static ConfigurationCache cache = null;
+
+  @Before
+  public void setup() {
+    // seed test "backend" store with test props
+    PropStore store = new MemPropStore();
+
+    PropEncoding t123Props = new PropEncodingV1(1, true, Instant.now());
+    t123Props.addProperty("table.split.threshold", "512M");
+    t123Props.addProperty("table.file.max", "5");
+
+    iid = new CacheId(UUID.randomUUID().toString(), TableId.of("123"));
+    store.set(iid, t123Props);
+
+    cache = new ConfigurationCache(store);
+  }
+
+  /**
+   * not set - should return default.
+   */
+  @Test
+  public void defaultPropTest() {
+
+    // not set - should return default.
+    String enabled = cache.getProperty(iid, "table.bloom.enabled");
+    assertEquals("default", enabled);
+
+    // cache.getProperty(iid, "table.split.threshold");
+
+  }
+
+  /**
+   * should return table override.
+   */
+  @Test
+  public void tablePropTest() {
+
+    // not set - should return default.
+    String splitThreshold = cache.getProperty(iid, "table.split.threshold");
+    assertEquals("512M", splitThreshold);
 
   }
 }
