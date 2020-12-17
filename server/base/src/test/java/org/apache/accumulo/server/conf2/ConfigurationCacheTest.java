@@ -23,12 +23,15 @@ import static org.junit.Assert.assertEquals;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.core.data.TableId;
 import org.junit.Before;
 import org.junit.Test;
 
 public class ConfigurationCacheTest {
 
   private static CacheId iid = null;
+  private static CacheId iid2 = null;
   private static ConfigurationCache cache = null;
 
   @Before
@@ -40,8 +43,16 @@ public class ConfigurationCacheTest {
     t123Props.addProperty("table.split.threshold", "512M");
     t123Props.addProperty("table.file.max", "5");
 
-    iid = new CacheId(UUID.randomUUID().toString(), "123");
+    PropEncoding ns1 = new PropEncodingV1(1, true, Instant.now());
+    ns1.addProperty("table.split.endrow.size.max", "5k");
+
+    var uuid = UUID.randomUUID().toString();
+
+    iid = new CacheId(uuid, NamespaceId.of("321"), TableId.of("123"));
     store.set(iid, t123Props);
+
+    iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
+    store.set(iid2, ns1);
 
     cache = new ConfigurationCache(store);
   }
@@ -69,6 +80,18 @@ public class ConfigurationCacheTest {
     // not set - should return default.
     String splitThreshold = cache.getProperty(iid, "table.split.threshold");
     assertEquals("512M", splitThreshold);
+
+  }
+
+  /**
+   * should return namespace override.
+   */
+  @Test
+  public void namespacePropTest() {
+
+    // not set - should return default.
+    String splitThreshold = cache.getProperty(iid, "table.split.endrow.size.max");
+    assertEquals("5k", splitThreshold);
 
   }
 }

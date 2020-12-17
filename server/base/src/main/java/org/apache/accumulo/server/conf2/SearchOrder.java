@@ -47,7 +47,8 @@ public enum SearchOrder {
     SearchOrder search(final CacheId id, final String propName,
         final LoadingCache<CacheId,PropEncoding> cache) {
       log.trace("lookup namespace scope property {}", propName);
-      String v = lookup(id, propName, cache);
+      CacheId nsid = new CacheId(id.getIID(), id.getNamespaceId(), null);
+      String v = lookup(nsid, propName, cache);
       if (Objects.isNull(v)) {
         return SYSTEM;
       }
