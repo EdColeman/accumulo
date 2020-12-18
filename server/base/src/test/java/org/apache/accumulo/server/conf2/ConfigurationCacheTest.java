@@ -31,7 +31,6 @@ import org.junit.Test;
 public class ConfigurationCacheTest {
 
   private static CacheId iid = null;
-  private static CacheId iid2 = null;
   private static ConfigurationCache cache = null;
 
   @Before
@@ -51,7 +50,7 @@ public class ConfigurationCacheTest {
     iid = new CacheId(uuid, NamespaceId.of("321"), TableId.of("123"));
     store.set(iid, t123Props);
 
-    iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
+    CacheId iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
     store.set(iid2, ns1);
 
     cache = new ConfigurationCache(store);

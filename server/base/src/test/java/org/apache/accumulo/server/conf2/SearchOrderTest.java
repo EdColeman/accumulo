@@ -19,10 +19,14 @@
 package org.apache.accumulo.server.conf2;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.core.data.TableId;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,72 +36,86 @@ import com.google.common.cache.LoadingCache;
 
 public class SearchOrderTest {
 
-  private CacheId iid;
+  private CacheId id1 = new CacheId(UUID.randomUUID().toString(), "123");
+  private CacheId id2 =
+      new CacheId(UUID.randomUUID().toString(), NamespaceId.of("321"), TableId.of("456"));
+
   private LoadingCache<CacheId,PropEncoding> cache;
 
   @Before
   public void init() {
-    iid = new CacheId(UUID.randomUUID().toString(), "123");
     cache = CacheBuilder.newBuilder().build(new CacheLoader<>() {
       @Override
       public PropEncoding load(CacheId cacheId) throws Exception {
         PropEncoding props = new PropEncodingV1(1, true, Instant.now());
-        props.addProperty("table.split.threshold", "512M");
+        props.addProperty("table.split.threshold", "1G");
         return props;
       }
     });
+
+    PropEncoding props_123 = new PropEncodingV1(1, true, Instant.now());
+    props_123.addProperty("table.split.threshold", "512M");
+
+    cache.put(id1, props_123);
+
+    PropEncoding props_321_456 = new PropEncodingV1(1, true, Instant.now());
+    props_321_456.addProperty("table.split.endrow.size.max", "5K");
+    cache.put(id2, props_321_456);
   }
 
   // validate search order
   @Test
   public void walkNotFound() {
-
-    SearchOrder search = SearchOrder.TABLE;
-
-    SearchOrder next = search.search(iid, "invalid", cache);
-    assertEquals(SearchOrder.NAMESPACE, next);
-
-    next = next.search(iid, "invalid", cache);
-    assertEquals(SearchOrder.SYSTEM, next);
-
-    next = next.search(iid, "invalid", cache);
-    assertEquals(SearchOrder.DEFAULT, next);
-
-    next = next.search(iid, "invalid", cache);
-    assertEquals(SearchOrder.NOT_PRESENT, next);
-
+    Optional<SearchOrder.LookupResult> result = SearchOrder.lookup(id1, "unknown", cache);
+    assertTrue(result.isEmpty());
   }
 
   @Test
   public void findTableProp() {
-    SearchOrder search = SearchOrder.TABLE;
+    Optional<SearchOrder.LookupResult> result =
+        SearchOrder.lookup(id1, "table.split.threshold", cache);
+    assertTrue(result.isPresent());
+    assertEquals("512M", result.get().getValue());
+  }
 
-    SearchOrder next = search.search(iid, "table.split.threshold", cache);
-    assertEquals(SearchOrder.FOUND, next);
-    assertEquals("512M", next.propValue);
+  @Test
+  public void findNamespace() {
+
+    // not set on table 123, expect default
+    Optional<SearchOrder.LookupResult> result =
+        SearchOrder.lookup(id1, "table.split.endrow.size.max", cache);
+    assertTrue(result.isPresent());
+    assertEquals("10k", result.get().getValue());
+
+    // namespace set on 456, expect override
+    result = SearchOrder.lookup(id2, "table.split.endrow.size.max", cache);
+    assertTrue(result.isPresent());
+    assertEquals("5K", result.get().getValue());
+
+  }
+
+  @Test
+  public void findSystem() {
+    // TODO - needs implementation.
   }
 
   @Test
   public void findDefaultProp() {
-    SearchOrder next = SearchOrder.TABLE;
+    Optional<SearchOrder.LookupResult> result =
+        SearchOrder.lookup(id1, "table.bloom.enabled", cache);
+    assertTrue(result.isPresent());
+    assertEquals("false", result.get().getValue());
 
-    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
-      next = next.search(iid, "table.bloom.enabled", cache);
-    }
-
-    assertEquals(SearchOrder.FOUND, next);
-    assertEquals("false", next.propValue);
   }
 
   @Test
   public void findDefaultProp2() {
-    SearchOrder next = SearchOrder.TABLE;
 
-    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
-      next = next.search(iid, "table.split.endrow.size.max", cache);
-    }
+    Optional<SearchOrder.LookupResult> result =
+        SearchOrder.lookup(id1, "table.split.endrow.size.max", cache);
 
-    assertEquals(SearchOrder.FOUND, next);
-    assertEquals("10k", next.propValue);
+    assertTrue(result.isPresent());
+    assertEquals("10k", result.get().getValue());
   }
+
 }

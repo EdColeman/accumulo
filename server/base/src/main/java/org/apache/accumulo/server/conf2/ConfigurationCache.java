@@ -20,6 +20,7 @@ package org.apache.accumulo.server.conf2;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,13 +60,13 @@ public class ConfigurationCache implements Configuration {
   public String getProperty(final CacheId iid, final String propName) {
     log.trace("get {} - {}", iid, propName);
 
-    SearchOrder next = SearchOrder.TABLE;
-    while (next != SearchOrder.FOUND && next != SearchOrder.NOT_PRESENT) {
-      next = next.search(iid, propName, cache);
+    Optional<SearchOrder.LookupResult> result = SearchOrder.lookup(iid, propName, cache);
+
+    if (result.isPresent()) {
+      return result.get().getValue();
     }
 
-    return next.propValue;
-
+    return "";
   }
 
   private String searchParent(final String level, final CacheId id, final String propName) {
