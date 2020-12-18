@@ -38,17 +38,19 @@ public class ConfigurationCacheTest {
     // seed test "backend" store with test props
     PropStore store = new MemPropStore();
 
+    // make a fake instance id
+    var uuid = UUID.randomUUID().toString();
+
     PropEncoding t123Props = new PropEncodingV1(1, true, Instant.now());
     t123Props.addProperty("table.split.threshold", "512M");
     t123Props.addProperty("table.file.max", "5");
 
+    iid = new CacheId(uuid, NamespaceId.of("321"), TableId.of("123"));
+    store.set(iid, t123Props);
+
     PropEncoding ns1 = new PropEncodingV1(1, true, Instant.now());
     ns1.addProperty("table.split.endrow.size.max", "5k");
 
-    var uuid = UUID.randomUUID().toString();
-
-    iid = new CacheId(uuid, NamespaceId.of("321"), TableId.of("123"));
-    store.set(iid, t123Props);
 
     CacheId iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
     store.set(iid2, ns1);
