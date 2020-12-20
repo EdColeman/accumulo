@@ -30,11 +30,7 @@ import java.util.Objects;
 
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,6 +88,11 @@ public class ZooPropStore implements PropStore, Watcher {
 
   @Override
   public void set(CacheId id, PropEncoding props) {}
+
+  @Override
+  public void registerForChanges(PropertyChangeListener notifier) {
+    throw new UnsupportedOperationException("change support not added");
+  }
 
   /**
    * Convert the table configuration properties from individual ZooKeeper nodes (Accumulo pre-2.1

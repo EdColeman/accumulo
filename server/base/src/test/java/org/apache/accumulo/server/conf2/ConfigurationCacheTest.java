@@ -27,16 +27,23 @@ import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConfigurationCacheTest {
 
-  private static CacheId iid = null;
-  private static ConfigurationCache cache = null;
+  private static final Logger log = LoggerFactory.getLogger(ConfigurationCacheTest.class);
+
+  private CacheId iid = null;
+  private ConfigurationCache cache = null;
+
+  // seed test "backend" store with test props
+  private PropStore store;
 
   @Before
   public void setup() {
-    // seed test "backend" store with test props
-    PropStore store = new MemPropStore();
+
+    store = new MemPropStore();
 
     // make a fake instance id
     var uuid = UUID.randomUUID().toString();
@@ -50,7 +57,6 @@ public class ConfigurationCacheTest {
 
     PropEncoding ns1 = new PropEncodingV1(1, true, Instant.now());
     ns1.addProperty("table.split.endrow.size.max", "5k");
-
 
     CacheId iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
     store.set(iid2, ns1);
@@ -93,6 +99,26 @@ public class ConfigurationCacheTest {
     // not set - should return default.
     String splitThreshold = cache.getProperty(iid, "table.split.endrow.size.max");
     assertEquals("5k", splitThreshold);
+
+  }
+
+  @Test
+  public void changeNotificationTest() {
+
+    String bloomSizeDefault = cache.getProperty(iid, "table.bloom.size");
+
+    PropEncoding props = store.get(iid, cache.getNotifier());
+    props.addProperty("table.bloom.size", "1024");
+    store.set(iid, props);
+
+    String bloomSize = cache.getProperty(iid, "table.bloom.size");
+
+    props.addProperty("table.bloom.size", "2048");
+    store.set(iid, props);
+
+    String bloomSize2 = cache.getProperty(iid, "table.bloom.size");
+
+    log.debug("Prop default {}, first: {}, second: {}", bloomSizeDefault, bloomSize, bloomSize2);
 
   }
 }

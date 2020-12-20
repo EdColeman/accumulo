@@ -56,7 +56,21 @@ public class CacheId implements Comparable<CacheId> {
     // 0 iid, 1 namespace id, 3 table id
     String[] tokens = key.split("::");
 
-    return new CacheId(tokens[0], NamespaceId.of(tokens[1]), TableId.of(tokens[2]));
+    NamespaceId nid;
+    if ("-".compareTo(tokens[1]) == 0) {
+      nid = null;
+    } else {
+      nid = NamespaceId.of(tokens[1]);
+    }
+
+    TableId tid;
+    if ("-".compareTo(tokens[2]) == 0) {
+      tid = null;
+    } else {
+      tid = TableId.of(tokens[2]);
+    }
+
+    return new CacheId(tokens[0], nid, tid);
   }
 
   public String getIID() {
@@ -72,7 +86,9 @@ public class CacheId implements Comparable<CacheId> {
   }
 
   public String asKey() {
-    return iid + "::" + nid.canonical() + "::" + tid.canonical();
+    String nidCanonical = Objects.isNull(nid) ? "-" : nid.canonical();
+    String tidCanonical = Objects.isNull(tid) ? "-" : tid.canonical();
+    return iid + "::" + nidCanonical + "::" + tidCanonical;
   }
 
   public IdType getType() {

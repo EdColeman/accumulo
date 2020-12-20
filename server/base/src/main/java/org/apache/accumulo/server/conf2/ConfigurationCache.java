@@ -20,14 +20,13 @@ package org.apache.accumulo.server.conf2;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import com.google.common.cache.*;
 
 public class ConfigurationCache implements Configuration {
 
@@ -37,12 +36,27 @@ public class ConfigurationCache implements Configuration {
 
   private final LoadingCache<CacheId,PropEncoding> cache;
 
-  private final PropertyChangeListener notifier = new Notifier();
+  private final PropertyChangeListener notifier;
 
   public ConfigurationCache(final PropStore backingStore) {
+    Objects.requireNonNull(backingStore, "A backing store must be provided");
+
     this.backingStore = backingStore;
-    cache = CacheBuilder.newBuilder().build(getLoader());
+
+    cache = CacheBuilder.newBuilder().removalListener(removalListener).build(getLoader());
+
+    notifier = new Notifier(cache);
+    backingStore.registerForChanges(notifier);
+
   }
+
+  RemovalListener<CacheId,PropEncoding> removalListener =
+      new RemovalListener<CacheId,PropEncoding>() {
+        @Override
+        public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
+          log.debug("{} removed from cache", removalNotification.getKey());
+        }
+      };
 
   private CacheLoader<CacheId,PropEncoding> getLoader() {
     CacheLoader<CacheId,PropEncoding> loader;
@@ -78,10 +92,23 @@ public class ConfigurationCache implements Configuration {
 
   }
 
+  public PropertyChangeListener getNotifier() {
+    return notifier;
+  }
+
   private static class Notifier implements PropertyChangeListener {
+    private final LoadingCache<CacheId,PropEncoding> backingCache;
+
+    public Notifier(final LoadingCache<CacheId,PropEncoding> cache) {
+      this.backingCache = cache;
+    }
+
     @Override
     public void propertyChange(PropertyChangeEvent pce) {
-      log.debug("Received prop change event", pce);
+      log.debug("Received prop change event {}", pce);
+      CacheId id = CacheId.fromKey(pce.getPropertyName());
+      log.warn("HAVE key: {}, {}", id, backingCache.asMap().containsKey(id));
+      backingCache.invalidate(id);
     }
   }
 }

@@ -26,4 +26,5 @@ public interface PropStore {
 
   void set(CacheId id, PropEncoding props);
 
+  void registerForChanges(PropertyChangeListener notifier);
 }
