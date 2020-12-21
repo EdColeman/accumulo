@@ -71,8 +71,8 @@ public class SearchOrder {
         return value;
 
       // lookup using namespace
-      NamespaceId nsid = id.getNamespaceId();
-      if (Objects.nonNull(nsid)) {
+      if (id.getNamespaceId().isPresent()) {
+        NamespaceId nsid = id.getNamespaceId().get();
         CacheId id2 = new CacheId(id.getIID(), nsid, null);
         log.trace("lookup namespace scoped property {} {}", nsid, propName);
         value = getLookupResult(id2, propName, cache);
@@ -82,7 +82,7 @@ public class SearchOrder {
 
       // lookup system
       // TODO - load and check system configuration.
-      log.trace("lookup system scoped property {} {}", nsid, propName);
+      log.trace("lookup system scoped property {} {}", id.getNamespaceId(), propName);
 
       // look up default
       log.trace("lookup default scope property {}", propName);

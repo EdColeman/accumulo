@@ -30,7 +30,11 @@ import java.util.Objects;
 
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
-import org.apache.zookeeper.*;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -165,8 +169,8 @@ public class ZooPropStore implements PropStore, Watcher {
     // child nodes.
     if (pzxid != stat.getPzxid()) {
       // this could also retry.
-      throw new IllegalStateException("Configuration number of nodes under " + srcPath
-          + " changed while coping to new format.");
+      throw new IllegalStateException(
+          "PropCache number of nodes under " + srcPath + " changed while coping to new format.");
     }
 
     // Check the node version ids for a change.
@@ -181,7 +185,7 @@ public class ZooPropStore implements PropStore, Watcher {
 
     if (changes > 0) {
       throw new IllegalStateException(
-          "Configuration was modified, " + changes + " changes found during upgrade. ");
+          "PropCache was modified, " + changes + " changes found during upgrade. ");
     } else {
       log.debug("Migrated {} properties to new storage format", nodeVersions.size());
     }

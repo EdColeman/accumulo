@@ -20,7 +20,9 @@ package org.apache.accumulo.server.conf2;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +34,12 @@ public class MemPropStore implements PropStore {
   private final Map<CacheId,PropEncoding> store = new HashMap<>();
   private final PropertyChangeSupport propChangeSupport;
 
-  private final Set<CacheId> listeners = new HashSet<>();
-
   public MemPropStore() {
     propChangeSupport = new PropertyChangeSupport(this);
   }
 
   @Override
   public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
-    listeners.add(id);
     return store.get(id);
   }
 
@@ -48,10 +47,9 @@ public class MemPropStore implements PropStore {
   public void set(CacheId id, PropEncoding props) {
     store.put(id, props);
     log.debug("changing {} - {}", id, id.hashCode());
-    if (listeners.contains(id)) {
-      log.debug("Fire for {}", id);
-      propChangeSupport.firePropertyChange(id.asKey(), -1, props.getDataVersion());
-    }
+
+    propChangeSupport.firePropertyChange(id.asKey(), -1, props.getDataVersion());
+
   }
 
   @Override

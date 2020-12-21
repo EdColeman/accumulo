@@ -22,7 +22,7 @@ import java.beans.PropertyChangeListener;
 
 public interface PropStore {
 
-  PropEncoding get(CacheId id, PropertyChangeListener pcl);
+  PropEncoding get(CacheId id, PropertyChangeListener pcl) throws Exception;
 
   void set(CacheId id, PropEncoding props);
 

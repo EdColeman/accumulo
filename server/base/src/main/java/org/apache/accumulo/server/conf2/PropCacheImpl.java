@@ -18,7 +18,6 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,19 +25,24 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.cache.*;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 
-public class ConfigurationCache implements Configuration {
+public class PropCacheImpl implements PropCache {
 
-  private static final Logger log = LoggerFactory.getLogger(ConfigurationCache.class);
+  private static final Logger log = LoggerFactory.getLogger(PropCacheImpl.class);
 
   private final PropStore backingStore;
 
   private final LoadingCache<CacheId,PropEncoding> cache;
 
-  private final PropertyChangeListener notifier;
+  private final Notifier notifier;
 
-  public ConfigurationCache(final PropStore backingStore) {
+  public PropCacheImpl(final PropStore backingStore) {
     Objects.requireNonNull(backingStore, "A backing store must be provided");
 
     this.backingStore = backingStore;
@@ -50,19 +54,20 @@ public class ConfigurationCache implements Configuration {
 
   }
 
-  RemovalListener<CacheId,PropEncoding> removalListener =
-      new RemovalListener<CacheId,PropEncoding>() {
-        @Override
-        public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
-          log.debug("{} removed from cache", removalNotification.getKey());
-        }
-      };
+  RemovalListener<CacheId,PropEncoding> removalListener = new RemovalListener<>() {
+    @Override
+    public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
+      log.debug("{} removed from cache", removalNotification.getKey());
+      notifier.onRemoval(removalNotification);
+    }
+  };
 
   private CacheLoader<CacheId,PropEncoding> getLoader() {
     CacheLoader<CacheId,PropEncoding> loader;
-    loader = new CacheLoader<CacheId,PropEncoding>() {
+    loader = new CacheLoader<>() {
       @Override
-      public PropEncoding load(CacheId cacheId) throws Exception {
+      public PropEncoding load(final CacheId cacheId) throws Exception {
+        Objects.requireNonNull(cacheId, "Invalid call to load cache with null cache id.");
         log.trace("Loading {} from backing store", cacheId);
         return backingStore.get(cacheId, notifier);
       }
@@ -77,14 +82,12 @@ public class ConfigurationCache implements Configuration {
     Optional<SearchOrder.LookupResult> result = SearchOrder.lookup(iid, propName, cache);
 
     if (result.isPresent()) {
-      return result.get().getValue();
+      SearchOrder.LookupResult lookupResult = result.get();
+      notifier.monitor(lookupResult.getKey());
+      return lookupResult.getValue();
     }
 
     return "";
-  }
-
-  private String searchParent(final String level, final CacheId id, final String propName) {
-    return "default";
   }
 
   @Override
@@ -92,23 +95,13 @@ public class ConfigurationCache implements Configuration {
 
   }
 
+  public CacheStats getStats() {
+    cache.cleanUp();
+    return cache.stats();
+  }
+
   public PropertyChangeListener getNotifier() {
     return notifier;
   }
 
-  private static class Notifier implements PropertyChangeListener {
-    private final LoadingCache<CacheId,PropEncoding> backingCache;
-
-    public Notifier(final LoadingCache<CacheId,PropEncoding> cache) {
-      this.backingCache = cache;
-    }
-
-    @Override
-    public void propertyChange(PropertyChangeEvent pce) {
-      log.debug("Received prop change event {}", pce);
-      CacheId id = CacheId.fromKey(pce.getPropertyName());
-      log.warn("HAVE key: {}, {}", id, backingCache.asMap().containsKey(id));
-      backingCache.invalidate(id);
-    }
-  }
 }

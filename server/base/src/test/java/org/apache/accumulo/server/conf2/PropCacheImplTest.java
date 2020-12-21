@@ -30,12 +30,12 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConfigurationCacheTest {
+public class PropCacheImplTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ConfigurationCacheTest.class);
+  private static final Logger log = LoggerFactory.getLogger(PropCacheImplTest.class);
 
   private CacheId iid = null;
-  private ConfigurationCache cache = null;
+  private PropCacheImpl cache = null;
 
   // seed test "backend" store with test props
   private PropStore store;
@@ -61,7 +61,7 @@ public class ConfigurationCacheTest {
     CacheId iid2 = new CacheId(uuid, NamespaceId.of("321"), null);
     store.set(iid2, ns1);
 
-    cache = new ConfigurationCache(store);
+    cache = new PropCacheImpl(store);
   }
 
   /**
@@ -103,7 +103,9 @@ public class ConfigurationCacheTest {
   }
 
   @Test
-  public void changeNotificationTest() {
+  public void changeNotificationTest() throws Exception {
+
+    log.debug("Cache stats: {}", cache.getStats());
 
     String bloomSizeDefault = cache.getProperty(iid, "table.bloom.size");
 
@@ -120,5 +122,6 @@ public class ConfigurationCacheTest {
 
     log.debug("Prop default {}, first: {}, second: {}", bloomSizeDefault, bloomSize, bloomSize2);
 
+    log.debug("Cache stats: {}", cache.getStats());
   }
 }
