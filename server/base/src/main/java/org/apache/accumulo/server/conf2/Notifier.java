@@ -42,7 +42,7 @@ public class Notifier implements PropertyChangeListener {
   }
 
   public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
-    log.info("Removing {} from keys that we care about", removalNotification.getKey());
+    log.info("Removing {} from notifications that we care about", removalNotification.getKey());
     listeners.remove(removalNotification.getKey());
   }
 
