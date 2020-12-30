@@ -18,16 +18,6 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.util.Optional;
-
-public interface PropCache {
-
-  Optional<PropEncoding> getProperties(CacheId id);
-
-  void clearProperties(CacheId id);
-
-  void register(PropCacheChangeListener listener);
-
-  void deregister(PropCacheChangeListener listener);
-
+public interface PropCacheChangeListener {
+  void changeEvent(final CacheId id);
 }

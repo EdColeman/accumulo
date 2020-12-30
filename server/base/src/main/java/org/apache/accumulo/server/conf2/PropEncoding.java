@@ -34,6 +34,14 @@ public interface PropEncoding {
   void addProperty(String key, String value);
 
   /**
+   * Add multiple properties. If a property already exists it is overwritten.
+   *
+   * @param properties
+   *          A map of key, value pairs.
+   */
+  void addProperties(Map<String,String> properties);
+
+  /**
    * Get a store property or null if it does not exist.
    *
    * @param key

@@ -75,6 +75,11 @@ public class PropEncodingV1 implements PropEncoding {
   }
 
   @Override
+  public void addProperties(Map<String,String> properties) {
+    props.putAll(properties);
+  }
+
+  @Override
   public String getProperty(final String key) {
     return props.get(key);
   }

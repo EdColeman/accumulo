@@ -124,4 +124,43 @@ public class PropCacheImplTest {
 
     log.debug("Cache stats: {}", cache.getStats());
   }
+
+  @Test
+  public void listenerTest() throws InterruptedException {
+
+    DummyListener listener = new DummyListener();
+    try {
+      cache.register(listener);
+      cache.notifyCacheChanged(iid);
+
+      // change occurs in separate thread - allow time for update.
+      Thread.sleep(100);
+
+      cache.deregister(listener);
+      cache.notifyCacheChanged(iid);
+
+      Thread.sleep(100);
+
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw ex;
+    }
+
+    assertEquals(1, listener.getCallCount());
+  }
+
+  private static class DummyListener implements PropCacheChangeListener {
+
+    int callCount = 0;
+
+    int getCallCount() {
+      return callCount;
+    }
+
+    @Override
+    public void changeEvent(CacheId id) {
+      log.debug("Received change event {}", id);
+      callCount++;
+    }
+  }
 }
