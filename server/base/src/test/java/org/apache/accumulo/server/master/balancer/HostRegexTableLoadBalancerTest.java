@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
+import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.dataImpl.thrift.TKeyExtent;
@@ -54,15 +55,14 @@ import org.junit.Test;
 public class HostRegexTableLoadBalancerTest extends BaseHostRegexTableLoadBalancerTest {
 
   public void init() {
-    ServerContext context1 = createMockContext();
+    ServerContext context1 = createMockContext(SiteConfiguration.auto());
     replay(context1);
     final TestServerConfigurationFactory factory = new TestServerConfigurationFactory(context1);
     initFactory(factory);
   }
 
   private void initFactory(ServerConfigurationFactory factory) {
-    ServerContext context = createMockContext();
-    expect(context.getConfiguration()).andReturn(factory.getSystemConfiguration()).anyTimes();
+    ServerContext context = createMockContext(factory.getSystemConfiguration());
     expect(context.getTableConfiguration(FOO.getId()))
         .andReturn(factory.getTableConfiguration(FOO.getId())).anyTimes();
     expect(context.getTableConfiguration(BAR.getId()))
@@ -183,7 +183,7 @@ public class HostRegexTableLoadBalancerTest extends BaseHostRegexTableLoadBalanc
 
   @Test
   public void testSplitCurrentByRegexUsingOverlappingPools() {
-    ServerContext context = createMockContext();
+    ServerContext context = createMockContext(SiteConfiguration.auto());
     replay(context);
     initFactory(new TestServerConfigurationFactory(context) {
       @Override
@@ -239,7 +239,7 @@ public class HostRegexTableLoadBalancerTest extends BaseHostRegexTableLoadBalanc
 
   @Test
   public void testSplitCurrentByRegexUsingIP() {
-    ServerContext context = createMockContext();
+    ServerContext context = createMockContext(SiteConfiguration.auto());
     replay(context);
     initFactory(new TestServerConfigurationFactory(context) {
       @Override

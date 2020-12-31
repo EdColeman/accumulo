@@ -40,6 +40,7 @@ import org.apache.accumulo.core.clientImpl.TableOperationsImpl;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.master.thrift.TableInfo;
@@ -151,8 +152,10 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
     }
   }
 
-  protected ServerContext createMockContext() {
+  protected ServerContext createMockContext(AccumuloConfiguration systemConfig) {
     ServerContext mockContext = EasyMock.createMock(ServerContext.class);
+    expect(mockContext.getConfiguration()).andReturn(systemConfig).anyTimes();
+    expect(mockContext.getSiteConfiguration()).andReturn(SiteConfiguration.auto()).anyTimes();
     expect(mockContext.getProperties()).andReturn(new Properties()).anyTimes();
     expect(mockContext.getZooKeepers()).andReturn("").anyTimes();
     expect(mockContext.getInstanceName()).andReturn("test").anyTimes();
