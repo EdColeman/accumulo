@@ -44,7 +44,7 @@ import org.apache.accumulo.core.metadata.TabletFile;
 import org.apache.accumulo.core.metadata.schema.DataFileValue;
 import org.apache.accumulo.core.sample.impl.SamplerConfigurationImpl;
 import org.apache.accumulo.core.util.Pair;
-import org.apache.accumulo.server.conf.TableConfiguration.ParsedIteratorConfig;
+import org.apache.accumulo.server.conf.ParsedIteratorConfig;
 import org.apache.accumulo.tserver.FileManager.ScanFileManager;
 import org.apache.accumulo.tserver.InMemoryMap.MemoryIterator;
 import org.apache.accumulo.tserver.TabletIteratorEnvironment;
@@ -212,7 +212,7 @@ class ScanDataSource implements DataSource {
             scanParams.getClassLoaderContext());
         context = scanParams.getClassLoaderContext();
       } else {
-        context = pic.getServiceEnv();
+        context = pic.getClassLoaderContext();
         if (context != null) {
           log.trace("Loading iterators for scan with table context: {}",
               scanParams.getClassLoaderContext());

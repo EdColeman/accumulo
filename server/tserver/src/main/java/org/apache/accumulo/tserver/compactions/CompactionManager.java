@@ -160,8 +160,7 @@ public class CompactionManager {
           planners.put(tokens[0], val);
         } else if (tokens.length == 3 && tokens[1].equals("rate") && tokens[2].equals("limit")) {
           var eprop = Property.getPropertyByKey(prop);
-          if (eprop == null || aconf.isPropertySet(eprop, true)
-              || !isDeprecatedThroughputSet(aconf)) {
+          if (eprop == null || aconf.isPropertySet(eprop) || !isDeprecatedThroughputSet(aconf)) {
             rateLimits.put(tokens[0], ConfigurationTypeHelper.getFixedMemoryAsBytes(val));
           }
         } else {
@@ -182,7 +181,7 @@ public class CompactionManager {
 
     @SuppressWarnings("removal")
     private boolean isDeprecatedThroughputSet(AccumuloConfiguration aconf) {
-      return aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT, true);
+      return aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT);
     }
 
     public long getRateLimit(String serviceName) {
