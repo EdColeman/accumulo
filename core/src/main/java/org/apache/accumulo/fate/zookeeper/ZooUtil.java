@@ -19,6 +19,10 @@
 package org.apache.accumulo.fate.zookeeper;
 
 import java.math.BigInteger;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,8 +30,57 @@ import org.apache.accumulo.core.Constants;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooDefs.Perms;
 import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.data.Stat;
 
 public class ZooUtil {
+
+  public static final List<ACL> PRIVATE;
+  public static final List<ACL> PUBLIC;
+
+  // used for zookeeper stat print formatting
+  private static DateTimeFormatter fmt =
+      DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss 'UTC' yyyy");
+
+  static {
+    PRIVATE = new ArrayList<>();
+    PRIVATE.addAll(Ids.CREATOR_ALL_ACL);
+    PUBLIC = new ArrayList<>();
+    PUBLIC.addAll(PRIVATE);
+    PUBLIC.add(new ACL(Perms.READ, Ids.ANYONE_ID_UNSAFE));
+  }
+
+  public static String getRoot(final String instanceId) {
+    return Constants.ZROOT + "/" + instanceId;
+  }
+
+  /**
+   * For debug: print the ZooKeeper Stat with value labels for a more user friendly string. The
+   * format matches the zookeeper cli stat command.
+   *
+   * @param stat
+   *          Zookeeper Stat structure
+   * @return a formatted string.
+   */
+  public static String printStat(final Stat stat) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("\ncZxid = ").append(String.format("0x%x", stat.getCzxid())).append("\nctime = ")
+        .append(getFmtTime(stat.getCtime())).append("\nmZxid = ")
+        .append(String.format("0x%x", stat.getMzxid())).append("\nmtime = ")
+        .append(getFmtTime(stat.getMtime())).append("\npZxid = ")
+        .append(String.format("0x%x", stat.getPzxid())).append("\ncversion = ")
+        .append(stat.getCversion()).append("\ndataVersion = ").append(stat.getVersion())
+        .append("\naclVersion = ").append(stat.getAversion()).append("\nephemeralOwner = ")
+        .append(String.format("0x%x", stat.getEphemeralOwner())).append("\ndataLength = ")
+        .append(stat.getDataLength()).append("\nnumChildren = ").append(stat.getNumChildren());
+
+    return sb.toString();
+  }
+
+  private static String getFmtTime(final long epoch) {
+    OffsetDateTime timestamp =
+        OffsetDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC);
+    return fmt.format(timestamp);
+  }
 
   public enum NodeExistsPolicy {
     SKIP, OVERWRITE, FAIL
@@ -74,20 +127,4 @@ public class ZooUtil {
       return " path = " + path + " node = " + node + " eid = " + Long.toHexString(eid);
     }
   }
-
-  public static final List<ACL> PRIVATE;
-  public static final List<ACL> PUBLIC;
-
-  static {
-    PRIVATE = new ArrayList<>();
-    PRIVATE.addAll(Ids.CREATOR_ALL_ACL);
-    PUBLIC = new ArrayList<>();
-    PUBLIC.addAll(PRIVATE);
-    PUBLIC.add(new ACL(Perms.READ, Ids.ANYONE_ID_UNSAFE));
-  }
-
-  public static String getRoot(final String instanceId) {
-    return Constants.ZROOT + "/" + instanceId;
-  }
-
 }

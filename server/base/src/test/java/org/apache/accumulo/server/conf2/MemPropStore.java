@@ -18,43 +18,85 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MemPropStore implements PropStore {
+public class MemPropStore implements PropCache, PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(MemPropStore.class);
 
-  private final Map<CacheId,PropEncoding> store = new HashMap<>();
-  private final PropertyChangeSupport propChangeSupport;
+  private final Map<String,PropEncoding> store = new HashMap<>();
 
-  public MemPropStore() {
-    propChangeSupport = new PropertyChangeSupport(this);
+  public MemPropStore() {}
+
+  @Override
+  public Optional<PropEncoding> getProperties(CacheId id) {
+    log.trace("getProperties from map for id: {}", id);
+    return Optional.ofNullable(store.get(id.nodeName()));
   }
 
   @Override
-  public PropEncoding get(CacheId id, PropertyChangeListener pcl) {
-    return store.get(id);
+  public boolean setProperties(CacheId id, Map<String,String> props) {
+    // writeToStore(id, props);
+    return true;
   }
 
   @Override
-  public void set(CacheId id, PropEncoding props) {
-    store.put(id, props);
-    log.debug("changing {} - {}", id, id.hashCode());
+  public boolean removeProperties(CacheId id, Collection<String> keys) {
+    return false;
+  }
 
-    propChangeSupport.firePropertyChange(id.asKey(), -1, props.getDataVersion());
+  @Override
+  public boolean setProperty(CacheId id, String name, String value) {
+    return false;
+  }
+
+  @Override
+  public void clear(CacheId id) {
 
   }
 
   @Override
-  public void registerForChanges(PropertyChangeListener notifier) {
-    propChangeSupport.addPropertyChangeListener(notifier);
-    log.debug("Listeners: {}", Arrays.asList(propChangeSupport.getPropertyChangeListeners()));
+  public void clearAll() {
+
   }
+
+  @Override
+  public void register(PropWatcher listener) {
+
+  }
+
+  @Override
+  public void deregister(PropWatcher listener) {
+
+  }
+
+  @Override
+  public void changeEvent(CacheId id) {
+
+  }
+
+  @Override
+  public boolean isReady() {
+    return true;
+  }
+
+  @Override
+  public PropEncoding readFromStore(CacheId id) {
+    log.trace("read id: {} from map", id);
+    return store.get(id.nodeName());
+  }
+
+  @Override
+  public void writeToStore(CacheId id, PropEncoding props) {
+    log.trace("write id: {} - props: {} to map", id, props);
+    store.put(id.nodeName(), props);
+  }
+
 }

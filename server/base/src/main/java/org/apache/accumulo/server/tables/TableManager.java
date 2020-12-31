@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.accumulo.core.Constants;
@@ -39,7 +38,10 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.util.TablePropUtil;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCache;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -193,18 +195,16 @@ public class TableManager {
     prepareNewTableState(zoo, instanceID, tableId, namespaceId, tableName, TableState.NEW,
         NodeExistsPolicy.OVERWRITE);
 
-    String srcTablePath = Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + srcTableId
-        + Constants.ZTABLE_CONF;
-    String newTablePath = Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + tableId
-        + Constants.ZTABLE_CONF;
-    zoo.recursiveCopyPersistentOverwrite(srcTablePath, newTablePath);
+    PropCache propCache = context.getPropCache();
+    var srcCacheId = new CacheId(instanceID, null, srcTableId);
+    PropEncoding srcProps = propCache.getProperties(srcCacheId).orElse(new PropEncodingV1());
 
-    for (Entry<String,String> entry : propertiesToSet.entrySet())
-      TablePropUtil.setTableProperty(context, tableId, entry.getKey(), entry.getValue());
+    Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
 
-    for (String prop : propertiesToExclude)
-      zoo.recursiveDelete(Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + tableId
-          + Constants.ZTABLE_CONF + "/" + prop, NodeMissingPolicy.SKIP);
+    propertiesToExclude.forEach(p -> destProps.remove(p));
+
+    var destCacheId = new CacheId(instanceID, null, srcTableId);
+    propCache.setProperties(destCacheId, destProps);
 
     updateTableStateCache(tableId);
   }

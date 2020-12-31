@@ -34,6 +34,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.accumulo.core.conf.ConfigurationCopy;
+import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.metadata.TServerInstance;
@@ -50,11 +51,10 @@ public class HostRegexTableLoadBalancerReconfigurationTest
 
   @Test
   public void testConfigurationChanges() {
-    ServerContext context1 = createMockContext();
+    ServerContext context1 = createMockContext(SiteConfiguration.auto());
     replay(context1);
     final TestServerConfigurationFactory factory = new TestServerConfigurationFactory(context1);
-    ServerContext context2 = createMockContext();
-    expect(context2.getConfiguration()).andReturn(factory.getSystemConfiguration()).anyTimes();
+    ServerContext context2 = createMockContext(factory.getSystemConfiguration());
     expect(context2.getTableConfiguration(FOO.getId()))
         .andReturn(factory.getTableConfiguration(FOO.getId())).anyTimes();
     expect(context2.getTableConfiguration(BAR.getId()))

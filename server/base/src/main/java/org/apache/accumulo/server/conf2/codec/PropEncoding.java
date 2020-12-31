@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2;
+package org.apache.accumulo.server.conf2.codec;
 
 import java.time.Instant;
 import java.util.Map;
@@ -99,4 +99,11 @@ public interface PropEncoding {
    * @return An unmodifiable view of the property key, values.
    */
   Map<String,String> getAllProperties();
+
+  /**
+   * Determine if the stage of the props is compressed or not.
+   *
+   * @return true if the underlying encoded props are compressed when stored.
+   */
+  boolean isCompressed();
 }

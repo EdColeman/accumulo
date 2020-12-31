@@ -95,11 +95,20 @@ public abstract class AccumuloConfiguration implements Iterable<Entry<String,Str
    * Given a property and a deprecated property determine which one to use base on which one is set.
    */
   public Property resolve(Property property, Property deprecatedProperty) {
-    if (isPropertySet(property, true) || !isPropertySet(deprecatedProperty, true)) {
+    if (isPropertySet(property) || !isPropertySet(deprecatedProperty)) {
       return property;
     } else {
       return deprecatedProperty;
     }
+  }
+
+  protected static final void copyFilteredProps(Map<String,String> source, Predicate<String> filter,
+      Map<String,String> destination) {
+    source.forEach((k, v) -> {
+      if (filter.test(k)) {
+        destination.put(k, v);
+      }
+    });
   }
 
   /**
@@ -403,7 +412,7 @@ public abstract class AccumuloConfiguration implements Iterable<Entry<String,Str
     }
   }
 
-  public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
+  public boolean isPropertySet(Property prop) {
     throw new UnsupportedOperationException();
   }
 
@@ -426,14 +435,14 @@ public abstract class AccumuloConfiguration implements Iterable<Entry<String,Str
       return null;
     }
 
-    if (!isPropertySet(prop, true) && isPropertySet(deprecatedProp, true)) {
+    if (!isPropertySet(prop) && isPropertySet(deprecatedProp)) {
       if (!depPropWarned) {
         depPropWarned = true;
         log.warn("Property {} is deprecated, use {} instead.", deprecatedProp.getKey(),
             prop.getKey());
       }
       return Integer.valueOf(get(deprecatedProp));
-    } else if (isPropertySet(prop, true) && isPropertySet(deprecatedProp, true) && !depPropWarned) {
+    } else if (isPropertySet(prop) && isPropertySet(deprecatedProp) && !depPropWarned) {
       depPropWarned = true;
       log.warn("Deprecated property {} ignored because {} is set", deprecatedProp.getKey(),
           prop.getKey());
@@ -486,7 +495,7 @@ public abstract class AccumuloConfiguration implements Iterable<Entry<String,Str
 
         /*
          * The return value of compare and set is intentionally ignored here. This code could loop
-         * calling compare and set inorder to avoid returning a stale object. However after this
+         * calling compare and set in order to avoid returning a stale object. However, after this
          * function returns, the object could immediately become stale. So in the big picture stale
          * objects can not be prevented. Looping here could cause thread contention, but it would
          * not solve the overall stale object problem. That is why the return value was ignored. The

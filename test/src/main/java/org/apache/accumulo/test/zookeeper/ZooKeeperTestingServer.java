@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.test.zookeeper;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +42,8 @@ import org.slf4j.LoggerFactory;
 public class ZooKeeperTestingServer {
 
   private static final Logger log = LoggerFactory.getLogger(ZooKeeperTestingServer.class);
+
+  public static final byte[] FAKE_AUTH = "accumulo:uno".getBytes(UTF_8);
 
   private TestingServer zkServer;
   private final ZooKeeper zoo;
@@ -89,6 +93,8 @@ public class ZooKeeperTestingServer {
       });
 
       connectionLatch.await();
+
+      zoo.addAuthInfo("digest", FAKE_AUTH);
 
     } catch (Exception ex) {
       throw new IllegalStateException("Failed to start testing zookeeper", ex);

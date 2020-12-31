@@ -18,16 +18,29 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public interface PropCache {
 
   Optional<PropEncoding> getProperties(CacheId id);
 
-  void clearProperties(CacheId id);
+  boolean setProperties(CacheId id, Map<String,String> props) throws IllegalArgumentException;
 
-  void register(PropCacheChangeListener listener);
+  boolean removeProperties(CacheId id, Collection<String> keys);
 
-  void deregister(PropCacheChangeListener listener);
+  boolean setProperty(CacheId id, String name, String value);
 
+  void clear(CacheId id);
+
+  void clearAll();
+
+  void register(PropWatcher listener);
+
+  void deregister(PropWatcher listener);
+
+  void changeEvent(CacheId id);
 }

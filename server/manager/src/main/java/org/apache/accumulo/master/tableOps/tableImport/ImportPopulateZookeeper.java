@@ -20,7 +20,6 @@ package org.apache.accumulo.master.tableOps.tableImport;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.accumulo.core.clientImpl.AcceptableThriftTableOperationException;
 import org.apache.accumulo.core.clientImpl.Namespaces;
@@ -33,8 +32,9 @@ import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.fs.VolumeManager;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -88,13 +88,17 @@ class ImportPopulateZookeeper extends MasterRepo {
     }
 
     VolumeManager volMan = env.getVolumeManager();
-    for (Entry<String,String> entry : getExportedProps(volMan).entrySet())
-      if (!TablePropUtil.setTableProperty(env.getContext(), tableInfo.tableId, entry.getKey(),
-          entry.getValue())) {
-        throw new AcceptableThriftTableOperationException(tableInfo.tableId.canonical(),
-            tableInfo.tableName, TableOperation.IMPORT, TableOperationExceptionType.OTHER,
-            "Invalid table property " + entry.getKey());
-      }
+
+    PropCache propCache = env.getContext().getPropCache();
+    var cacheId = new CacheId(env.getContext().getInstanceID(), null, tableInfo.tableId);
+
+    try {
+      propCache.setProperties(cacheId, getExportedProps(volMan));
+    } catch (IllegalArgumentException ex) {
+      throw new AcceptableThriftTableOperationException(tableInfo.tableId.canonical(),
+          tableInfo.tableName, TableOperation.IMPORT, TableOperationExceptionType.OTHER,
+          "Invalid table property." + ex.getMessage());
+    }
 
     return new CreateImportDir(tableInfo);
   }

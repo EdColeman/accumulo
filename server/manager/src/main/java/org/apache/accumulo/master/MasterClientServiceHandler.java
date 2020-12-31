@@ -27,9 +27,12 @@ import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +87,8 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.master.tableOps.TraceRepo;
 import org.apache.accumulo.master.tserverOps.ShutdownTServer;
 import org.apache.accumulo.server.client.ClientServiceHandler;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.master.LiveTServerSet.TServerConnection;
 import org.apache.accumulo.server.master.balancer.DefaultLoadBalancer;
 import org.apache.accumulo.server.master.balancer.TabletBalancer;
@@ -92,7 +97,6 @@ import org.apache.accumulo.server.replication.proto.Replication.Status;
 import org.apache.accumulo.server.security.delegation.AuthenticationTokenSecretManager;
 import org.apache.accumulo.server.util.NamespacePropUtil;
 import org.apache.accumulo.server.util.SystemPropUtil;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.Token;
 import org.apache.thrift.TException;
@@ -430,23 +434,33 @@ public class MasterClientServiceHandler extends FateServiceHandler
       throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
 
     try {
+
+      PropCache propCache = master.getContext().getPropCache();
+
+      var cacheId = new CacheId(master.getContext().getInstanceID(), null, tableId);
+
       if (value == null || value.isEmpty()) {
-        TablePropUtil.removeTableProperty(master.getContext(), tableId, property);
-      } else if (!TablePropUtil.setTableProperty(master.getContext(), tableId, property, value)) {
-        throw new Exception("Invalid table property.");
+        propCache.removeProperties(cacheId, Arrays.asList(property));
+      } else {
+        Map<String,String> p = new HashMap<>();
+        p.put(property, value);
+        propCache.setProperties(cacheId, p);
       }
-    } catch (KeeperException.NoNodeException e) {
-      // race condition... table no longer exists? This call will throw an exception if the table
-      // was deleted:
-      ClientServiceHandler.checkTableId(master.getContext(), tableName, op);
-      log.info("Error altering table property", e);
-      throw new ThriftTableOperationException(tableId.canonical(), tableName, op,
-          TableOperationExceptionType.OTHER, "Problem altering table property");
+
     } catch (Exception e) {
       log.error("Problem altering table property", e);
       throw new ThriftTableOperationException(tableId.canonical(), tableName, op,
           TableOperationExceptionType.OTHER, "Problem altering table property");
     }
+
+    // TODO evaluate error conditions and if somethings needs to be throw / caught for this case.
+    // catch (KeeperException.NoNodeException e) {
+    // race condition... table no longer exists? This call will throw an exception if the table
+    // was deleted:
+    // ClientServiceHandler.checkTableId(master.getContext(), tableName, op);
+    // log.info("Error altering table property", e);
+    // throw new ThriftTableOperationException(tableId.canonical(), tableName, op,
+    // TableOperationExceptionType.OTHER, "Problem altering table property");
   }
 
   private void updatePlugins(String property) {

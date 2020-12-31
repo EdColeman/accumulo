@@ -51,12 +51,11 @@ public class DefaultConfiguration extends AccumuloConfiguration {
 
   @Override
   public void getProperties(Map<String,String> props, Predicate<String> filter) {
-    resolvedProps.entrySet().stream().filter(p -> filter.test(p.getKey()))
-        .forEach(e -> props.put(e.getKey(), e.getValue()));
+    copyFilteredProps(resolvedProps, filter, props);
   }
 
   @Override
-  public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
+  public boolean isPropertySet(Property prop) {
     return false;
   }
 }

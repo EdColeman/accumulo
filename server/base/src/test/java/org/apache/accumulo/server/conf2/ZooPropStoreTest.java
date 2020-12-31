@@ -18,21 +18,34 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.easymock.EasyMock.anyBoolean;
+import static org.easymock.EasyMock.anyInt;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.mock;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertNotNull;
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.UUID;
 
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.server.conf2.zkflw.WchcCommandTest;
-import org.apache.zookeeper.WatchedEvent;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
+import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
+import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,104 +53,131 @@ import org.slf4j.LoggerFactory;
 public class ZooPropStoreTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
-  private static transient boolean haveZookeeper = false;
-  private static ZooKeeper zookeeper;
-  private final String unoInstId = "2b0234bb-c157-4de5-bed0-0446528f50e8";
 
-  @BeforeClass
-  public static void init() {
-    try {
-      CountDownLatch connectionLatch = new CountDownLatch(1);
-      zookeeper = new ZooKeeper("localhost:2181", 10_000, watchedEvent -> {
-        if (watchedEvent.getState() == Watcher.Event.KeeperState.SyncConnected) {
-          connectionLatch.countDown();
-        }
-      });
-
-      if (!connectionLatch.await(10, TimeUnit.SECONDS)) {
-        log.info("failed tp get zookeeper connected event");
-      }
-
-      if (zookeeper.getState() == ZooKeeper.States.CONNECTED) {
-        haveZookeeper = true;
-      }
-      zookeeper.addAuthInfo("digest", ("accumulo:uno").getBytes(UTF_8));
-
-    } catch (IOException | InterruptedException ex) {
-      log.info("Failed to connect to zookeeper - these tests should be skipped.", ex);
-      haveZookeeper = false;
-    }
-  }
-
-  @AfterClass
-  public static void close() {
-    if (haveZookeeper) {
-      try {
-        zookeeper.close();
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-      }
-    }
+  /**
+   * Get a mock zookeeper for these tests that is connected and the config node exits.
+   *
+   * @return a mock ZooKeeper instance.
+   * @throws KeeperException
+   *           matches ZooKeeper.exits() signature
+   * @throws InterruptedException
+   *           matches ZooKeeper.exits() signature
+   */
+  private ZooKeeper connectedMock() throws KeeperException, InterruptedException {
+    ZooKeeper mockZk = mock(ZooKeeper.class);
+    expect(mockZk.getState()).andReturn(ZooKeeper.States.CONNECTED);
+    expect(mockZk.exists(isA(String.class), anyBoolean())).andReturn(new Stat());
+    expect(mockZk.exists(isA(String.class), anyObject())).andReturn(new Stat());
+    return mockZk;
   }
 
   @Test
-  public void simpleStore() {
+  public void builderTest() throws Exception {
 
-    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
+    ZooKeeper mockZk = connectedMock();
 
-    // zookeeper.exists("", false);
+    replay(mockZk);
+
+    ZooPropStore props = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+
+    log.debug("props: {}", props);
+
+    verify(mockZk);
 
   }
 
   @Test
-  public void upgradeTest() throws Exception {
+  public void basicStore() throws KeeperException, InterruptedException {
 
-    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
+    ZooKeeper mockZk = connectedMock();
 
-    ZooPropStore propStore = new ZooPropStore(zookeeper, unoInstId);
-    propStore.upgrade(TableId.of("2"));
+    // mock that the prop node does not exist.
+    expect(mockZk.exists(isA(String.class), anyBoolean())).andReturn(null);
+    expect(mockZk.create(anyString(), anyObject(), EasyMock.<List<ACL>>anyObject(), anyObject()))
+        .andReturn("foo");
+    replay(mockZk);
 
-    String destPath = String.format("/accumulo/%s/tables/2/conf2", unoInstId);
+    var instanceId = UUID.randomUUID().toString();
 
-    // read
-    byte[] r = zookeeper.getData(destPath, false, null);
+    PropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
 
-    PropEncoding props2 = new PropEncodingV1(r);
-    log.info("Props2: {}", props2.print(true));
+    PropEncoding props = new PropEncodingV1();
+    store.writeToStore(new CacheId(instanceId, null, TableId.of("a")), props);
 
-    propStore.downgrade(TableId.of("2"));
+    verify(mockZk);
 
   }
 
+  /**
+   * Demo
+   *
+   * @throws Exception
+   *           any exceptions are a test failure.
+   */
   @Test
-  public void sessionTest() throws Exception {
+  public void mockDataChange() throws Exception {
 
-    Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
+    var instanceId = UUID.randomUUID().toString();
+    var dataId = new CacheId(instanceId, null, TableId.of("a"));
+    var zkDataPath = "/accumulo/" + instanceId + "/config2/-::a";
 
-    ZkNotificationManager notifier = new ZkNotificationManager(zookeeper);
+    PropEncoding props = new PropEncodingV1();
+    props.addProperty("key_1", "value_1");
 
-    Stat s = zookeeper.exists("/accumulo/c1a80254-b507-48e3-bf2a-9c3664fca68f/tables/2/conf2/dummy",
-        notifier);
+    PropEncoding readProps;
 
-    try {
+    // init events
+    ZooKeeper mockZk = mock(ZooKeeper.class);
+    expect(mockZk.getState()).andReturn(ZooKeeper.States.CONNECTED);
+    expect(mockZk.exists(isA(String.class), anyBoolean())).andReturn(new Stat());
 
-      Thread.sleep(1_000);
-      WchcCommandTest wchc = new WchcCommandTest();
-      wchc.watcherSnapshot();
+    Capture<Watcher> watcher = EasyMock.newCapture();
+    expect(mockZk.exists(anyString(), capture(watcher))).andReturn(new Stat());
 
-      Thread.sleep(60_000);
-    } catch (InterruptedException ex) {
-      // empty
-    }
-  }
+    // initial write to store events (props empty)
+    expect(mockZk.exists(eq(zkDataPath), eq(false))).andReturn(null);
+    expect(mockZk.create(eq(zkDataPath), anyObject(), EasyMock.<List<ACL>>anyObject(), anyObject()))
+        .andReturn(dataId.nodeName());
 
-  private static class SessionWatcher implements Watcher {
+    // read from store
+    Stat stat = new Stat();
+    stat.setVersion(props.getDataVersion());
+    expect(mockZk.exists(eq(zkDataPath), eq(false))).andReturn(stat);
+    expect(mockZk.getData(eq(zkDataPath), anyObject(), anyObject())).andReturn(props.toBytes());
 
-    private static final Logger log = LoggerFactory.getLogger(SessionWatcher.class);
+    // update write to store
+    expect(mockZk.exists(eq(zkDataPath), eq(false))).andReturn(stat);
+    mockZk.setData(eq(zkDataPath), anyObject(), anyInt());
+    expectLastCall().andAnswer(() -> {
+      log.debug("An answer");
+      return null;
+    }).anyTimes();
 
-    @Override
-    public void process(WatchedEvent watchedEvent) {
-      log.debug("Received session event {}", watchedEvent);
-    }
+    replay(mockZk);
+
+    PropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
+    assertNotNull(store);
+
+    log.info("DID: {}", dataId);
+
+    store.writeToStore(dataId, props);
+
+    // read - should set a watcher.
+    readProps = store.readFromStore(dataId);
+    log.debug("Read: {}", readProps.print(true));
+
+    readProps.addProperty("key_2", "value_2");
+    store.writeToStore(dataId, readProps);
+
+    // verify the write does not set a watcher.
+    // this is forcing a notification and does not represent a zookeeper watcher would have fired.
+    // watcher.getValue().process(new WatchedEvent(Watcher.Event.EventType.NodeDataChanged,
+    // Watcher.Event.KeeperState.SyncConnected, "a::b::c"));
+
+    // watcher.getValue().process(new WatchedEvent(Watcher.Event.EventType.NodeDeleted,
+    // Watcher.Event.KeeperState.SyncConnected, "a_string"));
+
+    verify(mockZk);
+
   }
 }

@@ -18,14 +18,17 @@
  */
 package org.apache.accumulo.server.conf2;
 
-import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public interface PropStore {
+public class PropStoreExceptionTest {
+  private static final Logger log = LoggerFactory.getLogger(PropStoreExceptionTest.class);
 
-  boolean isReady();
-
-  PropEncoding readFromStore(CacheId id) throws Exception;
-
-  void writeToStore(CacheId id, PropEncoding props);
-
+  @Test
+  public void simpleThrow() {
+    PropStoreException ex = new PropStoreException(PropStoreException.REASON_CODE.INVALID_PROPERTY,
+        "Invalid prop", new IllegalArgumentException("a bad argument"));
+    log.info("Ex:", ex);
+  }
 }

@@ -18,63 +18,109 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static java.util.Objects.requireNonNull;
+import static org.apache.accumulo.core.Constants.ZROOT;
+
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.server.ServerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CacheId implements Comparable<CacheId> {
 
-  private static final Logger log = LoggerFactory.getLogger(CacheId.class);
   public static final String NULL_ID = "-";
-  public static final String SEPERATOR = "::";
-
+  public static final String SEPARATOR = "::";
+  private static final Logger log = LoggerFactory.getLogger(CacheId.class);
+  // TODO - move to Constants
+  public static final String ZTABLE_CONF2 = "config2";
+  private static final Pattern pathPattern =
+      Pattern.compile(ZROOT + "/(?<uuid>[a-f0-9-]{36})/config2/(?<ns>\\S+)::(?<tid>\\S+)");
   private final String iid;
   private final Optional<TableId> tid;
   private final Optional<NamespaceId> nid;
 
-  public CacheId(final String instanceId, final String tableName) {
-    this(instanceId, Tables.qualify(tableName));
-  }
-
-  public CacheId(final String instanceId, final Pair<String,String> pair) {
-    this(instanceId, NamespaceId.of(pair.getFirst()), TableId.of(pair.getSecond()));
-  }
-
   public CacheId(final String instanceId, final NamespaceId nid, final TableId tid) {
-    Objects.requireNonNull(instanceId, "Instance ID cannot be null");
-    this.iid = instanceId;
+    this.iid = requireNonNull(instanceId, "Instance ID cannot be null");
+    validateInstanceId(instanceId);
     this.nid = Optional.ofNullable(nid);
     this.tid = Optional.ofNullable(tid);
   }
 
-  public static CacheId fromKey(final String key) {
-    Objects.requireNonNull(key, "Must provide CacheId string as uuid::type::id");
+  private static void validateInstanceId(String uuid) throws IllegalArgumentException {
+    try {
+      UUID id = UUID.fromString(uuid);
+    } catch (IllegalArgumentException ex) {
+      log.warn("Invalid UUID '{}' provided", uuid);
+      throw ex;
+    }
+  }
 
-    // 0 iid, 1 namespace id, 3 table id
-    String[] tokens = key.split(SEPERATOR);
+  public static CacheId forSystem(ServerContext context) {
+    return new CacheId(context.getInstanceID(), null, null);
+  }
 
-    NamespaceId nid;
-    if (NULL_ID.compareTo(tokens[1]) == 0) {
-      nid = null;
-    } else {
-      nid = NamespaceId.of(tokens[1]);
+  public static CacheId forNamespace(ServerContext context, NamespaceId namespaceId) {
+    return new CacheId(context.getInstanceID(), namespaceId, null);
+  }
+
+  public static CacheId forTable(ServerContext context, TableId tableId) {
+    return new CacheId(context.getInstanceID(), null, tableId);
+  }
+
+  public static Optional<CacheId> fromPath(final String path) {
+    Objects.requireNonNull(path, "path must be provided");
+
+    Matcher matcher = pathPattern.matcher(path);
+
+    if (matcher.matches()) {
+
+      var iid = matcher.group("uuid");
+
+      validateInstanceId(iid);
+
+      var ns = parseNamespaceId(matcher.group("ns"));
+      var tid = parseTableId(matcher.group("tid"));
+
+      return Optional.of(new CacheId(iid, ns, tid));
     }
 
+    return Optional.empty();
+  }
+
+  private static TableId parseTableId(String value) {
     TableId tid;
-    if (NULL_ID.compareTo(tokens[2]) == 0) {
+    if (NULL_ID.compareTo(value) == 0) {
       tid = null;
     } else {
-      tid = TableId.of(tokens[2]);
+      tid = TableId.of(value);
     }
+    return tid;
+  }
 
-    return new CacheId(tokens[0], nid, tid);
+  private static NamespaceId parseNamespaceId(String value) {
+    NamespaceId nid;
+    if (NULL_ID.compareTo(value) == 0) {
+      nid = null;
+    } else {
+      nid = NamespaceId.of(value);
+    }
+    return nid;
+  }
+
+  public String path() {
+    return ZROOT + "/" + iid + "/" + ZTABLE_CONF2 + "/" + nodeName();
+  }
+
+  public String nodeName() {
+    return getNamespaceIdCanonical() + SEPARATOR + getTableIdCanonical();
   }
 
   public String getIID() {
@@ -104,7 +150,7 @@ public class CacheId implements Comparable<CacheId> {
   }
 
   public String asKey() {
-    return iid + SEPERATOR + getNamespaceIdCanonical() + SEPERATOR + getTableIdCanonical();
+    return iid + SEPARATOR + getNamespaceIdCanonical() + SEPARATOR + getTableIdCanonical();
   }
 
   public IdType getType() {
@@ -116,12 +162,12 @@ public class CacheId implements Comparable<CacheId> {
       return IdType.NAMESPACE;
     }
 
-    return IdType.DEFAULT;
+    return IdType.SYSTEM;
   }
 
   @Override
   public String toString() {
-    return "CacheId{" + "iid='" + iid + '\'' + ", tid=" + tid + ", nid=" + nid + '}';
+    return "CacheId{" + "iid='" + iid + "'" + ", nid=" + nid + ", tid=" + tid + '}';
   }
 
   @Override
@@ -146,7 +192,10 @@ public class CacheId implements Comparable<CacheId> {
         .thenComparing(CacheId::getNamespaceIdCanonical).compare(this, other);
   }
 
+  /**
+   * Define types stored in zookeeper - defaults are not in zookeeper but come from code.
+   */
   enum IdType {
-    DEFAULT, SYSTEM, NAMESPACE, TABLE
+    UNKNOWN, SYSTEM, NAMESPACE, TABLE
   }
 }

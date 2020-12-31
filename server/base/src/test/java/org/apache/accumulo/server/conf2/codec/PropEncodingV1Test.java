@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2;
+package org.apache.accumulo.server.conf2.codec;
 
 import static org.junit.Assert.assertEquals;
 

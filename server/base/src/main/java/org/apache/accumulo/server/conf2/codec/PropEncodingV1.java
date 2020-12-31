@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2;
+package org.apache.accumulo.server.conf2.codec;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +41,23 @@ public class PropEncodingV1 implements PropEncoding {
 
   private final Map<String,String> props = new HashMap<>();
 
+  /**
+   * Create a default instance, compressed = true, and timestamp = now.
+   */
+  public PropEncodingV1() {
+    this(-1, true, Instant.now());
+  }
+
+  /**
+   * Instantiate an instance.
+   *
+   * @param dataVersion
+   *          should match current zookeeper dataVersion, or zero initial instance.
+   * @param compressed
+   *          if true, compress the data.
+   * @param timestamp
+   *          timestamp for the data.
+   */
   public PropEncodingV1(final int dataVersion, final boolean compressed, final Instant timestamp) {
     header = new Header(dataVersion, timestamp, compressed);
   }
@@ -104,6 +121,7 @@ public class PropEncodingV1 implements PropEncoding {
     return header.getDataVersion();
   }
 
+  @Override
   public boolean isCompressed() {
     return header.isCompressed();
   }
@@ -269,7 +287,15 @@ public class PropEncodingV1 implements PropEncoding {
       return encodingVer;
     }
 
+    /**
+     * Get the data version - -1 signals the data has not been written out.
+     *
+     * @return -1 if initial version, otherwise the current data version.
+     */
     public int getDataVersion() {
+      if (dataVersion < 0) {
+        return -1;
+      }
       return dataVersion;
     }
 

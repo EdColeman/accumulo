@@ -18,6 +18,23 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public interface PropCacheChangeListener {
-  void changeEvent(final CacheId id);
+public class PropStoreException extends Exception {
+
+  private static final long serialVersionUID = 1;
+
+  enum REASON_CODE {
+    INVALID_PROPERTY, UNEXPECTED_ZK_VERSION, ZK_ERROR
+  }
+
+  private final REASON_CODE code;
+
+  public PropStoreException(final REASON_CODE code, final String message) {
+    this(code, message, null);
+  }
+
+  public PropStoreException(final REASON_CODE code, final String message, final Throwable err) {
+    super(message, err);
+    this.code = code;
+  }
+
 }

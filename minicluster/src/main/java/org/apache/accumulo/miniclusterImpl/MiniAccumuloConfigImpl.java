@@ -248,28 +248,50 @@ public class MiniAccumuloConfigImpl {
     }
   }
 
-  /**
-   * Calling this method is optional. If not set, it defaults to two.
-   *
-   * @param numTservers
-   *          the number of tablet servers that mini accumulo cluster should start
-   */
-  public MiniAccumuloConfigImpl setNumTservers(int numTservers) {
-    if (numTservers < 1) {
-      throw new IllegalArgumentException("Must have at least one tablet server");
-    }
-    this.numTservers = numTservers;
+  private MiniAccumuloConfigImpl _setSiteConfig(Map<String,String> siteConfig) {
+    this.siteConfig = new HashMap<>(siteConfig);
+    this.configuredSiteConig = new HashMap<>(siteConfig);
     return this;
   }
 
   /**
-   * Calling this method is optional. If not set, defaults to 'miniInstance'
+   * Sets the amount of memory to use in the specified process. Calling this method is optional.
+   * Default memory is 256M
    *
+   * @param serverType
+   *          the type of server to apply the memory settings
+   * @param memory
+   *          amount of memory to set
+   * @param memoryUnit
+   *          the units for which to apply with the memory size
    * @since 1.6.0
    */
-  public MiniAccumuloConfigImpl setInstanceName(String instanceName) {
-    this.instanceName = instanceName;
+  public MiniAccumuloConfigImpl setMemory(ServerType serverType, long memory,
+      MemoryUnit memoryUnit) {
+    this.memoryConfig.put(serverType, memoryUnit.toBytes(memory));
     return this;
+  }
+
+  /**
+   * Sets the default memory size to use. This value is also used when a ServerType has not been
+   * configured explicitly. Calling this method is optional. Default memory is 256M
+   *
+   * @param memory
+   *          amount of memory to set
+   * @param memoryUnit
+   *          the units for which to apply with the memory size
+   * @since 1.6.0
+   */
+  public MiniAccumuloConfigImpl setDefaultMemory(long memory, MemoryUnit memoryUnit) {
+    this.defaultMemorySize = memoryUnit.toBytes(memory);
+    return this;
+  }
+
+  /**
+   * @return a copy of the site config
+   */
+  public Map<String,String> getSiteConfig() {
+    return new HashMap<>(siteConfig);
   }
 
   /**
@@ -289,6 +311,13 @@ public class MiniAccumuloConfigImpl {
     return _setSiteConfig(siteConfig);
   }
 
+  /**
+   * @return a copy of client props
+   */
+  public Map<String,String> getClientProps() {
+    return new HashMap<>(clientProps);
+  }
+
   public MiniAccumuloConfigImpl setClientProps(Map<String,String> clientProps) {
     if (existingInstance != null && existingInstance) {
       throw new UnsupportedOperationException(
@@ -299,10 +328,34 @@ public class MiniAccumuloConfigImpl {
     return this;
   }
 
-  private MiniAccumuloConfigImpl _setSiteConfig(Map<String,String> siteConfig) {
-    this.siteConfig = new HashMap<>(siteConfig);
-    this.configuredSiteConig = new HashMap<>(siteConfig);
+  public Map<String,String> getConfiguredSiteConfig() {
+    return new HashMap<>(configuredSiteConig);
+  }
+
+  /**
+   * @return name of configured instance
+   * @since 1.6.0
+   */
+  public String getInstanceName() {
+    return instanceName;
+  }
+
+  /**
+   * Calling this method is optional. If not set, defaults to 'miniInstance'
+   *
+   * @since 1.6.0
+   */
+  public MiniAccumuloConfigImpl setInstanceName(String instanceName) {
+    this.instanceName = instanceName;
     return this;
+  }
+
+  /**
+   * @return The configured zookeeper port
+   * @since 1.6.0
+   */
+  public int getZooKeeperPort() {
+    return zooKeeperPort;
   }
 
   /**
@@ -310,7 +363,6 @@ public class MiniAccumuloConfigImpl {
    *
    * @param zooKeeperPort
    *          A valid (and unused) port to use for the zookeeper
-   *
    * @since 1.6.0
    */
   public MiniAccumuloConfigImpl setZooKeeperPort(int zooKeeperPort) {
@@ -326,13 +378,20 @@ public class MiniAccumuloConfigImpl {
     return this;
   }
 
+  public int getConfiguredZooKeeperPort() {
+    return configuredZooKeeperPort;
+  }
+
+  public long getZooKeeperStartupTime() {
+    return zooKeeperStartupTime;
+  }
+
   /**
    * Configure the time to wait for ZooKeeper to startup. Calling this method is optional. The
    * default is 20000 milliseconds
    *
    * @param zooKeeperStartupTime
    *          Time to wait for ZooKeeper to startup, in milliseconds
-   *
    * @since 1.6.1
    */
   public MiniAccumuloConfigImpl setZooKeeperStartupTime(long zooKeeperStartupTime) {
@@ -347,6 +406,10 @@ public class MiniAccumuloConfigImpl {
     return this;
   }
 
+  public String getExistingZooKeepers() {
+    return existingZooKeepers;
+  }
+
   /**
    * Configure an existing ZooKeeper instance to use. Calling this method is optional. If not set, a
    * new ZooKeeper instance is created.
@@ -354,97 +417,11 @@ public class MiniAccumuloConfigImpl {
    * @param existingZooKeepers
    *          Connection string for a already-running ZooKeeper instance. A null value will turn off
    *          this feature.
-   *
    * @since 1.8.0
    */
   public MiniAccumuloConfigImpl setExistingZooKeepers(String existingZooKeepers) {
     this.existingZooKeepers = existingZooKeepers;
     return this;
-  }
-
-  /**
-   * Sets the amount of memory to use in the specified process. Calling this method is optional.
-   * Default memory is 256M
-   *
-   * @param serverType
-   *          the type of server to apply the memory settings
-   * @param memory
-   *          amount of memory to set
-   *
-   * @param memoryUnit
-   *          the units for which to apply with the memory size
-   *
-   * @since 1.6.0
-   */
-  public MiniAccumuloConfigImpl setMemory(ServerType serverType, long memory,
-      MemoryUnit memoryUnit) {
-    this.memoryConfig.put(serverType, memoryUnit.toBytes(memory));
-    return this;
-  }
-
-  /**
-   * Sets the default memory size to use. This value is also used when a ServerType has not been
-   * configured explicitly. Calling this method is optional. Default memory is 256M
-   *
-   * @param memory
-   *          amount of memory to set
-   *
-   * @param memoryUnit
-   *          the units for which to apply with the memory size
-   *
-   * @since 1.6.0
-   */
-  public MiniAccumuloConfigImpl setDefaultMemory(long memory, MemoryUnit memoryUnit) {
-    this.defaultMemorySize = memoryUnit.toBytes(memory);
-    return this;
-  }
-
-  /**
-   * @return a copy of the site config
-   */
-  public Map<String,String> getSiteConfig() {
-    return new HashMap<>(siteConfig);
-  }
-
-  /**
-   * @return a copy of client props
-   */
-  public Map<String,String> getClientProps() {
-    return new HashMap<>(clientProps);
-  }
-
-  public Map<String,String> getConfiguredSiteConfig() {
-    return new HashMap<>(configuredSiteConig);
-  }
-
-  /**
-   * @return name of configured instance
-   *
-   * @since 1.6.0
-   */
-  public String getInstanceName() {
-    return instanceName;
-  }
-
-  /**
-   * @return The configured zookeeper port
-   *
-   * @since 1.6.0
-   */
-  public int getZooKeeperPort() {
-    return zooKeeperPort;
-  }
-
-  public int getConfiguredZooKeeperPort() {
-    return configuredZooKeeperPort;
-  }
-
-  public long getZooKeeperStartupTime() {
-    return zooKeeperStartupTime;
-  }
-
-  public String getExistingZooKeepers() {
-    return existingZooKeepers;
   }
 
   public boolean useExistingZooKeepers() {
@@ -478,9 +455,7 @@ public class MiniAccumuloConfigImpl {
   /**
    * @param serverType
    *          get configuration for this server type
-   *
    * @return memory configured in bytes, returns default if this server type is not configured
-   *
    * @since 1.6.0
    */
   public long getMemory(ServerType serverType) {
@@ -489,7 +464,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return memory configured in bytes
-   *
    * @since 1.6.0
    */
   public long getDefaultMemory() {
@@ -498,7 +472,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return zookeeper connection string
-   *
    * @since 1.6.0
    */
   public String getZooKeepers() {
@@ -527,8 +500,21 @@ public class MiniAccumuloConfigImpl {
   }
 
   /**
-   * @return is the current configuration in jdwpEnabled mode?
+   * Calling this method is optional. If not set, it defaults to two.
    *
+   * @param numTservers
+   *          the number of tablet servers that mini accumulo cluster should start
+   */
+  public MiniAccumuloConfigImpl setNumTservers(int numTservers) {
+    if (numTservers < 1) {
+      throw new IllegalArgumentException("Must have at least one tablet server");
+    }
+    this.numTservers = numTservers;
+    return this;
+  }
+
+  /**
+   * @return is the current configuration in jdwpEnabled mode?
    * @since 1.6.0
    */
   public boolean isJDWPEnabled() {
@@ -539,7 +525,6 @@ public class MiniAccumuloConfigImpl {
    * @param jdwpEnabled
    *          should the processes run remote jdwpEnabled servers?
    * @return the current instance
-   *
    * @since 1.6.0
    */
   public MiniAccumuloConfigImpl setJDWPEnabled(boolean jdwpEnabled) {
@@ -564,7 +549,6 @@ public class MiniAccumuloConfigImpl {
   /**
    * @return location of client conf file containing connection parameters for connecting to this
    *         minicluster
-   *
    * @since 1.6.0
    */
   public File getClientConfFile() {
@@ -583,6 +567,14 @@ public class MiniAccumuloConfigImpl {
   }
 
   /**
+   * @return a copy of the system properties for service processes
+   * @since 1.6.0
+   */
+  public Map<String,String> getSystemProperties() {
+    return new HashMap<>(systemProperties);
+  }
+
+  /**
    * sets system properties set for service processes
    *
    * @since 1.6.0
@@ -592,19 +584,9 @@ public class MiniAccumuloConfigImpl {
   }
 
   /**
-   * @return a copy of the system properties for service processes
-   *
-   * @since 1.6.0
-   */
-  public Map<String,String> getSystemProperties() {
-    return new HashMap<>(systemProperties);
-  }
-
-  /**
    * Gets the classpath elements to use when spawning processes.
    *
    * @return the classpathItems, if set
-   *
    * @since 1.6.0
    */
   public String[] getClasspathItems() {
@@ -624,7 +606,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return the paths to use for loading native libraries
-   *
    * @since 1.6.0
    */
   public String[] getNativeLibPaths() {
@@ -693,13 +674,10 @@ public class MiniAccumuloConfigImpl {
    * @param hadoopConfDir
    *          a File representation of the hadoop configuration directory containing core-site.xml
    *          and hdfs-site.xml
-   *
    * @return MiniAccumuloConfigImpl which uses an existing accumulo configuration
-   *
-   * @since 1.6.2
-   *
    * @throws IOException
    *           when there are issues converting the provided Files to URLs
+   * @since 1.6.2
    */
   public MiniAccumuloConfigImpl useExistingInstance(File accumuloProps, File hadoopConfDir)
       throws IOException {
@@ -735,7 +713,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return MAC should run assuming it's configured for an initialized accumulo instance
-   *
    * @since 1.6.2
    */
   public boolean useExistingInstance() {
@@ -744,7 +721,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return hadoop configuration directory being used
-   *
    * @since 1.6.2
    */
   public File getHadoopConfDir() {
@@ -753,7 +729,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return accumulo Configuration being used
-   *
    * @since 1.6.2
    */
   public AccumuloConfiguration getAccumuloConfiguration() {
@@ -762,7 +737,6 @@ public class MiniAccumuloConfigImpl {
 
   /**
    * @return hadoop Configuration being used
-   *
    * @since 1.6.2
    */
   public Configuration getHadoopConfiguration() {
