@@ -29,13 +29,12 @@ import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.server.ServerContext;
 
 /**
- * A factor for configurations used by a server process. Instance of this class are thread-safe.
+ * A factory for configurations used by a server process. Instance of this class are thread-safe.
  */
-public class ServerConfigurationFactory extends ServerConfiguration {
+public class ServerConfigurationFactory {
 
   private static final Map<String,Map<TableId,TableConfiguration>> tableConfigs = new HashMap<>(1);
   private static final Map<String,Map<NamespaceId,NamespaceConfiguration>> namespaceConfigs =
@@ -70,11 +69,10 @@ public class ServerConfigurationFactory extends ServerConfiguration {
   private final ServerContext context;
   private final SiteConfiguration siteConfig;
   private final String instanceID;
-  private ZooCacheFactory zcf = new ZooCacheFactory();
 
-  public ServerConfigurationFactory(ServerContext context, SiteConfiguration siteConfig) {
+  public ServerConfigurationFactory(ServerContext context) {
     this.context = context;
-    this.siteConfig = siteConfig;
+    this.siteConfig = context.getSiteConfiguration();
     instanceID = context.getInstanceID();
     addInstanceToCaches(instanceID);
   }
@@ -83,12 +81,8 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     return context;
   }
 
-  void setZooCacheFactory(ZooCacheFactory zcf) {
-    this.zcf = zcf;
-  }
-
   private DefaultConfiguration defaultConfig = null;
-  private AccumuloConfiguration systemConfig = null;
+  private SystemConfiguration systemConfig = null;
 
   public SiteConfiguration getSiteConfiguration() {
     return siteConfig;
@@ -101,16 +95,13 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     return defaultConfig;
   }
 
-  @Override
   public synchronized AccumuloConfiguration getSystemConfiguration() {
     if (systemConfig == null) {
-      systemConfig =
-          new ZooConfigurationFactory().getInstance(context, zcf, getSiteConfiguration());
+      systemConfig = new SystemConfiguration(context);
     }
     return systemConfig;
   }
 
-  @Override
   public TableConfiguration getTableConfiguration(TableId tableId) {
     TableConfiguration conf;
     synchronized (tableConfigs) {
@@ -159,7 +150,7 @@ public class ServerConfigurationFactory extends ServerConfiguration {
       } catch (TableNotFoundException e) {
         throw new RuntimeException(e);
       }
-      conf = new NamespaceConfiguration(namespaceId, context, getSystemConfiguration());
+      conf = getNamespaceConfiguration(namespaceId);
       ConfigSanityCheck.validate(conf);
       synchronized (tableParentConfigs) {
         tableParentConfigs.get(instanceID).put(tableId, conf);
@@ -168,7 +159,6 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     return conf;
   }
 
-  @Override
   public NamespaceConfiguration getNamespaceConfiguration(NamespaceId namespaceId) {
     NamespaceConfiguration conf;
     // can't hold the lock during the construction and validation of the config,
@@ -178,8 +168,7 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     }
     if (conf == null) {
       // changed - include instance in constructor call
-      conf = new NamespaceConfiguration(namespaceId, context, getSystemConfiguration());
-      conf.setZooCacheFactory(zcf);
+      conf = new NamespaceConfiguration(namespaceId, context);
       ConfigSanityCheck.validate(conf);
       synchronized (namespaceConfigs) {
         namespaceConfigs.get(instanceID).put(namespaceId, conf);

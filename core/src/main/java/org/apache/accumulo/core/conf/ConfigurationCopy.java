@@ -68,11 +68,7 @@ public class ConfigurationCopy extends AccumuloConfiguration {
 
   @Override
   public void getProperties(Map<String,String> props, Predicate<String> filter) {
-    for (Entry<String,String> entry : copy.entrySet()) {
-      if (filter.test(entry.getKey())) {
-        props.put(entry.getKey(), entry.getValue());
-      }
-    }
+    copyFilteredProps(copy, filter, props);
   }
 
   /**
@@ -113,7 +109,7 @@ public class ConfigurationCopy extends AccumuloConfiguration {
   }
 
   @Override
-  public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
+  public boolean isPropertySet(Property prop) {
     return copy.containsKey(prop.getKey());
   }
 }

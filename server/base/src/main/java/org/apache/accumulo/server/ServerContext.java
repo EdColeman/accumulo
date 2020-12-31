@@ -35,12 +35,13 @@ import org.apache.accumulo.core.metadata.schema.Ample;
 import org.apache.accumulo.core.rpc.SslConnectionParams;
 import org.apache.accumulo.core.singletons.SingletonReservation;
 import org.apache.accumulo.core.spi.crypto.CryptoService;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.server.conf.NamespaceConfiguration;
 import org.apache.accumulo.server.conf.ServerConfigurationFactory;
 import org.apache.accumulo.server.conf.TableConfiguration;
-import org.apache.accumulo.server.conf.ZooConfiguration;
+import org.apache.accumulo.server.conf2.PropCache;
+import org.apache.accumulo.server.conf2.PropCacheImpl;
+import org.apache.accumulo.server.conf2.ZooPropStore;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.metadata.ServerAmpleImpl;
 import org.apache.accumulo.server.rpc.SaslServerConnectionParams;
@@ -63,9 +64,9 @@ public class ServerContext extends ClientContext {
   private UniqueNameAllocator nameAllocator;
   private ServerConfigurationFactory serverConfFactory = null;
   private DefaultConfiguration defaultConfig = null;
-  private AccumuloConfiguration systemConfig = null;
   private AuthenticationTokenSecretManager secretManager;
   private CryptoService cryptoService = null;
+  private PropCache propCache = null;
 
   public ServerContext(SiteConfiguration siteConfig) {
     this(new ServerInfo(siteConfig));
@@ -118,18 +119,14 @@ public class ServerContext extends ClientContext {
 
   public synchronized ServerConfigurationFactory getServerConfFactory() {
     if (serverConfFactory == null) {
-      serverConfFactory = new ServerConfigurationFactory(this, info.getSiteConfiguration());
+      serverConfFactory = new ServerConfigurationFactory(this);
     }
     return serverConfFactory;
   }
 
   @Override
   public AccumuloConfiguration getConfiguration() {
-    if (systemConfig == null) {
-      ZooCache propCache = new ZooCache(getZooKeepers(), getZooKeepersSessionTimeOut());
-      systemConfig = new ZooConfiguration(this, propCache, getSiteConfiguration());
-    }
-    return systemConfig;
+    return getServerConfFactory().getSystemConfiguration();
   }
 
   public TableConfiguration getTableConfiguration(TableId id) {
@@ -255,6 +252,14 @@ public class ServerContext extends ClientContext {
   @Override
   public Ample getAmple() {
     return new ServerAmpleImpl(this);
+  }
+
+  public PropCache getPropCache() {
+    if (propCache == null) {
+      propCache =
+          new PropCacheImpl(new ZooPropStore(getZooReaderWriter().getZooKeeper(), getInstanceID()));
+    }
+    return propCache;
   }
 
 }

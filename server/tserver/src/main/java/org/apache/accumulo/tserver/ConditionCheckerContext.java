@@ -44,8 +44,8 @@ import org.apache.accumulo.core.dataImpl.thrift.TCondition;
 import org.apache.accumulo.core.iterators.IteratorUtil.IteratorScope;
 import org.apache.accumulo.core.iterators.SortedKeyValueIterator;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.conf.ParsedIteratorConfig;
 import org.apache.accumulo.server.conf.TableConfiguration;
-import org.apache.accumulo.server.conf.TableConfiguration.ParsedIteratorConfig;
 import org.apache.accumulo.tserver.data.ServerConditionalMutation;
 import org.apache.hadoop.io.Text;
 
@@ -78,7 +78,7 @@ public class ConditionCheckerContext {
 
     tableIters = pic.getIterInfo();
     tableIterOpts = pic.getOpts();
-    context = pic.getServiceEnv();
+    context = pic.getClassLoaderContext();
 
     classCache = new HashMap<>();
 

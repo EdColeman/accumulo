@@ -39,9 +39,7 @@ import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.clientImpl.TableOperationsImpl;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
-import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
-import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.master.thrift.TableInfo;
@@ -90,15 +88,13 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
         TestDefaultBalancer.class.getName());
   }
 
-  private static SiteConfiguration siteConfg = SiteConfiguration.auto();
-
   protected static class TestServerConfigurationFactory extends ServerConfigurationFactory {
 
     final ServerContext context;
     private ConfigurationCopy config;
 
     public TestServerConfigurationFactory(ServerContext context) {
-      super(context, siteConfg);
+      super(context);
       this.context = context;
       this.config = new ConfigurationCopy(DEFAULT_TABLE_PROPERTIES);
     }
@@ -112,8 +108,8 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
     public TableConfiguration getTableConfiguration(final TableId tableId) {
       // create a dummy namespaceConfiguration to satisfy requireNonNull in TableConfiguration
       // constructor
-      NamespaceConfiguration dummyConf = new NamespaceConfiguration(Namespace.DEFAULT.id(), context,
-          DefaultConfiguration.getInstance());
+      NamespaceConfiguration dummyConf =
+          new NamespaceConfiguration(Namespace.DEFAULT.id(), context) {};
       return new TableConfiguration(context, tableId, dummyConf) {
         @Override
         public String get(Property property) {

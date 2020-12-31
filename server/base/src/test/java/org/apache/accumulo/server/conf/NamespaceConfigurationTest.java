@@ -18,138 +18,110 @@
  */
 package org.apache.accumulo.server.conf;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
-import java.util.List;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-import org.apache.accumulo.core.Constants;
-import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
-import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
-import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.MemPropStore;
+import org.apache.accumulo.server.conf2.PropCache;
+import org.apache.accumulo.server.conf2.PropCacheImpl;
+import org.apache.accumulo.server.conf2.PropEncoding;
+import org.apache.accumulo.server.conf2.PropEncodingV1;
 import org.junit.Before;
 import org.junit.Test;
 
 public class NamespaceConfigurationTest {
   private static final NamespaceId NSID = NamespaceId.of("namespace");
-  private static final String ZOOKEEPERS = "localhost";
-  private static final int ZK_SESSION_TIMEOUT = 120000;
 
   private String iid;
   private ServerContext context;
   private AccumuloConfiguration parent;
-  private ZooCacheFactory zcf;
-  private ZooCache zc;
   private NamespaceConfiguration c;
+  private MemPropStore memProps;
+  private CacheId cacheId;
 
   @Before
   public void setUp() {
     iid = UUID.randomUUID().toString();
+    cacheId = new CacheId(iid, NSID, null);
 
     context = createMock(ServerContext.class);
     parent = createMock(AccumuloConfiguration.class);
 
-    expect(context.getProperties()).andReturn(new Properties());
-    expect(context.getZooKeeperRoot()).andReturn("/accumulo/" + iid).anyTimes();
+    memProps = new MemPropStore();
+    PropCache propCache = new PropCacheImpl(memProps);
+
     expect(context.getInstanceID()).andReturn(iid).anyTimes();
-    expect(context.getZooKeepers()).andReturn(ZOOKEEPERS).anyTimes();
-    expect(context.getZooKeepersSessionTimeOut()).andReturn(ZK_SESSION_TIMEOUT).anyTimes();
+    expect(context.getConfiguration()).andReturn(parent).anyTimes();
+    expect(context.getPropCache()).andReturn(propCache).anyTimes();
     replay(context);
 
-    c = new NamespaceConfiguration(NSID, context, parent);
-    zcf = createMock(ZooCacheFactory.class);
-    c.setZooCacheFactory(zcf);
-
-    zc = createMock(ZooCache.class);
-    expect(zcf.getZooCache(eq(ZOOKEEPERS), eq(ZK_SESSION_TIMEOUT))).andReturn(zc);
-    replay(zcf);
+    c = new NamespaceConfiguration(NSID, context);
   }
 
   @Test
   public void testGetters() {
     assertEquals(NSID, c.getNamespaceId());
-    assertEquals(parent, c.getParentConfiguration());
   }
 
   @Test
   public void testGet_InZK() {
     Property p = Property.INSTANCE_SECRET;
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
-        + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn("sekrit".getBytes(UTF_8));
-    replay(zc);
-    assertEquals("sekrit", c.get(Property.INSTANCE_SECRET));
+    PropEncoding props = new PropEncodingV1(1, false, Instant.now());
+    props.addProperties(Map.of(p.getKey(), "sekrit"));
+    memProps.set(cacheId, props);
+    assertEquals("sekrit", c.get(p));
   }
 
   @Test
   public void testGet_InParent() {
     Property p = Property.INSTANCE_SECRET;
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
-        + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn(null);
-    replay(zc);
     expect(parent.get(p)).andReturn("sekrit");
     replay(parent);
-    assertEquals("sekrit", c.get(Property.INSTANCE_SECRET));
-  }
-
-  @Test
-  public void testGet_SkipParentIfAccumuloNS() {
-    c = new NamespaceConfiguration(Namespace.ACCUMULO.id(), context, parent);
-    c.setZooCacheFactory(zcf);
-    Property p = Property.INSTANCE_SECRET;
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + Namespace.ACCUMULO.id()
-        + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn(null);
-    replay(zc);
-    assertNull(c.get(Property.INSTANCE_SECRET));
+    PropEncoding props = new PropEncodingV1(1, false, Instant.now());
+    props.addProperties(Map.of());
+    memProps.set(cacheId, props);
+    assertEquals("sekrit", c.get(p));
   }
 
   @Test
   public void testGetProperties() {
     Predicate<String> all = x -> true;
-    Map<String,String> props = new java.util.HashMap<>();
-    parent.getProperties(props, all);
+    Map<String,String> propsResult = new HashMap<>();
+    parent.getProperties(propsResult, all);
+    expectLastCall().anyTimes();
     replay(parent);
-    List<String> children = new java.util.ArrayList<>();
-    children.add("foo");
-    children.add("ding");
-    expect(zc.getChildren(
-        ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID + Constants.ZNAMESPACE_CONF))
-            .andReturn(children);
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
-        + Constants.ZNAMESPACE_CONF + "/" + "foo")).andReturn("bar".getBytes(UTF_8));
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
-        + Constants.ZNAMESPACE_CONF + "/" + "ding")).andReturn("dong".getBytes(UTF_8));
-    replay(zc);
-    c.getProperties(props, all);
-    assertEquals(2, props.size());
-    assertEquals("bar", props.get("foo"));
-    assertEquals("dong", props.get("ding"));
+    PropEncoding props = new PropEncodingV1(1, false, Instant.now());
+    props.addProperties(Map.of("foo", "bar", "ding", "dong"));
+    memProps.set(cacheId, props);
+    c.getProperties(propsResult, all);
+    assertEquals(2, propsResult.size());
+    assertEquals("bar", propsResult.get("foo"));
+    assertEquals("dong", propsResult.get("ding"));
   }
 
   @Test
   public void testInvalidateCache() {
-    // need to do a get so the accessor is created
     Property p = Property.INSTANCE_SECRET;
-    expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
-        + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn("sekrit".getBytes(UTF_8));
-    zc.clear();
-    replay(zc);
-    c.get(Property.INSTANCE_SECRET);
+    PropEncoding props = new PropEncodingV1(1, false, Instant.now());
+    props.addProperties(Map.of(p.getKey(), "sekrit"));
+    memProps.set(cacheId, props);
+    context.getPropCache().clearProperties(cacheId);
+    assertEquals("sekrit", c.get(p));
     c.invalidateCache();
-    verify(zc);
+    assertEquals("sekrit", c.get(p));
   }
 }

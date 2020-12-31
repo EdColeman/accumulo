@@ -18,14 +18,15 @@
  */
 package org.apache.accumulo.server.conf2;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.server.ServerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,23 +40,26 @@ public class CacheId implements Comparable<CacheId> {
   private final Optional<TableId> tid;
   private final Optional<NamespaceId> nid;
 
-  public CacheId(final String instanceId, final String tableName) {
-    this(instanceId, Tables.qualify(tableName));
+  public static CacheId forSystem(ServerContext context) {
+    return new CacheId(context.getInstanceID(), null, null);
   }
 
-  public CacheId(final String instanceId, final Pair<String,String> pair) {
-    this(instanceId, NamespaceId.of(pair.getFirst()), TableId.of(pair.getSecond()));
+  public static CacheId forNamespace(ServerContext context, NamespaceId namespaceId) {
+    return new CacheId(context.getInstanceID(), namespaceId, null);
+  }
+
+  public static CacheId forTable(ServerContext context, TableId tableId) {
+    return new CacheId(context.getInstanceID(), null, tableId);
   }
 
   public CacheId(final String instanceId, final NamespaceId nid, final TableId tid) {
-    Objects.requireNonNull(instanceId, "Instance ID cannot be null");
-    this.iid = instanceId;
+    this.iid = requireNonNull(instanceId, "Instance ID cannot be null");
     this.nid = Optional.ofNullable(nid);
     this.tid = Optional.ofNullable(tid);
   }
 
   public static CacheId fromKey(final String key) {
-    Objects.requireNonNull(key, "Must provide CacheId string as uuid::type::id");
+    requireNonNull(key, "Must provide CacheId string as uuid::type::id");
 
     // 0 iid, 1 namespace id, 3 table id
     String[] tokens = key.split(SEPERATOR);

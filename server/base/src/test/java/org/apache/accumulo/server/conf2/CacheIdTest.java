@@ -37,7 +37,7 @@ public class CacheIdTest {
 
   @Test
   public void typeTest() {
-    CacheId id1 = new CacheId("a", "table_a");
+    CacheId id1 = new CacheId("a", null, TableId.of("table_a"));
     assertEquals(CacheId.IdType.TABLE, id1.getType());
 
     CacheId id2 = new CacheId("a", NamespaceId.of("123"), null);

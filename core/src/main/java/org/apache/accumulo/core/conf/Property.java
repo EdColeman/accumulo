@@ -1320,7 +1320,7 @@ public enum Property {
    *          property key
    * @return true if property may be changed via Zookeeper but only heeded upon some restart
    */
-  public static boolean isFixedZooPropertyKey(Property key) {
+  public static boolean requiresRestartPropertyKey(Property key) {
     return fixedProperties.contains(key);
   }
 

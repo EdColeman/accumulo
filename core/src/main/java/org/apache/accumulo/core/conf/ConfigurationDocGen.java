@@ -138,7 +138,7 @@ public class ConfigurationDocGen {
     if (!Property.isValidZooPropertyKey(prop.getKey())) {
       return "no";
     }
-    if (Property.isFixedZooPropertyKey(prop)) {
+    if (Property.requiresRestartPropertyKey(prop)) {
       return "yes but requires restart of the " + prop.getKey().split("[.]")[0];
     }
     return "yes";

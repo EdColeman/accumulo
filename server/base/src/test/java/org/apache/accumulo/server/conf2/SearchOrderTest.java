@@ -36,7 +36,7 @@ import com.google.common.cache.LoadingCache;
 
 public class SearchOrderTest {
 
-  private CacheId id1 = new CacheId(UUID.randomUUID().toString(), "123");
+  private CacheId id1 = new CacheId(UUID.randomUUID().toString(), null, TableId.of("123"));
   private CacheId id2 =
       new CacheId(UUID.randomUUID().toString(), NamespaceId.of("321"), TableId.of("456"));
 

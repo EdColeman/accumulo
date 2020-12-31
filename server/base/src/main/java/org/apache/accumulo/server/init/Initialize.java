@@ -413,9 +413,7 @@ public class Initialize implements KeywordExecutable {
         try {
           log.info("Uploading properties in accumulo.properties to Zookeeper."
               + " Properties that cannot be set in Zookeeper will be skipped:");
-          Map<String,String> entries = new TreeMap<>();
-          siteConfig.getProperties(entries, x -> true, false);
-          for (Map.Entry<String,String> entry : entries.entrySet()) {
+          for (Map.Entry<String,String> entry : siteConfig.sitePropsForZK()) {
             String key = entry.getKey();
             String value = entry.getValue();
             if (Property.isValidZooPropertyKey(key)) {
