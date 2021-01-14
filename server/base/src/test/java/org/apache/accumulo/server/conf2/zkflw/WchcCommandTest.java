@@ -16,18 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf;
+package org.apache.accumulo.server.conf2.zkflw;
 
-import org.apache.accumulo.core.conf.AccumuloConfiguration;
-import org.apache.accumulo.core.data.NamespaceId;
-import org.apache.accumulo.core.data.TableId;
+import java.util.List;
+import java.util.regex.Pattern;
 
-public abstract class ServerConfiguration {
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-  public abstract TableConfiguration getTableConfiguration(TableId tableId);
+public class WchcCommandTest {
 
-  public abstract NamespaceConfiguration getNamespaceConfiguration(NamespaceId namespaceId);
+  private static final Logger log = LoggerFactory.getLogger(WchcCommandTest.class);
 
-  public abstract AccumuloConfiguration getSystemConfiguration();
+  @Test
+  public void watcherSnapshot() {
 
+    WchcCommand wchcCommand = new WchcCommand("localhost", 2181);
+
+    wchcCommand.sendZkWchcCmd();
+
+    List<WchcCommand.SplitPath> paths =
+        wchcCommand.filterWchcOutput(Pattern.compile("/accumulo/.*/2/conf2.*"));
+
+    log.info("Paths:{}", paths);
+  }
 }

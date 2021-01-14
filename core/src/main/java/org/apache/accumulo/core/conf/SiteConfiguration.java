@@ -31,6 +31,9 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -242,24 +245,19 @@ public class SiteConfiguration extends AccumuloConfiguration {
   }
 
   @Override
-  public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
-    return config.containsKey(prop.getKey()) || parent.isPropertySet(prop, cacheAndWatch);
+  public boolean isPropertySet(Property prop) {
+    return config.containsKey(prop.getKey()) || parent.isPropertySet(prop);
   }
 
   @Override
   public void getProperties(Map<String,String> props, Predicate<String> filter) {
-    getProperties(props, filter, true);
+    parent.getProperties(props, filter);
+    copyFilteredProps(config, filter, props);
   }
 
-  public void getProperties(Map<String,String> props, Predicate<String> filter,
-      boolean useDefaults) {
-    if (useDefaults) {
-      parent.getProperties(props, filter);
-    }
-    config.keySet().forEach(k -> {
-      if (filter.test(k)) {
-        props.put(k, config.get(k));
-      }
-    });
+  public Set<Entry<String,String>> sitePropsForZK() {
+    var props = new TreeMap<String,String>();
+    copyFilteredProps(config, x -> true, props);
+    return props.entrySet();
   }
 }

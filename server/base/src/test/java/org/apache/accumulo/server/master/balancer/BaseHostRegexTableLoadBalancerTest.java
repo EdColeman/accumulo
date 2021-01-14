@@ -39,7 +39,6 @@ import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.clientImpl.TableOperationsImpl;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
-import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.TableId;
@@ -90,15 +89,13 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
         TestDefaultBalancer.class.getName());
   }
 
-  private static SiteConfiguration siteConfg = SiteConfiguration.auto();
-
   protected static class TestServerConfigurationFactory extends ServerConfigurationFactory {
 
     final ServerContext context;
     private ConfigurationCopy config;
 
     public TestServerConfigurationFactory(ServerContext context) {
-      super(context, siteConfg);
+      super(context);
       this.context = context;
       this.config = new ConfigurationCopy(DEFAULT_TABLE_PROPERTIES);
     }
@@ -112,8 +109,8 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
     public TableConfiguration getTableConfiguration(final TableId tableId) {
       // create a dummy namespaceConfiguration to satisfy requireNonNull in TableConfiguration
       // constructor
-      NamespaceConfiguration dummyConf = new NamespaceConfiguration(Namespace.DEFAULT.id(), context,
-          DefaultConfiguration.getInstance());
+      NamespaceConfiguration dummyConf =
+          new NamespaceConfiguration(Namespace.DEFAULT.id(), context) {};
       return new TableConfiguration(context, tableId, dummyConf) {
         @Override
         public String get(Property property) {
@@ -155,8 +152,10 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
     }
   }
 
-  protected ServerContext createMockContext() {
+  protected ServerContext createMockContext(AccumuloConfiguration systemConfig) {
     ServerContext mockContext = EasyMock.createMock(ServerContext.class);
+    expect(mockContext.getConfiguration()).andReturn(systemConfig).anyTimes();
+    expect(mockContext.getSiteConfiguration()).andReturn(SiteConfiguration.auto()).anyTimes();
     expect(mockContext.getProperties()).andReturn(new Properties()).anyTimes();
     expect(mockContext.getZooKeepers()).andReturn("").anyTimes();
     expect(mockContext.getInstanceName()).andReturn("test").anyTimes();
