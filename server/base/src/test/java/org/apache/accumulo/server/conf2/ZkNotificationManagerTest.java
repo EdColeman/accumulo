@@ -60,7 +60,7 @@ public class ZkNotificationManagerTest {
     try {
       new ZkNotificationManager(mockZk, store, "/accumulo/1234/config2");
       fail("Expected exception with no zookeeper connection");
-    }catch(IllegalStateException ex){
+    } catch (IllegalStateException ex) {
       log.trace("Expected IllegalStateException thrown", ex);
       // empty.
     }
@@ -100,7 +100,8 @@ public class ZkNotificationManagerTest {
    * Go path - session connected and should call zookeeper exists to confirm parent configuration
    * node exists.
    *
-   * @throws Exception any exception is a test failure.
+   * @throws Exception
+   *           any exception is a test failure.
    */
   @Test
   public void sessionConnectedTest() throws Exception {
@@ -124,7 +125,8 @@ public class ZkNotificationManagerTest {
   /**
    * This test tests that we can transition from connecting to connected.
    *
-   * @throws Exception any exception is a test failure.
+   * @throws Exception
+   *           any exception is a test failure.
    */
   @Test
   public void sessionConnectingTest() throws Exception {
