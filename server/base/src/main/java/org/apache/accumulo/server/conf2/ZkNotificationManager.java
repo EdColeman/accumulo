@@ -48,7 +48,7 @@ public class ZkNotificationManager implements Watcher {
     try {
 
       if (!checkConnected()) {
-        throw new IllegalStateException("No connected zookeeper session");
+        throw new IllegalStateException("No zookeeper connection");
       }
 
       // TODO - force the node to exist - could wait / retry or create, but assuming that's done in
@@ -58,9 +58,6 @@ public class ZkNotificationManager implements Watcher {
         throw new IllegalStateException(
             "Root configuration path " + configRoot + " does not exists");
       }
-
-      store.enable();
-
     } catch (KeeperException ex) {
       throw new IllegalStateException(
           "Could not verify root configuration path " + configRoot + " exists", ex);
@@ -89,14 +86,13 @@ public class ZkNotificationManager implements Watcher {
       case ASSOCIATING:
         boolean haveConnection = pauseForConnection();
         if (haveConnection) {
-          ready();
+          return ready();
         }
         return haveConnection;
 
       case CONNECTED:
       case CONNECTEDREADONLY:
-        ready();
-        return true;
+        return ready();
 
       case CLOSED:
       case AUTH_FAILED:
@@ -149,11 +145,10 @@ public class ZkNotificationManager implements Watcher {
         if (zookeeper.getState().equals(ZooKeeper.States.CONNECTED)) {
           return true;
         }
-        return false;
       } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
       }
-    return true;
+    return false;
   }
 
   @Override
@@ -192,7 +187,7 @@ public class ZkNotificationManager implements Watcher {
    * Session events are sent to all handlers so that decisions can be made on disconnect and
    * expiration events. For the prop cache, access to the cache should be controlled so that the
    * cache will only be "readable" when zookeeper is available.
-   *
+   * <p>
    * Session events (Watcher.KeeperState) and ZooKeeper.getState() (Zookeeper.States) are seperate
    * enums - but both convey essentially the same info.
    *
@@ -223,15 +218,16 @@ public class ZkNotificationManager implements Watcher {
   }
 
   private void closedConnection() {
-
+    store.disable();
   }
 
   private void pauseConnection() {
-
+    store.disable();
   }
 
-  private void ready() {
-
+  private boolean ready() {
+    store.enable();
+    return true;
   }
 
   private enum ZkEventHandler {

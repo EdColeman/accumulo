@@ -60,10 +60,6 @@ public class ZooPropStore implements PropStore {
   @Override
   public PropEncoding get(CacheId id, Notifier notifier) {
 
-    // if (Objects.nonNull(pcl)) {
-    // addPropertyChangeListener(pcl);
-    // }
-
     var propPath = String.format("%s/%s", configRoot, id.asKey());
 
     try {
