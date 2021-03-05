@@ -140,6 +140,7 @@ public class ClientContext implements AccumuloClient {
       AccumuloConfiguration serverConf) {
     this.info = info;
     this.hadoopConf = info.getHadoopConf();
+    // TODO - add prop cache?
     zooCache =
         new ZooCacheFactory().getZooCache(info.getZooKeepers(), info.getZooKeepersSessionTimeOut());
     this.serverConf = serverConf;

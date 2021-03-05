@@ -1,0 +1,57 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.accumulo.test.config2.cluster;
+
+import org.apache.accumulo.server.conf2.PropCacheException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class PropWriter extends PropWorker {
+
+  private static final Logger log = LoggerFactory.getLogger(PropWriter.class);
+
+  public PropWriter(final String zkConnString, final String workerId, final String instanceId,
+      final ExpectedValues truth) throws Exception {
+    super(zkConnString, workerId, instanceId, truth);
+  }
+
+  @Override
+  public void doWork() {
+
+    var id = pickRandomTable();
+
+    try {
+
+      ExpectedProps expectedProp = getExpected(id);
+
+      // handle initial write
+      var fromStore = readPropsFromStore(id);
+      if (!fromStore.containsKey(ExpectedValues.PROP_INT_NAME)) {
+        writePropsToStore(id, expectedProp.toMap());
+        return;
+      }
+
+      updateExpected(id);
+
+    } catch (PropCacheException ex) {
+      throw new IllegalStateException("Failed to write props for id: " + id, ex);
+    }
+
+  }
+}

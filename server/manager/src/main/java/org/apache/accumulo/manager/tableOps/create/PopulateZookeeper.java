@@ -18,8 +18,6 @@
  */
 package org.apache.accumulo.manager.tableOps.create;
 
-import java.util.Map.Entry;
-
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
@@ -27,11 +25,16 @@ import org.apache.accumulo.manager.Manager;
 import org.apache.accumulo.manager.tableOps.ManagerRepo;
 import org.apache.accumulo.manager.tableOps.TableInfo;
 import org.apache.accumulo.manager.tableOps.Utils;
-import org.apache.accumulo.server.util.TablePropUtil;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class PopulateZookeeper extends ManagerRepo {
 
   private static final long serialVersionUID = 1L;
+
+  private static final Logger log = LoggerFactory.getLogger(PopulateZookeeper.class);
 
   private TableInfo tableInfo;
 
@@ -58,10 +61,15 @@ class PopulateZookeeper extends ManagerRepo {
       manager.getTableManager().addTable(tableInfo.getTableId(), tableInfo.getNamespaceId(),
           tableInfo.getTableName());
 
-      for (Entry<String,String> entry : tableInfo.props.entrySet())
-        TablePropUtil.setTableProperty(manager.getContext(), tableInfo.getTableId(), entry.getKey(),
-            entry.getValue());
+      PropCache propCache = manager.getContext().getPropCache();
+      var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableInfo.getTableId());
 
+      try {
+        propCache.setProperties(cacheId, tableInfo.props);
+      } catch (IllegalArgumentException ex) {
+        // TODO propagate exception?
+        log.debug("Ignoring properties. Properties not set because invalid property", ex);
+      }
       Tables.clearCache(manager.getContext());
       return new ChooseDir(tableInfo);
     } finally {

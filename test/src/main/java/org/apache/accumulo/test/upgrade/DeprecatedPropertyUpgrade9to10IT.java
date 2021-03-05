@@ -45,6 +45,7 @@ public class DeprecatedPropertyUpgrade9to10IT extends ConfigurableMacBase {
     String propValue =
         Integer.toString(Integer.parseInt(Property.MANAGER_BULK_RETRIES.getDefaultValue()) * 2);
 
+    @SuppressWarnings("deprecation")
     String zPath = getServerContext().getZooKeeperRoot() + Constants.ZCONFIG + "/" + oldProp;
     getServerContext().getZooReaderWriter().putPersistentData(zPath, propValue.getBytes(UTF_8),
         ZooUtil.NodeExistsPolicy.OVERWRITE);

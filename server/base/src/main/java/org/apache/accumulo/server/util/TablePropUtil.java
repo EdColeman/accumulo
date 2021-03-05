@@ -20,27 +20,23 @@ package org.apache.accumulo.server.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
-import org.apache.accumulo.server.ServerContext;
 import org.apache.zookeeper.KeeperException;
 
 public class TablePropUtil {
-
-  public static boolean setTableProperty(ServerContext context, TableId tableId, String property,
-      String value) throws KeeperException, InterruptedException {
-    return setTableProperty(context.getZooReaderWriter(), context.getZooKeeperRoot(), tableId,
-        property, value);
-  }
 
   public static boolean setTableProperty(ZooReaderWriter zoo, String zkRoot, TableId tableId,
       String property, String value) throws KeeperException, InterruptedException {
     if (!isPropertyValid(property, value))
       return false;
+
+    if (true) {
+      throw new UnsupportedOperationException(
+          "Should not call setTableProperty directly - use ZooPropStore");
+    }
 
     // create the zk node for per-table properties for this table if it doesn't already exist
     String zkTablePath = getTablePath(zkRoot, tableId);
@@ -59,13 +55,9 @@ public class TablePropUtil {
         && Property.isValidTablePropertyKey(property);
   }
 
-  public static void removeTableProperty(ServerContext context, TableId tableId, String property)
-      throws InterruptedException, KeeperException {
-    String zPath = getTablePath(context.getZooKeeperRoot(), tableId) + "/" + property;
-    context.getZooReaderWriter().recursiveDelete(zPath, NodeMissingPolicy.SKIP);
-  }
-
   private static String getTablePath(String zkRoot, TableId tableId) {
-    return zkRoot + Constants.ZTABLES + "/" + tableId.canonical() + Constants.ZTABLE_CONF;
+    throw new UnsupportedOperationException(
+        "ZTABLE_CONF is deprecated and should not be expected.");
+    // return zkRoot + Constants.ZTABLES + "/" + tableId.canonical() + Constants.ZTABLE_CONF;
   }
 }

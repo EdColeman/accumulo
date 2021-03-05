@@ -161,7 +161,8 @@ class ContextManager {
     ContextConfig cconfig = config.getContextConfig(contextName);
 
     if (cconfig == null)
-      throw new IllegalArgumentException("Unknown context " + contextName);
+      throw new IllegalArgumentException(
+          String.format("Unknown context %s from config %s", contextName, config));
 
     Context context = null;
     Context contextToClose = null;

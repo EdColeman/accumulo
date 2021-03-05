@@ -191,6 +191,7 @@ public class Tables {
   }
 
   public static void clearCache(ClientContext context) {
+    // TODO - add prop cache?
     getZooCache(context).clear(context.getZooKeeperRoot() + Constants.ZTABLES);
     getZooCache(context).clear(context.getZooKeeperRoot() + Constants.ZNAMESPACES);
     instanceToMapCache.invalidate(context.getInstanceID());

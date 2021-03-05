@@ -70,6 +70,7 @@ public class FateMetricsIT {
   public static void setupZk() {
     // using default zookeeper port - we don't have a full configuration
     szk = new ZooKeeperTestingServer();
+
     szk.initPaths(MOCK_ZK_ROOT);
   }
 
