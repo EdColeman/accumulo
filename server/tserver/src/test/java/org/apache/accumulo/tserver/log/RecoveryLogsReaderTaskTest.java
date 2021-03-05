@@ -50,7 +50,7 @@ import org.junit.rules.TemporaryFolder;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "paths not set by user input")
-public class RecoveryLogsReaderTest {
+public class RecoveryLogsReaderTaskTest {
 
   private VolumeManager fs;
   private File workDir;

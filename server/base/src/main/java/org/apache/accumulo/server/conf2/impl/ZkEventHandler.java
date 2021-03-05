@@ -16,18 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf;
+package org.apache.accumulo.server.conf2.impl;
 
-import org.apache.accumulo.core.conf.AccumuloConfiguration;
-import org.apache.accumulo.core.data.NamespaceId;
-import org.apache.accumulo.core.data.TableId;
-
-public abstract class ServerConfiguration {
-
-  public abstract TableConfiguration getTableConfiguration(TableId tableId);
-
-  public abstract NamespaceConfiguration getNamespaceConfiguration(NamespaceId namespaceId);
-
-  public abstract AccumuloConfiguration getSystemConfiguration();
+public class ZkEventHandler {
 
 }

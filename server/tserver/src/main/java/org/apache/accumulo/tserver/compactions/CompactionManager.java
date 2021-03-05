@@ -73,7 +73,7 @@ public class CompactionManager {
 
     @SuppressWarnings("removal")
     private long getDefaultThroughput(AccumuloConfiguration aconf) {
-      if (aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT, true)) {
+      if (aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT)) {
         return aconf.getAsBytes(Property.TSERV_MAJC_THROUGHPUT);
       }
 
@@ -88,7 +88,7 @@ public class CompactionManager {
           aconf.getAllPropertiesWithPrefix(Property.TSERV_COMPACTION_SERVICE_PREFIX);
 
       // check if deprecated properties for compaction executor are set
-      if (aconf.isPropertySet(Property.TSERV_MAJC_MAXCONCURRENT, true)) {
+      if (aconf.isPropertySet(Property.TSERV_MAJC_MAXCONCURRENT)) {
 
         String defaultServicePrefix =
             Property.TSERV_COMPACTION_SERVICE_PREFIX.getKey() + DEFAULT_SERVICE.canonical() + ".";
@@ -96,7 +96,7 @@ public class CompactionManager {
         // check if any properties for the default compaction service are set
         boolean defaultServicePropsSet = configs.keySet().stream()
             .filter(key -> key.startsWith(defaultServicePrefix)).map(Property::getPropertyByKey)
-            .anyMatch(prop -> prop == null || aconf.isPropertySet(prop, true));
+            .anyMatch(prop -> prop == null || aconf.isPropertySet(prop));
 
         if (defaultServicePropsSet) {
 
@@ -160,8 +160,7 @@ public class CompactionManager {
           planners.put(tokens[0], val);
         } else if (tokens.length == 3 && tokens[1].equals("rate") && tokens[2].equals("limit")) {
           var eprop = Property.getPropertyByKey(prop);
-          if (eprop == null || aconf.isPropertySet(eprop, true)
-              || !isDeprecatedThroughputSet(aconf)) {
+          if (eprop == null || aconf.isPropertySet(eprop) || !isDeprecatedThroughputSet(aconf)) {
             rateLimits.put(tokens[0], ConfigurationTypeHelper.getFixedMemoryAsBytes(val));
           }
         } else {
@@ -182,7 +181,7 @@ public class CompactionManager {
 
     @SuppressWarnings("removal")
     private boolean isDeprecatedThroughputSet(AccumuloConfiguration aconf) {
-      return aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT, true);
+      return aconf.isPropertySet(Property.TSERV_MAJC_THROUGHPUT);
     }
 
     public long getRateLimit(String serviceName) {

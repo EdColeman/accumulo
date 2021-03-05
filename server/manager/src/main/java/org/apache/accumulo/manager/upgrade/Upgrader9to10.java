@@ -29,11 +29,14 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.apache.accumulo.core.Constants;
@@ -45,7 +48,6 @@ import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.admin.TimeType;
-import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.DeprecatedPropertyUtil;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.Key;
@@ -76,13 +78,14 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf.ZooConfiguration;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCacheException;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.gc.GcVolumeUtil;
 import org.apache.accumulo.server.metadata.RootGcCandidates;
 import org.apache.accumulo.server.metadata.TabletMutatorBase;
-import org.apache.accumulo.server.util.SystemPropUtil;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -109,8 +112,6 @@ import com.google.common.base.Preconditions;
  */
 public class Upgrader9to10 implements Upgrader {
 
-  private static final Logger log = LoggerFactory.getLogger(Upgrader9to10.class);
-
   public static final String ZROOT_TABLET_LOCATION = ZROOT_TABLET + "/location";
   public static final String ZROOT_TABLET_FUTURE_LOCATION = ZROOT_TABLET + "/future_location";
   public static final String ZROOT_TABLET_LAST_LOCATION = ZROOT_TABLET + "/lastlocation";
@@ -119,176 +120,9 @@ public class Upgrader9to10 implements Upgrader {
   public static final String ZROOT_TABLET_PATH = ZROOT_TABLET + "/dir";
   public static final Value UPGRADED = SkewedKeyValue.NAME;
   public static final String OLD_DELETE_PREFIX = "~del";
-
   // effectively an 8MB batch size, since this number is the number of Chars
   public static final long CANDIDATE_BATCH_SIZE = 4_000_000;
-
-  @Override
-  public void upgradeZookeeper(ServerContext ctx) {
-    setMetaTableProps(ctx);
-    upgradeRootTabletMetadata(ctx);
-    renameOldMasterPropsinZK(ctx);
-  }
-
-  @Override
-  public void upgradeRoot(ServerContext ctx) {
-    upgradeRelativePaths(ctx, Ample.DataLevel.METADATA);
-    upgradeDirColumns(ctx, Ample.DataLevel.METADATA);
-    upgradeFileDeletes(ctx, Ample.DataLevel.METADATA);
-  }
-
-  @Override
-  public void upgradeMetadata(ServerContext ctx) {
-    upgradeRelativePaths(ctx, Ample.DataLevel.USER);
-    upgradeDirColumns(ctx, Ample.DataLevel.USER);
-    upgradeFileDeletes(ctx, Ample.DataLevel.USER);
-  }
-
-  private void setMetaTableProps(ServerContext ctx) {
-    try {
-      TablePropUtil.setTableProperty(ctx, RootTable.ID,
-          Property.TABLE_COMPACTION_DISPATCHER.getKey(),
-          SimpleCompactionDispatcher.class.getName());
-      TablePropUtil.setTableProperty(ctx, RootTable.ID,
-          Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "root");
-
-      TablePropUtil.setTableProperty(ctx, MetadataTable.ID,
-          Property.TABLE_COMPACTION_DISPATCHER.getKey(),
-          SimpleCompactionDispatcher.class.getName());
-      TablePropUtil.setTableProperty(ctx, MetadataTable.ID,
-          Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "meta");
-    } catch (KeeperException | InterruptedException e) {
-      throw new RuntimeException("Unable to set system table properties", e);
-    }
-  }
-
-  private void upgradeRootTabletMetadata(ServerContext ctx) {
-    String rootMetaSer = getFromZK(ctx, ZROOT_TABLET);
-
-    if (rootMetaSer == null || rootMetaSer.isEmpty()) {
-      String dir = getFromZK(ctx, ZROOT_TABLET_PATH);
-      List<LogEntry> logs = getRootLogEntries(ctx);
-
-      TServerInstance last = getLocation(ctx, ZROOT_TABLET_LAST_LOCATION);
-      TServerInstance future = getLocation(ctx, ZROOT_TABLET_FUTURE_LOCATION);
-      TServerInstance current = getLocation(ctx, ZROOT_TABLET_LOCATION);
-
-      UpgradeMutator tabletMutator = new UpgradeMutator(ctx);
-
-      tabletMutator.putPrevEndRow(RootTable.EXTENT.prevEndRow());
-
-      tabletMutator.putDirName(upgradeDirColumn(dir));
-
-      if (last != null)
-        tabletMutator.putLocation(last, LocationType.LAST);
-
-      if (future != null)
-        tabletMutator.putLocation(future, LocationType.FUTURE);
-
-      if (current != null)
-        tabletMutator.putLocation(current, LocationType.CURRENT);
-
-      logs.forEach(tabletMutator::putWal);
-
-      Map<String,DataFileValue> files = cleanupRootTabletFiles(ctx.getVolumeManager(), dir);
-      files.forEach((path, dfv) -> tabletMutator.putFile(new TabletFile(new Path(path)), dfv));
-
-      tabletMutator.putTime(computeRootTabletTime(ctx, files.keySet()));
-
-      tabletMutator.mutate();
-    }
-
-    try {
-      ctx.getZooReaderWriter().putPersistentData(
-          ctx.getZooKeeperRoot() + ZROOT_TABLET_GC_CANDIDATES,
-          new RootGcCandidates().toJson().getBytes(UTF_8), NodeExistsPolicy.SKIP);
-    } catch (KeeperException | InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-
-    // this operation must be idempotent, so deleting after updating is very important
-
-    delete(ctx, ZROOT_TABLET_CURRENT_LOGS);
-    delete(ctx, ZROOT_TABLET_FUTURE_LOCATION);
-    delete(ctx, ZROOT_TABLET_LAST_LOCATION);
-    delete(ctx, ZROOT_TABLET_LOCATION);
-    delete(ctx, ZROOT_TABLET_WALOGS);
-    delete(ctx, ZROOT_TABLET_PATH);
-  }
-
-  @SuppressWarnings("deprecation")
-  private void renameOldMasterPropsinZK(ServerContext ctx) {
-    // Rename all of the properties only set in ZooKeeper that start with "master." to rename and
-    // store them starting with "manager." instead.
-    var zooConfiguration = new ZooConfiguration(ctx, ctx.getZooCache(), new ConfigurationCopy());
-    zooConfiguration.getAllPropertiesWithPrefix(Property.MASTER_PREFIX)
-        .forEach((original, value) -> {
-          DeprecatedPropertyUtil.getReplacementName(original, (log, replacement) -> {
-            log.info("Automatically renaming deprecated property '{}' with its replacement '{}'"
-                + " in ZooKeeper on upgrade.", original, replacement);
-            try {
-              // Set the property under the new name
-              SystemPropUtil.setSystemProperty(ctx, replacement, value);
-              SystemPropUtil.removePropWithoutDeprecationWarning(ctx, original);
-            } catch (KeeperException | InterruptedException e) {
-              throw new RuntimeException("Unable to upgrade system properties", e);
-            }
-          });
-        });
-  }
-
-  private static class UpgradeMutator extends TabletMutatorBase {
-
-    private ServerContext context;
-
-    UpgradeMutator(ServerContext context) {
-      super(context, RootTable.EXTENT);
-      this.context = context;
-    }
-
-    @Override
-    public void mutate() {
-      Mutation mutation = getMutation();
-
-      try {
-        context.getZooReaderWriter().mutateOrCreate(
-            context.getZooKeeperRoot() + RootTable.ZROOT_TABLET, new byte[0], currVal -> {
-              // Earlier, it was checked that root tablet metadata did not exists. However the
-              // earlier check does handle race conditions. Race conditions are unexpected. This is
-              // a sanity check when making the update in ZK using compare and set. If this fails
-              // and its not a bug, then its likely some concurrency issue. For example two managers
-              // concurrently running upgrade could cause this to fail.
-              Preconditions.checkState(currVal.length == 0,
-                  "Expected root tablet metadata to be empty!");
-              var rtm = new RootTabletMetadata();
-              rtm.update(mutation);
-              String json = rtm.toJson();
-              log.info("Upgrading root tablet metadata, writing following to ZK : \n {}", json);
-              return json.getBytes(UTF_8);
-            });
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-
-    }
-
-  }
-
-  protected TServerInstance getLocation(ServerContext ctx, String relpath) {
-    String str = getFromZK(ctx, relpath);
-    if (str == null) {
-      return null;
-    }
-
-    String[] parts = str.split("[|]", 2);
-    HostAndPort address = HostAndPort.fromString(parts[0]);
-    if (parts.length > 1 && parts[1] != null && !parts[1].isEmpty()) {
-      return new TServerInstance(address, parts[1]);
-    } else {
-      // a 1.2 location specification: DO NOT WANT
-      return null;
-    }
-  }
+  private static final Logger log = LoggerFactory.getLogger(Upgrader9to10.class);
 
   static List<LogEntry> getRootLogEntries(ServerContext context) {
 
@@ -320,65 +154,6 @@ public class Upgrader9to10 implements Upgrader {
       return result;
     } catch (KeeperException | InterruptedException | IOException e) {
       throw new RuntimeException(e);
-    }
-  }
-
-  private String getFromZK(ServerContext ctx, String relpath) {
-    try {
-      byte[] data = ctx.getZooReaderWriter().getData(ctx.getZooKeeperRoot() + relpath);
-      if (data == null)
-        return null;
-
-      return new String(data, UTF_8);
-    } catch (NoNodeException e) {
-      return null;
-    } catch (KeeperException | InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private void delete(ServerContext ctx, String relpath) {
-    try {
-      ctx.getZooReaderWriter().recursiveDelete(ctx.getZooKeeperRoot() + relpath,
-          NodeMissingPolicy.SKIP);
-    } catch (KeeperException | InterruptedException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  MetadataTime computeRootTabletTime(ServerContext context, Collection<String> goodPaths) {
-
-    try {
-      context.setupCrypto();
-
-      long rtime = Long.MIN_VALUE;
-      for (String good : goodPaths) {
-        Path path = new Path(good);
-
-        FileSystem ns = context.getVolumeManager().getFileSystemByPath(path);
-        long maxTime = -1;
-        try (FileSKVIterator reader = FileOperations.getInstance().newReaderBuilder()
-            .forFile(path.toString(), ns, ns.getConf(), context.getCryptoService())
-            .withTableConfiguration(context.getTableConfiguration(RootTable.ID)).seekToBeginning()
-            .build()) {
-          while (reader.hasTop()) {
-            maxTime = Math.max(maxTime, reader.getTopKey().getTimestamp());
-            reader.next();
-          }
-        }
-        if (maxTime > rtime) {
-
-          rtime = maxTime;
-        }
-      }
-
-      if (rtime < 0) {
-        throw new IllegalStateException("Unexpected root tablet logical time " + rtime);
-      }
-
-      return new MetadataTime(rtime, TimeType.LOGICAL);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
     }
   }
 
@@ -448,44 +223,6 @@ public class Upgrader9to10 implements Upgrader {
     }
   }
 
-  public void upgradeFileDeletes(ServerContext ctx, Ample.DataLevel level) {
-
-    String tableName = level.metaTable();
-    AccumuloClient c = ctx;
-    Ample ample = ctx.getAmple();
-
-    // find all deletes
-    try (BatchWriter writer = c.createBatchWriter(tableName, new BatchWriterConfig())) {
-      log.info("looking for candidates in table {}", tableName);
-      Iterator<String> oldCandidates = getOldCandidates(ctx, tableName);
-      String upgradeProp = ctx.getConfiguration().get(Property.INSTANCE_VOLUMES_UPGRADE_RELATIVE);
-
-      while (oldCandidates.hasNext()) {
-        List<String> deletes = readCandidatesInBatch(oldCandidates);
-        log.info("found {} deletes to upgrade", deletes.size());
-        for (String olddelete : deletes) {
-          // create new formatted delete
-          log.trace("upgrading delete entry for {}", olddelete);
-
-          Path absolutePath = resolveRelativeDelete(olddelete, upgradeProp);
-          String updatedDel = switchToAllVolumes(absolutePath);
-
-          writer.addMutation(ample.createDeleteMutation(updatedDel));
-        }
-        writer.flush();
-        // if nothing thrown then we're good so mark all deleted
-        log.info("upgrade processing completed so delete old entries");
-        for (String olddelete : deletes) {
-          log.trace("deleting old entry for {}", olddelete);
-          writer.addMutation(deleteOldDeleteMutation(olddelete));
-        }
-        writer.flush();
-      }
-    } catch (TableNotFoundException | MutationsRejectedException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   /**
    * If path of file to delete is a directory, change it to all volumes. See {@link GcVolumeUtil}.
    * For example: A directory "hdfs://localhost:9000/accumulo/tables/5a/t-0005" with volume removed
@@ -504,60 +241,6 @@ public class Upgrader9to10 implements Upgrader {
           TableId.of(pathNoVolume.getParent().getName()), pathNoVolume.getName());
     } else {
       return olddelete.toString();
-    }
-  }
-
-  /**
-   * Return path of the file from old delete markers
-   */
-  private Iterator<String> getOldCandidates(ServerContext ctx, String tableName)
-      throws TableNotFoundException {
-    Range range = DeletesSection.getRange();
-    Scanner scanner = ctx.createScanner(tableName, Authorizations.EMPTY);
-    scanner.setRange(range);
-    return StreamSupport.stream(scanner.spliterator(), false)
-        .filter(entry -> !entry.getValue().equals(UPGRADED))
-        .map(entry -> entry.getKey().getRow().toString().substring(OLD_DELETE_PREFIX.length()))
-        .iterator();
-  }
-
-  private List<String> readCandidatesInBatch(Iterator<String> candidates) {
-    long candidateLength = 0;
-    List<String> result = new ArrayList<>();
-    while (candidates.hasNext()) {
-      String candidate = candidates.next();
-      candidateLength += candidate.length();
-      result.add(candidate);
-      if (candidateLength > CANDIDATE_BATCH_SIZE) {
-        log.trace("List of delete candidates has exceeded the batch size"
-            + " threshold. Attempting to delete what has been gathered so far.");
-        break;
-      }
-    }
-    return result;
-  }
-
-  private Mutation deleteOldDeleteMutation(final String delete) {
-    Mutation m = new Mutation(OLD_DELETE_PREFIX + delete);
-    m.putDelete(EMPTY_TEXT, EMPTY_TEXT);
-    return m;
-  }
-
-  public void upgradeDirColumns(ServerContext ctx, Ample.DataLevel level) {
-    String tableName = level.metaTable();
-    AccumuloClient c = ctx;
-
-    try (Scanner scanner = c.createScanner(tableName, Authorizations.EMPTY);
-        BatchWriter writer = c.createBatchWriter(tableName, new BatchWriterConfig())) {
-      DIRECTORY_COLUMN.fetch(scanner);
-
-      for (Entry<Key,Value> entry : scanner) {
-        Mutation m = new Mutation(entry.getKey().getRow());
-        DIRECTORY_COLUMN.put(m, new Value(upgradeDirColumn(entry.getValue().toString())));
-        writer.addMutation(m);
-      }
-    } catch (TableNotFoundException | AccumuloException e) {
-      throw new RuntimeException(e);
     }
   }
 
@@ -709,5 +392,379 @@ public class Upgrader9to10 implements Upgrader {
           "Missing required property " + Property.INSTANCE_VOLUMES_UPGRADE_RELATIVE.getKey());
     }
     return new Path(upgradeProperty, VolumeManager.FileType.TABLE.getDirectory() + oldDelete);
+  }
+
+  @Override
+  public void upgradeZookeeper(ServerContext ctx) {
+    convertPropEncoding(ctx); // run first
+    setMetaTableProps(ctx);
+    upgradeRootTabletMetadata(ctx);
+    renameOldMasterPropsinZK(ctx);
+  }
+
+  @Override
+  public void upgradeRoot(ServerContext ctx) {
+    upgradeRelativePaths(ctx, Ample.DataLevel.METADATA);
+    upgradeDirColumns(ctx, Ample.DataLevel.METADATA);
+    upgradeFileDeletes(ctx, Ample.DataLevel.METADATA);
+  }
+
+  @Override
+  public void upgradeMetadata(ServerContext ctx) {
+    upgradeRelativePaths(ctx, Ample.DataLevel.USER);
+    upgradeDirColumns(ctx, Ample.DataLevel.USER);
+    upgradeFileDeletes(ctx, Ample.DataLevel.USER);
+  }
+
+  /**
+   * Read existing properties in ZooKeeper and convert them to single node encoded properties. This
+   * should run early - other transforms expect the new property encoding format.
+   *
+   * @param ctx
+   *          the server context.
+   */
+  private void convertPropEncoding(final ServerContext ctx) {
+    convertSystemProps(ctx);
+    convertNamespaceProps(ctx);
+    convertTableProps(ctx);
+  }
+
+  private void convertSystemProps(final ServerContext ctx) {
+    // noop
+    log.warn("Not implemented - upgrade system props: {}", ctx);
+    // throw new UnsupportedOperationException(
+    // "Implementation to be supplied for system props, ctx: " + ctx);
+  }
+
+  private void convertNamespaceProps(final ServerContext ctx) {
+    // noop
+    log.warn("Not implemented - upgrade namespace props: {}", ctx);
+    // throw new UnsupportedOperationException(
+    // "Implementation to be supplied for namespace, ctx: " + ctx);
+  }
+
+  private void convertTableProps(final ServerContext ctx) {
+    // noop
+    log.warn("Not implemented - upgrade table props: {}", ctx);
+    // throw new UnsupportedOperationException(
+    // "Implementation to be supplied for tables, ctx: " + ctx);
+  }
+
+  private void setMetaTableProps(ServerContext ctx) {
+    try {
+      CacheId rootId = CacheId.forTable(ctx, RootTable.ID);
+
+      // root
+      Map<String,String> rootProps = new HashMap<>();
+      rootProps.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
+          SimpleCompactionDispatcher.class.getName());
+      rootProps.put(Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "root");
+      ctx.getPropStore().add(CacheId.forTable(ctx, RootTable.ID), rootProps);
+
+      // metadata
+      Map<String,String> metaProps = new HashMap<>();
+      metaProps.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
+          SimpleCompactionDispatcher.class.getName());
+      metaProps.put(Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "meta");
+      ctx.getPropStore().add(CacheId.forTable(ctx, MetadataTable.ID), metaProps);
+
+    } catch (PropCacheException ex) {
+      throw new RuntimeException("Unable to set system table properties", ex);
+    }
+  }
+
+  private void upgradeRootTabletMetadata(ServerContext ctx) {
+    String rootMetaSer = getFromZK(ctx, ZROOT_TABLET);
+
+    if (rootMetaSer == null || rootMetaSer.isEmpty()) {
+      String dir = getFromZK(ctx, ZROOT_TABLET_PATH);
+      List<LogEntry> logs = getRootLogEntries(ctx);
+
+      TServerInstance last = getLocation(ctx, ZROOT_TABLET_LAST_LOCATION);
+      TServerInstance future = getLocation(ctx, ZROOT_TABLET_FUTURE_LOCATION);
+      TServerInstance current = getLocation(ctx, ZROOT_TABLET_LOCATION);
+
+      UpgradeMutator tabletMutator = new UpgradeMutator(ctx);
+
+      tabletMutator.putPrevEndRow(RootTable.EXTENT.prevEndRow());
+
+      tabletMutator.putDirName(upgradeDirColumn(dir));
+
+      if (last != null)
+        tabletMutator.putLocation(last, LocationType.LAST);
+
+      if (future != null)
+        tabletMutator.putLocation(future, LocationType.FUTURE);
+
+      if (current != null)
+        tabletMutator.putLocation(current, LocationType.CURRENT);
+
+      logs.forEach(tabletMutator::putWal);
+
+      Map<String,DataFileValue> files = cleanupRootTabletFiles(ctx.getVolumeManager(), dir);
+      files.forEach((path, dfv) -> tabletMutator.putFile(new TabletFile(new Path(path)), dfv));
+
+      tabletMutator.putTime(computeRootTabletTime(ctx, files.keySet()));
+
+      tabletMutator.mutate();
+    }
+
+    try {
+      ctx.getZooReaderWriter().putPersistentData(
+          ctx.getZooKeeperRoot() + ZROOT_TABLET_GC_CANDIDATES,
+          new RootGcCandidates().toJson().getBytes(UTF_8), NodeExistsPolicy.SKIP);
+    } catch (KeeperException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+
+    // this operation must be idempotent, so deleting after updating is very important
+
+    delete(ctx, ZROOT_TABLET_CURRENT_LOGS);
+    delete(ctx, ZROOT_TABLET_FUTURE_LOCATION);
+    delete(ctx, ZROOT_TABLET_LAST_LOCATION);
+    delete(ctx, ZROOT_TABLET_LOCATION);
+    delete(ctx, ZROOT_TABLET_WALOGS);
+    delete(ctx, ZROOT_TABLET_PATH);
+  }
+
+  @SuppressWarnings("deprecation")
+  private void renameOldMasterPropsinZK(ServerContext ctx) {
+
+    // Rename all of the properties only set in ZooKeeper that start with "master." to rename and
+    // store them starting with "manager." instead.
+
+    Map<String,String> adds = new HashMap<>();
+    Set<String> deletes = new HashSet<>();
+
+    try {
+
+      PropEncoding props =
+          ctx.getPropStore().get(CacheId.forSystem(ctx)).orElse(new PropEncodingV1());
+
+      Map<String,String> current = props.getAllProperties();
+
+      Map<String,
+          String> matches = current.entrySet().stream()
+              .filter(p -> p.getKey().startsWith(Property.MASTER_PREFIX.name()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+      matches.forEach((original, value) -> DeprecatedPropertyUtil.getReplacementName(original,
+          (log, replacement) -> {
+            log.info("Automatically renaming deprecated property '{}' with its replacement '{}'"
+                + " in ZooKeeper on upgrade.", original, replacement);
+            adds.put(replacement, value);
+            deletes.remove(original);
+          }));
+
+      ctx.getPropStore().add(CacheId.forSystem(ctx), adds);
+      ctx.getPropStore().removeProperties(CacheId.forSystem(ctx), deletes);
+
+    } catch (PropCacheException ex) {
+      throw new RuntimeException("Unable to covert system properties to manager naming", ex);
+    }
+  }
+
+  protected TServerInstance getLocation(ServerContext ctx, String relpath) {
+    String str = getFromZK(ctx, relpath);
+    if (str == null) {
+      return null;
+    }
+
+    String[] parts = str.split("[|]", 2);
+    HostAndPort address = HostAndPort.fromString(parts[0]);
+    if (parts.length > 1 && parts[1] != null && !parts[1].isEmpty()) {
+      return new TServerInstance(address, parts[1]);
+    } else {
+      // a 1.2 location specification: DO NOT WANT
+      return null;
+    }
+  }
+
+  private String getFromZK(ServerContext ctx, String relpath) {
+    try {
+      byte[] data = ctx.getZooReaderWriter().getData(ctx.getZooKeeperRoot() + relpath);
+      if (data == null)
+        return null;
+
+      return new String(data, UTF_8);
+    } catch (NoNodeException e) {
+      return null;
+    } catch (KeeperException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private void delete(ServerContext ctx, String relpath) {
+    try {
+      ctx.getZooReaderWriter().recursiveDelete(ctx.getZooKeeperRoot() + relpath,
+          NodeMissingPolicy.SKIP);
+    } catch (KeeperException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  MetadataTime computeRootTabletTime(ServerContext context, Collection<String> goodPaths) {
+
+    try {
+      context.setupCrypto();
+
+      long rtime = Long.MIN_VALUE;
+      for (String good : goodPaths) {
+        Path path = new Path(good);
+
+        FileSystem ns = context.getVolumeManager().getFileSystemByPath(path);
+        long maxTime = -1;
+        try (FileSKVIterator reader = FileOperations.getInstance().newReaderBuilder()
+            .forFile(path.toString(), ns, ns.getConf(), context.getCryptoService())
+            .withTableConfiguration(context.getTableConfiguration(RootTable.ID)).seekToBeginning()
+            .build()) {
+          while (reader.hasTop()) {
+            maxTime = Math.max(maxTime, reader.getTopKey().getTimestamp());
+            reader.next();
+          }
+        }
+        if (maxTime > rtime) {
+
+          rtime = maxTime;
+        }
+      }
+
+      if (rtime < 0) {
+        throw new IllegalStateException("Unexpected root tablet logical time " + rtime);
+      }
+
+      return new MetadataTime(rtime, TimeType.LOGICAL);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public void upgradeFileDeletes(ServerContext ctx, Ample.DataLevel level) {
+
+    String tableName = level.metaTable();
+    AccumuloClient c = ctx;
+    Ample ample = ctx.getAmple();
+
+    // find all deletes
+    try (BatchWriter writer = c.createBatchWriter(tableName, new BatchWriterConfig())) {
+      log.info("looking for candidates in table {}", tableName);
+      Iterator<String> oldCandidates = getOldCandidates(ctx, tableName);
+      String upgradeProp = ctx.getConfiguration().get(Property.INSTANCE_VOLUMES_UPGRADE_RELATIVE);
+
+      while (oldCandidates.hasNext()) {
+        List<String> deletes = readCandidatesInBatch(oldCandidates);
+        log.info("found {} deletes to upgrade", deletes.size());
+        for (String olddelete : deletes) {
+          // create new formatted delete
+          log.trace("upgrading delete entry for {}", olddelete);
+
+          Path absolutePath = resolveRelativeDelete(olddelete, upgradeProp);
+          String updatedDel = switchToAllVolumes(absolutePath);
+
+          writer.addMutation(ample.createDeleteMutation(updatedDel));
+        }
+        writer.flush();
+        // if nothing thrown then we're good so mark all deleted
+        log.info("upgrade processing completed so delete old entries");
+        for (String olddelete : deletes) {
+          log.trace("deleting old entry for {}", olddelete);
+          writer.addMutation(deleteOldDeleteMutation(olddelete));
+        }
+        writer.flush();
+      }
+    } catch (TableNotFoundException | MutationsRejectedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Return path of the file from old delete markers
+   */
+  private Iterator<String> getOldCandidates(ServerContext ctx, String tableName)
+      throws TableNotFoundException {
+    Range range = DeletesSection.getRange();
+    Scanner scanner = ctx.createScanner(tableName, Authorizations.EMPTY);
+    scanner.setRange(range);
+    return StreamSupport.stream(scanner.spliterator(), false)
+        .filter(entry -> !entry.getValue().equals(UPGRADED))
+        .map(entry -> entry.getKey().getRow().toString().substring(OLD_DELETE_PREFIX.length()))
+        .iterator();
+  }
+
+  private List<String> readCandidatesInBatch(Iterator<String> candidates) {
+    long candidateLength = 0;
+    List<String> result = new ArrayList<>();
+    while (candidates.hasNext()) {
+      String candidate = candidates.next();
+      candidateLength += candidate.length();
+      result.add(candidate);
+      if (candidateLength > CANDIDATE_BATCH_SIZE) {
+        log.trace("List of delete candidates has exceeded the batch size"
+            + " threshold. Attempting to delete what has been gathered so far.");
+        break;
+      }
+    }
+    return result;
+  }
+
+  private Mutation deleteOldDeleteMutation(final String delete) {
+    Mutation m = new Mutation(OLD_DELETE_PREFIX + delete);
+    m.putDelete(EMPTY_TEXT, EMPTY_TEXT);
+    return m;
+  }
+
+  public void upgradeDirColumns(ServerContext ctx, Ample.DataLevel level) {
+    String tableName = level.metaTable();
+    AccumuloClient c = ctx;
+
+    try (Scanner scanner = c.createScanner(tableName, Authorizations.EMPTY);
+        BatchWriter writer = c.createBatchWriter(tableName, new BatchWriterConfig())) {
+      DIRECTORY_COLUMN.fetch(scanner);
+
+      for (Entry<Key,Value> entry : scanner) {
+        Mutation m = new Mutation(entry.getKey().getRow());
+        DIRECTORY_COLUMN.put(m, new Value(upgradeDirColumn(entry.getValue().toString())));
+        writer.addMutation(m);
+      }
+    } catch (TableNotFoundException | AccumuloException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static class UpgradeMutator extends TabletMutatorBase {
+
+    private final ServerContext context;
+
+    UpgradeMutator(ServerContext context) {
+      super(context, RootTable.EXTENT);
+      this.context = context;
+    }
+
+    @Override
+    public void mutate() {
+      Mutation mutation = getMutation();
+
+      try {
+        context.getZooReaderWriter().mutateOrCreate(
+            context.getZooKeeperRoot() + RootTable.ZROOT_TABLET, new byte[0], currVal -> {
+              // Earlier, it was checked that root tablet metadata did not exists. However the
+              // earlier check does handle race conditions. Race conditions are unexpected. This is
+              // a sanity check when making the update in ZK using compare and set. If this fails
+              // and its not a bug, then its likely some concurrency issue. For example two managers
+              // concurrently running upgrade could cause this to fail.
+              Preconditions.checkState(currVal.length == 0,
+                  "Expected root tablet metadata to be empty!");
+              var rtm = new RootTabletMetadata();
+              rtm.update(mutation);
+              String json = rtm.toJson();
+              log.info("Upgrading root tablet metadata, writing following to ZK : \n {}", json);
+              return json.getBytes(UTF_8);
+            });
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+
+    }
+
   }
 }

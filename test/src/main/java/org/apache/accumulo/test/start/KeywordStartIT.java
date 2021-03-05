@@ -46,6 +46,7 @@ import org.apache.accumulo.miniclusterImpl.MiniClusterExecutable;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.MonitorExecutable;
 import org.apache.accumulo.server.conf.ConfigSanityCheck;
+import org.apache.accumulo.server.conf2.ZooPropDumpUtil;
 import org.apache.accumulo.server.init.Initialize;
 import org.apache.accumulo.server.util.Admin;
 import org.apache.accumulo.server.util.ConvertConfig;
@@ -115,6 +116,7 @@ public class KeywordStartIT {
     expectSet.put("master", org.apache.accumulo.manager.MasterExecutable.class);
     expectSet.put("minicluster", MiniClusterExecutable.class);
     expectSet.put("monitor", MonitorExecutable.class);
+    expectSet.put("prop-dump", ZooPropDumpUtil.class);
     expectSet.put("rfile-info", PrintInfo.class);
     expectSet.put("wal-info", LogReader.class);
     expectSet.put("shell", Shell.class);
@@ -184,12 +186,11 @@ public class KeywordStartIT {
   private static boolean hasMain(Class<?> classToCheck) {
     Method main;
     try {
-      main = classToCheck.getMethod("main", new String[0].getClass());
+      main = classToCheck.getMethod("main", String[].class);
     } catch (NoSuchMethodException e) {
       return false;
     }
-    return main != null && Modifier.isPublic(main.getModifiers())
-        && Modifier.isStatic(main.getModifiers());
+    return Modifier.isPublic(main.getModifiers()) && Modifier.isStatic(main.getModifiers());
   }
 
   private static class NoOp implements KeywordExecutable {

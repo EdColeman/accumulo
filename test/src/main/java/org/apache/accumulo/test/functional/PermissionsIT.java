@@ -278,7 +278,7 @@ public class PermissionsIT extends AccumuloClusterHarness {
         break;
       case SYSTEM:
         try {
-          // Test setProperty
+          // Test add
           loginAs(testUser);
           test_user_client.instanceOperations()
               .setProperty(Property.TSERV_TOTAL_MUTATION_QUEUE_MAX.getKey(), "10000");
@@ -491,7 +491,7 @@ public class PermissionsIT extends AccumuloClusterHarness {
           throw new IllegalStateException("Should be able to alter a user");
         break;
       case SYSTEM:
-        // Test setProperty
+        // Test add
         loginAs(testUser);
         test_user_client.instanceOperations()
             .setProperty(Property.TSERV_TOTAL_MUTATION_QUEUE_MAX.getKey(), "10000");

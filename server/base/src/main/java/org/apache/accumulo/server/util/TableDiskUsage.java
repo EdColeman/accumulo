@@ -134,7 +134,7 @@ public class TableDiskUsage {
       // table bitset
       for (int i = 0; i < key.size(); i++)
         if (key.get(i) != 0)
-          // Convert by internal id to the table id
+          // Upgrade by internal id to the table id
           externalKey.add(externalIds.get(i));
 
       // list of table ids and size of files shared across the tables
@@ -250,7 +250,7 @@ public class TableDiskUsage {
 
     for (Entry<List<TableId>,Long> entry : tdu.calculateUsage().entrySet()) {
       TreeSet<String> tableNames = new TreeSet<>();
-      // Convert size shared by each table id into size shared by each table name
+      // Upgrade size shared by each table id into size shared by each table name
       for (TableId tableId : entry.getKey())
         tableNames.add(reverseTableIdMap.get(tableId));
 

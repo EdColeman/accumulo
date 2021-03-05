@@ -28,10 +28,11 @@ public class Constants {
   public static final String ZROOT = "/accumulo";
   public static final String ZINSTANCES = "/instances";
 
+  public static final String ZENCODED_CONFIG_ROOT = "/pe_config2";
+
   public static final String ZTABLES = "/tables";
   public static final byte[] ZTABLES_INITIAL_ID = {'0'};
   public static final String ZTABLE_NAME = "/name";
-  public static final String ZTABLE_CONF = "/conf";
   public static final String ZTABLE_STATE = "/state";
   public static final String ZTABLE_FLUSH_ID = "/flush-id";
   public static final String ZTABLE_COMPACT_ID = "/compact-id";
@@ -40,7 +41,6 @@ public class Constants {
 
   public static final String ZNAMESPACES = "/namespaces";
   public static final String ZNAMESPACE_NAME = "/name";
-  public static final String ZNAMESPACE_CONF = "/conf";
 
   public static final String ZMANAGERS = "/managers";
   public static final String ZMANAGER_LOCK = ZMANAGERS + "/lock";
@@ -54,8 +54,6 @@ public class Constants {
   public static final String ZMONITOR = "/monitor";
   public static final String ZMONITOR_LOCK = ZMONITOR + "/lock";
   public static final String ZMONITOR_HTTP_ADDR = ZMONITOR + "/http_addr";
-
-  public static final String ZCONFIG = "/config";
 
   public static final String ZTSERVERS = "/tservers";
 
@@ -77,6 +75,14 @@ public class Constants {
   public static final String ZHDFS_RESERVATIONS = "/hdfs_reservations";
   public static final String ZRECOVERY = "/recovery";
 
+  // required for property upgrade to 2.1 scheme.
+  @Deprecated
+  public static final String ZNAMESPACE_CONF = "/conf";
+  @Deprecated
+  public static final String ZTABLE_CONF = "/conf";
+  // system config
+  @Deprecated
+  public static final String ZCONFIG = "/config";
   /**
    * Base znode for storing secret keys that back delegation tokens
    */
