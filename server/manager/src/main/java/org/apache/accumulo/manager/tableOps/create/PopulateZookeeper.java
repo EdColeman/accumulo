@@ -18,7 +18,8 @@
  */
 package org.apache.accumulo.manager.tableOps.create;
 
-import java.util.Map.Entry;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
@@ -27,13 +28,19 @@ import org.apache.accumulo.manager.Manager;
 import org.apache.accumulo.manager.tableOps.ManagerRepo;
 import org.apache.accumulo.manager.tableOps.TableInfo;
 import org.apache.accumulo.manager.tableOps.Utils;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.util.TablePropUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class PopulateZookeeper extends ManagerRepo {
 
   private static final long serialVersionUID = 1L;
 
-  private TableInfo tableInfo;
+  private static final Logger log = LoggerFactory.getLogger(PopulateZookeeper.class);
+
+  private final TableInfo tableInfo;
 
   PopulateZookeeper(TableInfo ti) {
     this.tableInfo = ti;
@@ -58,10 +65,26 @@ class PopulateZookeeper extends ManagerRepo {
       manager.getTableManager().addTable(tableInfo.getTableId(), tableInfo.getNamespaceId(),
           tableInfo.getTableName());
 
-      for (Entry<String,String> entry : tableInfo.props.entrySet())
-        TablePropUtil.setTableProperty(manager.getContext(), tableInfo.getTableId(), entry.getKey(),
-            entry.getValue());
+      PropStore propStore = manager.getContext().getPropStore();
+      var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableInfo.getTableId());
 
+      try {
+        Map<String,String> validProps = new HashMap<>(tableInfo.props.size());
+
+        tableInfo.props.forEach((k, v) -> {
+          if (TablePropUtil.isPropertyValid(k, v)) {
+            validProps.put(k, v);
+          } else {
+            log.debug("Skipping invalid property {} : {}", k, v);
+          }
+        });
+
+        propStore.create(cacheId, validProps);
+
+      } catch (IllegalArgumentException ex) {
+        // TODO propagate exception?
+        log.debug("Ignoring properties. Properties not set because invalid property", ex);
+      }
       Tables.clearCache(manager.getContext());
       return new ChooseDir(tableInfo);
     } finally {

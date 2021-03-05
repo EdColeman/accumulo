@@ -104,7 +104,7 @@ public class TestingKdc {
     kdcConf.setProperty(MiniKdc.ORG_NAME, ORG_NAME);
     kdcConf.setProperty(MiniKdc.ORG_DOMAIN, ORG_DOMAIN);
     kdcConf.setProperty(MiniKdc.MAX_TICKET_LIFETIME, Long.toString(maxTicketLifetime));
-    // kdcConf.setProperty(MiniKdc.DEBUG, "true");
+    // kdcConf.add(MiniKdc.DEBUG, "true");
     kdc = new MiniKdc(kdcConf, kdcDir);
   }
 

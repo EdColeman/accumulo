@@ -27,9 +27,12 @@ import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -83,13 +86,15 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.manager.tableOps.TraceRepo;
 import org.apache.accumulo.manager.tserverOps.ShutdownTServer;
 import org.apache.accumulo.server.client.ClientServiceHandler;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCacheException;
+import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.manager.LiveTServerSet.TServerConnection;
 import org.apache.accumulo.server.replication.StatusUtil;
 import org.apache.accumulo.server.replication.proto.Replication.Status;
 import org.apache.accumulo.server.security.delegation.AuthenticationTokenSecretManager;
 import org.apache.accumulo.server.util.NamespacePropUtil;
 import org.apache.accumulo.server.util.SystemPropUtil;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.Token;
 import org.apache.thrift.TException;
@@ -426,12 +431,21 @@ public class ManagerClientServiceHandler extends FateServiceHandler
       throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
 
     try {
+
+      PropStore propStore = manager.getContext().getPropStore();
+
+      var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableId);
+
       if (value == null || value.isEmpty()) {
-        TablePropUtil.removeTableProperty(manager.getContext(), tableId, property);
-      } else if (!TablePropUtil.setTableProperty(manager.getContext(), tableId, property, value)) {
-        throw new Exception("Invalid table property.");
+        propStore.removeProperties(cacheId, Arrays.asList(property));
+      } else {
+        Map<String,String> p = new HashMap<>();
+        p.put(property, value);
+        propStore.add(cacheId, p);
       }
-    } catch (KeeperException.NoNodeException e) {
+
+    } catch (PropCacheException e) {
+      // TODO - what exception code? For example zookeeper error vs node does not exist
       // race condition... table no longer exists? This call will throw an exception if the table
       // was deleted:
       ClientServiceHandler.checkTableId(manager.getContext(), tableName, op);
@@ -443,6 +457,15 @@ public class ManagerClientServiceHandler extends FateServiceHandler
       throw new ThriftTableOperationException(tableId.canonical(), tableName, op,
           TableOperationExceptionType.OTHER, "Problem altering table property");
     }
+
+    // TODO evaluate error conditions and if somethings needs to be throw / caught for this case.
+    // catch (KeeperException.NoNodeException e) {
+    // race condition... table no longer exists? This call will throw an exception if the table
+    // was deleted:
+    // ClientServiceHandler.checkTableId(master.getContext(), tableName, op);
+    // log.info("Error altering table property", e);
+    // throw new ThriftTableOperationException(tableId.canonical(), tableName, op,
+    // TableOperationExceptionType.OTHER, "Problem altering table property");
   }
 
   private void updatePlugins(String property) {

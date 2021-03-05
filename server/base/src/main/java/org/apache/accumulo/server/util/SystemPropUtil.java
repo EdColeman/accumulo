@@ -18,15 +18,16 @@
  */
 package org.apache.accumulo.server.util;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.DeprecatedPropertyUtil;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.PropertyType;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,11 +71,13 @@ public class SystemPropUtil {
       throw iae;
     }
 
-    // create the zk node for this property and set it's data to the specified value
-    String zPath = context.getZooKeeperRoot() + Constants.ZCONFIG + "/" + property;
-
-    context.getZooReaderWriter().putPersistentData(zPath, value.getBytes(UTF_8),
-        NodeExistsPolicy.OVERWRITE);
+    try {
+      Map<String,String> propMap = new HashMap<>();
+      propMap.put(property, value);
+      context.getPropStore().add(CacheId.forSystem(context), propMap);
+    } catch (PropCacheException ex) {
+      throw new IllegalArgumentException("Could not set system property: " + property, ex);
+    }
   }
 
   public static void removeSystemProperty(ServerContext context, String property)
@@ -88,7 +91,11 @@ public class SystemPropUtil {
 
   public static void removePropWithoutDeprecationWarning(ServerContext context, String property)
       throws InterruptedException, KeeperException {
-    String zPath = context.getZooKeeperRoot() + Constants.ZCONFIG + "/" + property;
-    context.getZooReaderWriter().recursiveDelete(zPath, NodeMissingPolicy.FAIL);
+    try {
+      context.getPropStore().removeProperties(CacheId.forSystem(context),
+          Collections.singletonList(property));
+    } catch (PropCacheException ex) {
+      throw new IllegalStateException("Failed to remove property: " + property, ex);
+    }
   }
 }

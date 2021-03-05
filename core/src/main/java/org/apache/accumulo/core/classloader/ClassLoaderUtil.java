@@ -95,6 +95,7 @@ public class ClassLoaderUtil {
    */
   @SuppressWarnings("removal")
   public static String tableContext(AccumuloConfiguration conf) {
+    LOG.trace("Get context from configuration: {}", conf.getClass().getName());
     return conf.get(conf.resolve(Property.TABLE_CLASSLOADER_CONTEXT, Property.TABLE_CLASSPATH));
   }
 

@@ -53,7 +53,7 @@ public class ConvertConfig implements KeywordExecutable {
 
   @Override
   public String description() {
-    return "Convert Accumulo configuration from XML to properties";
+    return "Upgrade Accumulo configuration from XML to properties";
   }
 
   static class Opts extends Help {
