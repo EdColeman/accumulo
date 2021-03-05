@@ -18,8 +18,6 @@
  */
 package org.apache.accumulo.manager.tableOps.namespace.create;
 
-import java.util.Map.Entry;
-
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
@@ -27,14 +25,14 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.manager.Manager;
 import org.apache.accumulo.manager.tableOps.ManagerRepo;
 import org.apache.accumulo.manager.tableOps.Utils;
+import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.tables.TableManager;
-import org.apache.accumulo.server.util.NamespacePropUtil;
 
 class PopulateZookeeperWithNamespace extends ManagerRepo {
 
   private static final long serialVersionUID = 1L;
 
-  private NamespaceInfo namespaceInfo;
+  private final NamespaceInfo namespaceInfo;
 
   PopulateZookeeperWithNamespace(NamespaceInfo ti) {
     this.namespaceInfo = ti;
@@ -58,10 +56,10 @@ class PopulateZookeeperWithNamespace extends ManagerRepo {
           manager.getInstanceID(), namespaceInfo.namespaceId, namespaceInfo.namespaceName,
           NodeExistsPolicy.OVERWRITE);
 
-      for (Entry<String,String> entry : namespaceInfo.props.entrySet())
-        NamespacePropUtil.setNamespaceProperty(manager.getContext(), namespaceInfo.namespaceId,
-            entry.getKey(), entry.getValue());
+      CacheId cacheId = CacheId.forNamespace(manager.getContext(), namespaceInfo.namespaceId);
+      manager.getContext().getPropStore().create(cacheId, namespaceInfo.props);
 
+      // TODO - is this cache still valid? what is cleared?
       Tables.clearCache(manager.getContext());
 
       return new FinishCreateNamespace(namespaceInfo);

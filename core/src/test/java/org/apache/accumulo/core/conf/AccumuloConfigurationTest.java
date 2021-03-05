@@ -28,7 +28,6 @@ import static org.junit.Assert.assertTrue;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Predicate;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration.ScanExecutorConfig;
@@ -151,7 +150,7 @@ public class AccumuloConfigurationTest {
     }
 
     @Override
-    public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
+    public boolean isPropertySet(Property prop) {
       return props.containsKey(prop.getKey());
     }
 
@@ -174,11 +173,7 @@ public class AccumuloConfigurationTest {
       if (parent != null) {
         parent.getProperties(output, filter);
       }
-      for (Entry<String,String> entry : props.entrySet()) {
-        if (filter.test(entry.getKey())) {
-          output.put(entry.getKey(), entry.getValue());
-        }
-      }
+      copyFilteredProps(props, filter, output);
     }
 
   }

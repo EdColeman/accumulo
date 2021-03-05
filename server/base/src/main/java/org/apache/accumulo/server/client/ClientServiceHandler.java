@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -359,14 +360,15 @@ public class ClientServiceHandler implements ClientService.Iface {
     security.authenticateUser(credentials, credentials);
 
     ClassLoader loader = getClass().getClassLoader();
-    Class<?> shouldMatch;
+    Class<?> shouldMatch = null;
     try {
       shouldMatch = loader.loadClass(interfaceMatch);
       Class<?> test = ClassLoaderUtil.loadClass(className, shouldMatch);
       test.getDeclaredConstructor().newInstance();
       return true;
     } catch (ClassCastException | ReflectiveOperationException e) {
-      log.warn("Error checking object types", e);
+      log.trace("Error checking object types in checkClass {} - should match {}", className,
+          Objects.isNull(shouldMatch) ? "null" : shouldMatch.getName(), e);
       return false;
     }
   }
@@ -381,7 +383,7 @@ public class ClientServiceHandler implements ClientService.Iface {
     TableId tableId = checkTableId(context, tableName, null);
 
     ClassLoader loader = getClass().getClassLoader();
-    Class<?> shouldMatch;
+    Class<?> shouldMatch = null;
     try {
       shouldMatch = loader.loadClass(interfaceMatch);
       AccumuloConfiguration conf = context.getTableConfiguration(tableId);
@@ -390,7 +392,8 @@ public class ClientServiceHandler implements ClientService.Iface {
       test.getDeclaredConstructor().newInstance();
       return true;
     } catch (Exception e) {
-      log.warn("Error checking object types", e);
+      log.trace("Error checking object types in checkTableClass {} - should match {}", className,
+          Objects.isNull(shouldMatch) ? "null" : shouldMatch.getName(), e);
       return false;
     }
   }
@@ -405,7 +408,7 @@ public class ClientServiceHandler implements ClientService.Iface {
     NamespaceId namespaceId = checkNamespaceId(context, ns, null);
 
     ClassLoader loader = getClass().getClassLoader();
-    Class<?> shouldMatch;
+    Class<?> shouldMatch = null;
     try {
       shouldMatch = loader.loadClass(interfaceMatch);
       AccumuloConfiguration conf = context.getNamespaceConfiguration(namespaceId);
@@ -414,7 +417,8 @@ public class ClientServiceHandler implements ClientService.Iface {
       test.getDeclaredConstructor().newInstance();
       return true;
     } catch (Exception e) {
-      log.warn("Error checking object types", e);
+      log.trace("Error checking object types in checkNamespaceClass {} - should match {}",
+          className, Objects.isNull(shouldMatch) ? "null" : shouldMatch.getName(), e);
       return false;
     }
   }

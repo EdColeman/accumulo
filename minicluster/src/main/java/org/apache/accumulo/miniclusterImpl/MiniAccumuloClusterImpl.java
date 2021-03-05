@@ -136,177 +136,7 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
 
   private MiniAccumuloClusterControl clusterControl;
 
-  File getZooCfgFile() {
-    return zooCfgFile;
-  }
-
-  public ProcessInfo exec(Class<?> clazz, String... args) throws IOException {
-    return exec(clazz, null, args);
-  }
-
-  public ProcessInfo exec(Class<?> clazz, List<String> jvmArgs, String... args) throws IOException {
-    ArrayList<String> jvmArgs2 = new ArrayList<>(1 + (jvmArgs == null ? 0 : jvmArgs.size()));
-    jvmArgs2.add("-Xmx" + config.getDefaultMemory());
-    if (jvmArgs != null) {
-      jvmArgs2.addAll(jvmArgs);
-    }
-    return _exec(clazz, jvmArgs2, args);
-  }
-
-  private String getClasspath() {
-    StringBuilder classpathBuilder = new StringBuilder();
-    classpathBuilder.append(config.getConfDir().getAbsolutePath());
-
-    if (config.getHadoopConfDir() != null) {
-      classpathBuilder.append(File.pathSeparator)
-          .append(config.getHadoopConfDir().getAbsolutePath());
-    }
-
-    if (config.getClasspathItems() == null) {
-      String javaClassPath = System.getProperty("java.class.path");
-      if (javaClassPath == null) {
-        throw new IllegalStateException("java.class.path is not set");
-      }
-      classpathBuilder.append(File.pathSeparator).append(javaClassPath);
-    } else {
-      for (String s : config.getClasspathItems()) {
-        classpathBuilder.append(File.pathSeparator).append(s);
-      }
-    }
-
-    return classpathBuilder.toString();
-  }
-
-  public static class ProcessInfo {
-
-    private final Process process;
-    private final File stdOut;
-
-    public ProcessInfo(Process process, File stdOut) {
-      this.process = process;
-      this.stdOut = stdOut;
-    }
-
-    public Process getProcess() {
-      return process;
-    }
-
-    public String readStdOut() {
-      try (InputStream in = new FileInputStream(stdOut)) {
-        return IOUtils.toString(in, UTF_8);
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
-    }
-  }
-
-  @SuppressFBWarnings(value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
-      justification = "mini runs in the same security context as user providing the args")
-  private ProcessInfo _exec(Class<?> clazz, List<String> extraJvmOpts, String... args)
-      throws IOException {
-    String javaHome = System.getProperty("java.home");
-    String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
-    String classpath = getClasspath();
-
-    String className = clazz.getName();
-
-    ArrayList<String> argList = new ArrayList<>();
-    argList.addAll(Arrays.asList(javaBin, "-Dproc=" + clazz.getSimpleName(), "-cp", classpath));
-    argList.addAll(extraJvmOpts);
-    for (Entry<String,String> sysProp : config.getSystemProperties().entrySet()) {
-      argList.add(String.format("-D%s=%s", sysProp.getKey(), sysProp.getValue()));
-    }
-    // @formatter:off
-    argList.addAll(Arrays.asList(
-        "-Dapple.awt.UIElement=true",
-        "-Djava.net.preferIPv4Stack=true",
-        "-XX:+PerfDisableSharedMem",
-        "-XX:+AlwaysPreTouch",
-        Main.class.getName(), className));
-    // @formatter:on
-    argList.addAll(Arrays.asList(args));
-
-    ProcessBuilder builder = new ProcessBuilder(argList);
-
-    builder.environment().put("ACCUMULO_HOME", config.getDir().getAbsolutePath());
-    builder.environment().put("ACCUMULO_LOG_DIR", config.getLogDir().getAbsolutePath());
-    builder.environment().put("ACCUMULO_CLIENT_CONF_PATH",
-        config.getClientConfFile().getAbsolutePath());
-    String ldLibraryPath = Joiner.on(File.pathSeparator).join(config.getNativeLibPaths());
-    builder.environment().put("LD_LIBRARY_PATH", ldLibraryPath);
-    builder.environment().put("DYLD_LIBRARY_PATH", ldLibraryPath);
-
-    // if we're running under accumulo.start, we forward these env vars
-    String env = System.getenv("HADOOP_HOME");
-    if (env != null) {
-      builder.environment().put("HADOOP_HOME", env);
-    }
-    env = System.getenv("ZOOKEEPER_HOME");
-    if (env != null) {
-      builder.environment().put("ZOOKEEPER_HOME", env);
-    }
-    builder.environment().put("ACCUMULO_CONF_DIR", config.getConfDir().getAbsolutePath());
-    if (config.getHadoopConfDir() != null) {
-      builder.environment().put("HADOOP_CONF_DIR", config.getHadoopConfDir().getAbsolutePath());
-    }
-
-    log.debug("Starting MiniAccumuloCluster process with class: " + clazz.getSimpleName()
-        + "\n, jvmOpts: " + extraJvmOpts + "\n, classpath: " + classpath + "\n, args: " + argList
-        + "\n, environment: " + builder.environment());
-
-    int hashcode = builder.hashCode();
-
-    File stdOut = new File(config.getLogDir(), clazz.getSimpleName() + "_" + hashcode + ".out");
-    File stdErr = new File(config.getLogDir(), clazz.getSimpleName() + "_" + hashcode + ".err");
-
-    Process process = builder.redirectError(stdErr).redirectOutput(stdOut).start();
-
-    cleanup.add(process);
-
-    return new ProcessInfo(process, stdOut);
-  }
-
-  public ProcessInfo _exec(KeywordExecutable server, ServerType serverType,
-      Map<String,String> configOverrides, String... args) throws IOException {
-    String[] modifiedArgs;
-    if (args == null || args.length == 0) {
-      modifiedArgs = new String[] {server.keyword()};
-    } else {
-      modifiedArgs =
-          Stream.concat(Stream.of(server.keyword()), Stream.of(args)).toArray(String[]::new);
-    }
-    return _exec(Main.class, serverType, configOverrides, modifiedArgs);
-  }
-
-  public ProcessInfo _exec(Class<?> clazz, ServerType serverType,
-      Map<String,String> configOverrides, String... args) throws IOException {
-    List<String> jvmOpts = new ArrayList<>();
-    if (serverType == ServerType.ZOOKEEPER) {
-      // disable zookeeper's log4j 1.2 jmx support, which depends on log4j 1.2 on the class path,
-      // which we don't need or expect to be there
-      jvmOpts.add("-Dzookeeper.jmx.log4j.disable=true");
-    }
-    jvmOpts.add("-Xmx" + config.getMemory(serverType));
-    if (configOverrides != null && !configOverrides.isEmpty()) {
-      File siteFile =
-          Files.createTempFile(config.getConfDir().toPath(), "accumulo", ".properties").toFile();
-      Map<String,String> confMap = new HashMap<>();
-      confMap.putAll(config.getSiteConfig());
-      confMap.putAll(configOverrides);
-      writeConfigProperties(siteFile, confMap);
-      jvmOpts.add("-Daccumulo.properties=" + siteFile.getName());
-    }
-
-    if (config.isJDWPEnabled()) {
-      int port = PortUtils.getRandomFreePort();
-      jvmOpts.addAll(buildRemoteDebugParams(port));
-      debugPorts.add(new Pair<>(serverType, port));
-    }
-    return _exec(clazz, jvmOpts, args);
-  }
-
   /**
-   *
    * @param dir
    *          An empty or nonexistent temp directory that Accumulo and Zookeeper can store data in.
    *          Creating the directory is left to the user. Java 7, Guava, and Junit provide methods
@@ -428,6 +258,152 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
     if (!dir.mkdirs()) {
       log.warn("Unable to create {}", dir);
     }
+  }
+
+  File getZooCfgFile() {
+    return zooCfgFile;
+  }
+
+  public ProcessInfo exec(Class<?> clazz, String... args) throws IOException {
+    return exec(clazz, null, args);
+  }
+
+  public ProcessInfo exec(Class<?> clazz, List<String> jvmArgs, String... args) throws IOException {
+    ArrayList<String> jvmArgs2 = new ArrayList<>(1 + (jvmArgs == null ? 0 : jvmArgs.size()));
+    jvmArgs2.add("-Xmx" + config.getDefaultMemory());
+    if (jvmArgs != null) {
+      jvmArgs2.addAll(jvmArgs);
+    }
+    return _exec(clazz, jvmArgs2, args);
+  }
+
+  private String getClasspath() {
+    StringBuilder classpathBuilder = new StringBuilder();
+    classpathBuilder.append(config.getConfDir().getAbsolutePath());
+
+    if (config.getHadoopConfDir() != null) {
+      classpathBuilder.append(File.pathSeparator)
+          .append(config.getHadoopConfDir().getAbsolutePath());
+    }
+
+    if (config.getClasspathItems() == null) {
+      String javaClassPath = System.getProperty("java.class.path");
+      if (javaClassPath == null) {
+        throw new IllegalStateException("java.class.path is not set");
+      }
+      classpathBuilder.append(File.pathSeparator).append(javaClassPath);
+    } else {
+      for (String s : config.getClasspathItems()) {
+        classpathBuilder.append(File.pathSeparator).append(s);
+      }
+    }
+
+    return classpathBuilder.toString();
+  }
+
+  @SuppressFBWarnings(value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
+      justification = "mini runs in the same security context as user providing the args")
+  private ProcessInfo _exec(Class<?> clazz, List<String> extraJvmOpts, String... args)
+      throws IOException {
+    String javaHome = System.getProperty("java.home");
+    String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
+    String classpath = getClasspath();
+
+    String className = clazz.getName();
+
+    ArrayList<String> argList = new ArrayList<>();
+    argList.addAll(Arrays.asList(javaBin, "-Dproc=" + clazz.getSimpleName(), "-cp", classpath));
+    argList.addAll(extraJvmOpts);
+    for (Entry<String,String> sysProp : config.getSystemProperties().entrySet()) {
+      argList.add(String.format("-D%s=%s", sysProp.getKey(), sysProp.getValue()));
+    }
+    // @formatter:off
+    argList.addAll(Arrays.asList(
+        "-Dapple.awt.UIElement=true",
+        "-Djava.net.preferIPv4Stack=true",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:+AlwaysPreTouch",
+        Main.class.getName(), className));
+    // @formatter:on
+    argList.addAll(Arrays.asList(args));
+
+    ProcessBuilder builder = new ProcessBuilder(argList);
+
+    builder.environment().put("ACCUMULO_HOME", config.getDir().getAbsolutePath());
+    builder.environment().put("ACCUMULO_LOG_DIR", config.getLogDir().getAbsolutePath());
+    builder.environment().put("ACCUMULO_CLIENT_CONF_PATH",
+        config.getClientConfFile().getAbsolutePath());
+    String ldLibraryPath = Joiner.on(File.pathSeparator).join(config.getNativeLibPaths());
+    builder.environment().put("LD_LIBRARY_PATH", ldLibraryPath);
+    builder.environment().put("DYLD_LIBRARY_PATH", ldLibraryPath);
+
+    // if we're running under accumulo.start, we forward these env vars
+    String env = System.getenv("HADOOP_HOME");
+    if (env != null) {
+      builder.environment().put("HADOOP_HOME", env);
+    }
+    env = System.getenv("ZOOKEEPER_HOME");
+    if (env != null) {
+      builder.environment().put("ZOOKEEPER_HOME", env);
+    }
+    builder.environment().put("ACCUMULO_CONF_DIR", config.getConfDir().getAbsolutePath());
+    if (config.getHadoopConfDir() != null) {
+      builder.environment().put("HADOOP_CONF_DIR", config.getHadoopConfDir().getAbsolutePath());
+    }
+
+    log.debug("Starting MiniAccumuloCluster process with class: " + clazz.getSimpleName()
+        + "\n, jvmOpts: " + extraJvmOpts + "\n, classpath: " + classpath + "\n, args: " + argList
+        + "\n, environment: " + builder.environment());
+
+    int hashcode = builder.hashCode();
+
+    File stdOut = new File(config.getLogDir(), clazz.getSimpleName() + "_" + hashcode + ".out");
+    File stdErr = new File(config.getLogDir(), clazz.getSimpleName() + "_" + hashcode + ".err");
+
+    Process process = builder.redirectError(stdErr).redirectOutput(stdOut).start();
+
+    cleanup.add(process);
+
+    return new ProcessInfo(process, stdOut);
+  }
+
+  public ProcessInfo _exec(KeywordExecutable server, ServerType serverType,
+      Map<String,String> configOverrides, String... args) throws IOException {
+    String[] modifiedArgs;
+    if (args == null || args.length == 0) {
+      modifiedArgs = new String[] {server.keyword()};
+    } else {
+      modifiedArgs =
+          Stream.concat(Stream.of(server.keyword()), Stream.of(args)).toArray(String[]::new);
+    }
+    return _exec(Main.class, serverType, configOverrides, modifiedArgs);
+  }
+
+  public ProcessInfo _exec(Class<?> clazz, ServerType serverType,
+      Map<String,String> configOverrides, String... args) throws IOException {
+    List<String> jvmOpts = new ArrayList<>();
+    if (serverType == ServerType.ZOOKEEPER) {
+      // disable zookeeper's log4j 1.2 jmx support, which depends on log4j 1.2 on the class path,
+      // which we don't need or expect to be there
+      jvmOpts.add("-Dzookeeper.jmx.log4j.disable=true");
+    }
+    jvmOpts.add("-Xmx" + config.getMemory(serverType));
+    if (configOverrides != null && !configOverrides.isEmpty()) {
+      File siteFile =
+          Files.createTempFile(config.getConfDir().toPath(), "accumulo", ".properties").toFile();
+      Map<String,String> confMap = new HashMap<>();
+      confMap.putAll(config.getSiteConfig());
+      confMap.putAll(configOverrides);
+      writeConfigProperties(siteFile, confMap);
+      jvmOpts.add("-Daccumulo.properties=" + siteFile.getName());
+    }
+
+    if (config.isJDWPEnabled()) {
+      int port = PortUtils.getRandomFreePort();
+      jvmOpts.addAll(buildRemoteDebugParams(port));
+      debugPorts.add(new Pair<>(serverType, port));
+    }
+    return _exec(clazz, jvmOpts, args);
   }
 
   private void writeConfig(File file, Iterable<Map.Entry<String,String>> settings)
@@ -742,13 +718,13 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
   }
 
   @VisibleForTesting
-  protected void setShutdownExecutor(ExecutorService svc) {
-    this.executor = svc;
+  protected ExecutorService getShutdownExecutor() {
+    return executor;
   }
 
   @VisibleForTesting
-  protected ExecutorService getShutdownExecutor() {
-    return executor;
+  protected void setShutdownExecutor(ExecutorService svc) {
+    this.executor = svc;
   }
 
   int stopProcessWithTimeout(final Process proc, long timeout, TimeUnit unit)
@@ -829,5 +805,28 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
   @Override
   public String getClientPropsPath() {
     return config.getClientPropsFile().getAbsolutePath();
+  }
+
+  public static class ProcessInfo {
+
+    private final Process process;
+    private final File stdOut;
+
+    public ProcessInfo(Process process, File stdOut) {
+      this.process = process;
+      this.stdOut = stdOut;
+    }
+
+    public Process getProcess() {
+      return process;
+    }
+
+    public String readStdOut() {
+      try (InputStream in = new FileInputStream(stdOut)) {
+        return IOUtils.toString(in, UTF_8);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
   }
 }

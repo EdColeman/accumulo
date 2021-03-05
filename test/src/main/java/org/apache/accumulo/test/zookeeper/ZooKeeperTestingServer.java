@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.test.zookeeper;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,10 +27,11 @@ import java.security.SecureRandom;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ZooKeeperTestingServer implements AutoCloseable {
 
+  public static final byte[] FAKE_AUTH = "accumulo:uno".getBytes(UTF_8);
   private static final Logger log = LoggerFactory.getLogger(ZooKeeperTestingServer.class);
 
   private TestingServer zkServer;
@@ -90,10 +94,23 @@ public class ZooKeeperTestingServer implements AutoCloseable {
 
       connectionLatch.await();
 
+      zoo.addAuthInfo("digest", FAKE_AUTH);
+
     } catch (Exception ex) {
       throw new IllegalStateException("Failed to start testing zookeeper", ex);
     }
 
+  }
+
+  /**
+   * Add authorization to the ZooKeeper connection that simulates Accumulo ZooKeeper auths (models
+   * uno)
+   *
+   * @param zoo
+   *          a ZooKeeper connection.
+   */
+  public static void addDefaultAuth(final ZooKeeper zoo) {
+    zoo.addAuthInfo("digest", FAKE_AUTH);
   }
 
   /**
@@ -116,10 +133,15 @@ public class ZooKeeperTestingServer implements AutoCloseable {
     return zkServer.getConnectString();
   }
 
-  public void initPaths(String s) {
+  public void initPaths(String rootPath) {
+
     try {
 
-      String[] paths = s.split("/");
+      log.debug("Initialing zookeeper paths from root: {}", rootPath);
+
+      zoo.addAuthInfo("digest", FAKE_AUTH);
+
+      String[] paths = rootPath.split("/");
 
       String slash = "/";
       String path = "";
@@ -128,12 +150,16 @@ public class ZooKeeperTestingServer implements AutoCloseable {
         if (!p.isEmpty()) {
           path = path + slash + p;
           log.debug("building default paths, creating node {}", path);
-          zoo.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+          try {
+            zoo.create(path, null, ZooUtil.PUBLIC, CreateMode.PERSISTENT);
+          } catch (KeeperException.NodeExistsException ex) {
+            log.info("Node :{} existed - not created", path);
+          }
         }
       }
 
     } catch (Exception ex) {
-      throw new IllegalStateException("Failed to create accumulo initial paths: " + s, ex);
+      throw new IllegalStateException("Failed to create accumulo initial paths: " + rootPath, ex);
     }
   }
 
