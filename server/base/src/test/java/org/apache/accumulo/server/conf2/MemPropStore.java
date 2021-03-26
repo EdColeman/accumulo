@@ -68,6 +68,11 @@ public class MemPropStore implements PropCache, PropStore {
   }
 
   @Override
+  public void cleanUp(CacheId id) {
+
+  }
+
+  @Override
   public void clearAll() {
 
   }

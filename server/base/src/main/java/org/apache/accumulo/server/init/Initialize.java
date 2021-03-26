@@ -148,12 +148,12 @@ public class Initialize implements KeywordExecutable {
   private static ZooReaderWriter zoo = null;
 
   // config only for root table
-  private static HashMap<String,String> initialRootConf = new HashMap<>();
+  private static final HashMap<String,String> initialRootConf = new HashMap<>();
   // config for root and metadata table
-  private static HashMap<String,String> initialRootMetaConf = new HashMap<>();
+  private static final HashMap<String,String> initialRootMetaConf = new HashMap<>();
   // config for only metadata table
-  private static HashMap<String,String> initialMetaConf = new HashMap<>();
-  private static HashMap<String,String> initialReplicationTableConf = new HashMap<>();
+  private static final HashMap<String,String> initialMetaConf = new HashMap<>();
+  private static final HashMap<String,String> initialReplicationTableConf = new HashMap<>();
 
   static {
     initialRootConf.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
@@ -475,7 +475,7 @@ public class Initialize implements KeywordExecutable {
   }
 
   public static void initSystemTablesConfig(final ServerContext serverContext,
-      final String zooKeeperRoot, final Configuration hadoopConf) throws IOException {
+      final Configuration hadoopConf) throws IOException {
     try {
       int max = hadoopConf.getInt("dfs.replication.max", 512);
       // Hadoop 0.23 switched the min value configuration name
@@ -490,21 +490,21 @@ public class Initialize implements KeywordExecutable {
 
       PropCache propCache = serverContext.getPropCache();
 
-      var rootId = new CacheId(serverContext.getInstanceID(), null, RootTable.ID);
-
-      propCache.setProperties(rootId, initialRootConf);
-
-      // root table props - set initial root metadata
-      propCache.setProperties(rootId, initialRootMetaConf);
-
-      var metadataId = new CacheId(serverContext.getInstanceID(), null, MetadataTable.ID);
+      var rootId = CacheId.forTable(serverContext, RootTable.ID);
+      Map<String,String> props = new HashMap<>();
+      props.putAll(initialRootConf);
+      props.putAll(initialRootMetaConf);
+      propCache.setProperties(rootId, props);
 
       // metadata table props - set initial root metadata
-      propCache.setProperties(metadataId, initialRootMetaConf);
+      var metadataId = CacheId.forTable(serverContext, MetadataTable.ID);
+      // gather for single zk call
+      props = new HashMap<>();
+      props.putAll(initialRootMetaConf);
+      props.putAll(initialMetaConf);
+      propCache.setProperties(metadataId, props);
 
-      propCache.setProperties(metadataId, initialMetaConf);
-
-      var replicationId = new CacheId(serverContext.getInstanceID(), null, ReplicationTable.ID);
+      var replicationId = CacheId.forTable(serverContext, ReplicationTable.ID);
 
       propCache.setProperties(replicationId, initialReplicationTableConf);
 
@@ -548,8 +548,7 @@ public class Initialize implements KeywordExecutable {
     Set<String> initializedDirs =
         ServerConstants.checkBaseUris(siteConfig, hadoopConf, volumeURIs, true);
 
-    HashSet<String> uinitializedDirs = new HashSet<>();
-    uinitializedDirs.addAll(volumeURIs);
+    HashSet<String> uinitializedDirs = new HashSet<>(volumeURIs);
     uinitializedDirs.removeAll(initializedDirs);
 
     Path aBasePath = new Path(initializedDirs.iterator().next());
@@ -727,7 +726,7 @@ public class Initialize implements KeywordExecutable {
     initDirs(fs, uuid, VolumeConfiguration.getVolumeUris(siteConfig), false);
 
     // initialize initial system tables config in zookeeper
-    initSystemTablesConfig(serverContext, Constants.ZROOT + "/" + uuid, hadoopConf);
+    initSystemTablesConfig(serverContext, hadoopConf);
 
     Text splitPoint = TabletsSection.getRange().getEndKey().getRow();
 

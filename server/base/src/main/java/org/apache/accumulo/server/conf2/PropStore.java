@@ -28,4 +28,5 @@ public interface PropStore {
 
   void writeToStore(CacheId id, PropEncoding props);
 
+  void cleanUp(CacheId id);
 }

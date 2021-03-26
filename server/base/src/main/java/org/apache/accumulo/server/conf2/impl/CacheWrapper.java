@@ -52,9 +52,10 @@ public class CacheWrapper {
     @Override
     public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
       log.debug("{} removed from cache", removalNotification.getKey());
+      store.cleanUp(removalNotification.getKey());
     }
   };
-  private PropStore store;
+  private final PropStore store;
 
   public CacheWrapper(final PropStore store) {
 

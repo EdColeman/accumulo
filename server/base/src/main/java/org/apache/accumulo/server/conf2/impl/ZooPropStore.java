@@ -226,7 +226,7 @@ public class ZooPropStore implements PropCache, PropStore {
       zooKeeper.delete(propPath, current.get().getDataVersion());
       log.debug("PropStore: deleteFromStore - completed {}", propPath);
     } catch (KeeperException.NoNodeException ex) {
-      log.debug("Did not delete id, path {}, node does not exist", id, propPath);
+      log.debug("Did not delete id {}, path {}, node does not exist", id, propPath);
     } catch (KeeperException ex) {
       throw new IllegalStateException("Failed to remove path from zookeeper" + propPath, ex);
     } catch (InterruptedException ex) {
@@ -242,7 +242,7 @@ public class ZooPropStore implements PropCache, PropStore {
 
     log.trace("PropStore: readFromStore - Checking for props at {}", propPath);
 
-    PropEncoding props = null;
+    PropEncoding props;
 
     try {
       Stat stat = zooKeeper.exists(propPath, false);
@@ -339,6 +339,17 @@ public class ZooPropStore implements PropCache, PropStore {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted setting properties for " + propPath, ex);
     }
+  }
+
+  /**
+   * Called when cacheId is removed by the cache - remove any watchers.
+   *
+   * @param id
+   *          the cache id
+   */
+  @Override
+  public void cleanUp(CacheId id) {
+    log.warn("CONFIG2 - Cleanup called for id: {}", id);
   }
 
   public static class Builder {
