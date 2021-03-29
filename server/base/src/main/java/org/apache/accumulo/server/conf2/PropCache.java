@@ -30,6 +30,8 @@ public interface PropCache {
 
   boolean setProperties(CacheId id, Map<String,String> props) throws PropCacheException;
 
+  boolean create(CacheId id, Map<String,String> props) throws PropCacheException;
+
   boolean removeProperties(CacheId id, Collection<String> keys) throws PropCacheException;
 
   boolean setProperty(CacheId id, String name, String value) throws PropCacheException;
@@ -47,4 +49,5 @@ public interface PropCache {
   void changeEvent(CacheId id);
 
   void deleteEvent(CacheId id);
+
 }

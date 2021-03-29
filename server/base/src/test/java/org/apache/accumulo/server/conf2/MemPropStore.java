@@ -48,6 +48,11 @@ public class MemPropStore implements PropCache, PropStore {
   }
 
   @Override
+  public boolean create(CacheId id, Map<String,String> props) throws PropCacheException {
+    return false;
+  }
+
+  @Override
   public boolean removeProperties(CacheId id, Collection<String> keys) {
     return false;
   }

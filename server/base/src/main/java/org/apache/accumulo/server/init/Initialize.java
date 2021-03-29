@@ -97,6 +97,7 @@ import org.apache.accumulo.server.ServerUtil;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.PropCacheException;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.constraints.MetadataConstraints;
 import org.apache.accumulo.server.fs.VolumeChooserEnvironmentImpl;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -415,6 +416,9 @@ public class Initialize implements KeywordExecutable {
     zoo.putPersistentData(zkInstanceRoot, EMPTY_BYTE_ARRAY, NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
+    var sysDefault = new PropEncodingV1();
+    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/-::-", sysDefault.toBytes(),
+        NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZTABLES, Constants.ZTABLES_INITIAL_ID,
         NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZNAMESPACES, new byte[0],
@@ -494,7 +498,7 @@ public class Initialize implements KeywordExecutable {
       Map<String,String> props = new HashMap<>();
       props.putAll(initialRootConf);
       props.putAll(initialRootMetaConf);
-      propCache.setProperties(rootId, props);
+      propCache.create(rootId, props);
 
       // metadata table props - set initial root metadata
       var metadataId = CacheId.forTable(serverContext, MetadataTable.ID);
@@ -502,11 +506,11 @@ public class Initialize implements KeywordExecutable {
       props = new HashMap<>();
       props.putAll(initialRootMetaConf);
       props.putAll(initialMetaConf);
-      propCache.setProperties(metadataId, props);
+      propCache.create(metadataId, props);
 
       var replicationId = CacheId.forTable(serverContext, ReplicationTable.ID);
 
-      propCache.setProperties(replicationId, initialReplicationTableConf);
+      propCache.create(replicationId, initialReplicationTableConf);
 
     } catch (PropCacheException e) {
       log.error("FATAL: Error talking to ZooKeeper", e);

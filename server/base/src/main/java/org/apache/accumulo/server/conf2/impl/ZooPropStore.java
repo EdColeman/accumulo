@@ -149,6 +149,28 @@ public class ZooPropStore implements PropCache, PropStore {
   }
 
   @Override
+  public boolean create(CacheId id, Map<String,String> props) throws PropCacheException {
+    try {
+      var propPath = getPropPath(id);
+
+      if (Objects.nonNull(zooKeeper.exists(propPath, false))) {
+        return false;
+      }
+
+      writeInitProps(id, props);
+    } catch (KeeperException ex) {
+      log.warn("Could not create initial props", ex);
+      return false;
+    } catch (InterruptedException ex) {
+      log.warn("Could not create initial props", ex);
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted checking zookeeper node", ex);
+    }
+
+    return setProperties(id, props, false);
+  }
+
+  @Override
   public boolean removeProperties(CacheId id, Collection<String> keys) {
     var current = getProperties(id).orElse(new PropEncodingV1());
     keys.forEach(current::removeProperty);
@@ -245,12 +267,32 @@ public class ZooPropStore implements PropCache, PropStore {
     PropEncoding props;
 
     try {
+      var delays = new long[] {1_000, 3_000, 5_000, 10_000, 10_000};
+
+      int count = 0;
+      while (Objects.isNull(zooKeeper.exists(propPath, false)) && count < delays.length) {
+        try {
+          log.warn("Waiting " + delays[count] + " ms for zookeeper props: " + id);
+          Thread.sleep(delays[count++]);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(
+              "Interrupted waiting for props in zookeeper for id " + id);
+        }
+      }
+
       Stat stat = zooKeeper.exists(propPath, false);
       if (Objects.isNull(stat)) {
+        var c = zooKeeper.getChildren(configRoot, false);
+        for (String s : c) {
+          log.warn("Looking for props - current children: {}", c);
+        }
+
         // TODO - if returning default - what about watcher?
         // no config node - create node with empty props
         log.info("CONFIG2: No node at {}, returning empty props", propPath);
-        props = writeInitProps(id);
+        // props = writeInitProps(id);
+        throw new IllegalStateException("No prop node for " + id);
       } else {
 
         // read
@@ -270,12 +312,14 @@ public class ZooPropStore implements PropCache, PropStore {
     }
   }
 
-  private PropEncoding writeInitProps(final CacheId id)
+  private PropEncoding writeInitProps(final CacheId id, Map<String,String> initProps)
       throws KeeperException, InterruptedException {
 
     log.debug("CONFIG2: Write initial props for {}", id);
 
     PropEncodingV1 props = new PropEncodingV1();
+    initProps.putAll(initProps);
+
     writeToStore(id, props);
     return readFromStore(id);
   }
