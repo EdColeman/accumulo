@@ -424,6 +424,11 @@ public class Initialize implements KeywordExecutable {
     zoo.putPersistentData(zkInstanceRoot + Constants.ZNAMESPACES, new byte[0],
         NodeExistsPolicy.FAIL);
 
+    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/+accumulo::-",
+        sysDefault.toBytes(), NodeExistsPolicy.FAIL);
+    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/+default::-",
+        sysDefault.toBytes(), NodeExistsPolicy.FAIL);
+
     TableManager.prepareNewNamespaceState(zoo, uuid, Namespace.DEFAULT.id(),
         Namespace.DEFAULT.name(), NodeExistsPolicy.FAIL);
     TableManager.prepareNewNamespaceState(zoo, uuid, Namespace.ACCUMULO.id(),

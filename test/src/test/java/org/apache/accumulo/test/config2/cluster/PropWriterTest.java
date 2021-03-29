@@ -24,6 +24,7 @@ import static org.easymock.EasyMock.replay;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -84,7 +85,9 @@ public class PropWriterTest {
     store = new ZooPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
 
     truth = new ExpectedValues(mockContext, 1);
-
+    for (CacheId id : truth.getIds()) {
+      store.create(id, Collections.emptyMap());
+    }
     writer = new PropWriter(szk.getConn(), "writer-1", INSTANCE_ID, truth);
   }
 

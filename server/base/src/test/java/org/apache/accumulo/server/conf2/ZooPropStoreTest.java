@@ -147,7 +147,7 @@ public class ZooPropStoreTest {
     expect(mockZk.getData(eq(zkDataPath), anyObject(), anyObject())).andReturn(props.toBytes());
 
     // update write to store
-    expect(mockZk.exists(eq(zkDataPath), eq(false))).andReturn(stat);
+    expect(mockZk.exists(eq(zkDataPath), eq(false))).andReturn(stat).anyTimes();
     mockZk.setData(eq(zkDataPath), anyObject(), anyInt());
     expectLastCall().andAnswer(() -> {
       log.debug("An answer");

@@ -65,7 +65,7 @@ class PopulateZookeeper extends ManagerRepo {
       var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableInfo.getTableId());
 
       try {
-        propCache.setProperties(cacheId, tableInfo.props);
+        propCache.create(cacheId, tableInfo.props);
       } catch (IllegalArgumentException ex) {
         // TODO propagate exception?
         log.debug("Ignoring properties. Properties not set because invalid property", ex);
