@@ -81,7 +81,11 @@ public class CacheId implements Comparable<CacheId> {
   }
 
   public static CacheId forTable(final ServerContext context, final TableId tableId) {
-    return new CacheId(context.getInstanceID(), null, tableId);
+    return forTable(context.getInstanceID(), tableId);
+  }
+
+  public static CacheId forTable(final String instanceId, final TableId tableId) {
+    return new CacheId(instanceId, null, tableId);
   }
 
   public static Optional<CacheId> fromPath(final String path) {

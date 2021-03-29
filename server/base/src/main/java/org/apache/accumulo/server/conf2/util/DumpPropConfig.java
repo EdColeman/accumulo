@@ -20,9 +20,9 @@ package org.apache.accumulo.server.conf2.util;
 
 import org.apache.zookeeper.ZooKeeper;
 
-public class DumpConfig {
+public class DumpPropConfig {
 
-  public DumpConfig(final ZooKeeper zooKeeper, final String instanceId) {
+  public DumpPropConfig(final ZooKeeper zooKeeper, final String instanceId) {
 
   }
 }
