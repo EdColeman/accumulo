@@ -417,16 +417,16 @@ public class Initialize implements KeywordExecutable {
     zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
     var sysDefault = new PropEncodingV1();
-    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/-::-", sysDefault.toBytes(),
+    zoo.putPersistentData(CacheId.forSystem(uuid).path(), sysDefault.toBytes(),
         NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZTABLES, Constants.ZTABLES_INITIAL_ID,
         NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZNAMESPACES, new byte[0],
         NodeExistsPolicy.FAIL);
 
-    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/+accumulo::-",
+    zoo.putPersistentData(CacheId.forNamespace(uuid, Namespace.ACCUMULO.id()).path(),
         sysDefault.toBytes(), NodeExistsPolicy.FAIL);
-    zoo.putPersistentData(zkInstanceRoot + ZENCODED_CONFIG_ROOT + "/+default::-",
+    zoo.putPersistentData(CacheId.forNamespace(uuid, Namespace.DEFAULT.id()).path(),
         sysDefault.toBytes(), NodeExistsPolicy.FAIL);
 
     TableManager.prepareNewNamespaceState(zoo, uuid, Namespace.DEFAULT.id(),

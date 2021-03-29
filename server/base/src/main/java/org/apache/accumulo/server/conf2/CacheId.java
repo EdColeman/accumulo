@@ -64,15 +64,23 @@ public class CacheId implements Comparable<CacheId> {
     }
   }
 
-  public static CacheId forSystem(ServerContext context) {
-    return new CacheId(context.getInstanceID(), null, null);
+  public static CacheId forSystem(final ServerContext context) {
+    return forSystem(context.getInstanceID());
   }
 
-  public static CacheId forNamespace(ServerContext context, NamespaceId namespaceId) {
-    return new CacheId(context.getInstanceID(), namespaceId, null);
+  public static CacheId forSystem(final String instanceId) {
+    return new CacheId(instanceId, null, null);
   }
 
-  public static CacheId forTable(ServerContext context, TableId tableId) {
+  public static CacheId forNamespace(final ServerContext context, final NamespaceId namespaceId) {
+    return forNamespace(context.getInstanceID(), namespaceId);
+  }
+
+  public static CacheId forNamespace(final String instanceId, final NamespaceId namespaceId) {
+    return new CacheId(instanceId, namespaceId, null);
+  }
+
+  public static CacheId forTable(final ServerContext context, final TableId tableId) {
     return new CacheId(context.getInstanceID(), null, tableId);
   }
 
