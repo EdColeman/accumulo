@@ -42,7 +42,6 @@ import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -198,14 +197,21 @@ public class TableManager {
     PropCache propCache = context.getPropCache();
     var srcCacheId = new CacheId(instanceID, null, srcTableId);
     try {
-      PropEncoding srcProps = propCache.getProperties(srcCacheId).orElse(new PropEncodingV1());
+
+      PropEncoding srcProps =
+          propCache.getProperties(srcCacheId).orElseThrow(() -> new IllegalStateException(
+              "Could not get properties from source " + srcCacheId + "to clone"));
 
       Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
 
       propertiesToExclude.forEach(p -> destProps.remove(p));
 
-      var destCacheId = new CacheId(instanceID, null, srcTableId);
-      propCache.create(destCacheId, destProps);
+      var destCacheId = new CacheId(instanceID, null, tableId);
+
+      log.info("CONFIG2: Cloning properties from {} to {}", srcCacheId, destCacheId);
+      var success = propCache.setProperties(destCacheId, destProps);
+      log.info("CONFIG2: Properties for {} set {}", destCacheId, success);
+
     } catch (PropCacheException ex) {
       // TODO evaluate exception handling - caller expecting KeeperException?
       throw new IllegalStateException("Update properties failed", ex);
