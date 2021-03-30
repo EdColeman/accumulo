@@ -205,7 +205,7 @@ public class TableManager {
       propertiesToExclude.forEach(p -> destProps.remove(p));
 
       var destCacheId = new CacheId(instanceID, null, srcTableId);
-      propCache.setProperties(destCacheId, destProps);
+      propCache.create(destCacheId, destProps);
     } catch (PropCacheException ex) {
       // TODO evaluate exception handling - caller expecting KeeperException?
       throw new IllegalStateException("Update properties failed", ex);
