@@ -18,7 +18,6 @@
  */
 package org.apache.accumulo.server.conf2.util;
 
-import java.util.Comparator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -39,7 +38,7 @@ public class DumpPropConfigTest {
 
     String id = UUID.randomUUID().toString();
 
-    SortedSet<CacheId> sorted = new TreeSet<>(new CacheIdComparator());
+    SortedSet<CacheId> sorted = new TreeSet<>(new CacheId.CacheIdComparator());
 
     sorted.add(CacheId.forSystem(id));
     sorted.add(CacheId.forNamespace(id, NamespaceId.of("+default")));
@@ -54,36 +53,4 @@ public class DumpPropConfigTest {
     }
   }
 
-  private static class CacheIdComparator implements Comparator<CacheId> {
-
-    @Override
-    public int compare(CacheId o1, CacheId o2) {
-      var k1 = o1.asKey();
-      var k2 = o2.asKey();
-
-      if (k1.startsWith("-::-") && k2.startsWith("-::-")) {
-        return 0;
-      }
-      if (k1.startsWith("-::-")) {
-        return -1;
-      }
-      if (k2.startsWith("-::-")) {
-        return 1;
-      }
-
-      if (!k1.startsWith("-::") && !k2.startsWith("-::")) {
-        // both are table ids
-        return k1.compareTo(k2);
-      }
-
-      if (k1.startsWith("-::")) {
-        return 1;
-      }
-
-      if (k2.startsWith("-::")) {
-        return -1;
-      }
-      return k1.compareTo(k2);
-    }
-  }
 }

@@ -45,14 +45,14 @@ public class CacheId implements Comparable<CacheId> {
   private static final Pattern pathPattern = Pattern.compile(ZROOT + "/(?<uuid>[a-f0-9-]{36})"
       + Constants.ZENCODED_CONFIG_ROOT + "/(?<ns>\\S+)::(?<tid>\\S+)");
   private final String iid;
-  private final Optional<TableId> tid;
-  private final Optional<NamespaceId> nid;
+  private final TableId tid;
+  private final NamespaceId nid;
 
   public CacheId(final String instanceId, final NamespaceId nid, final TableId tid) {
     this.iid = requireNonNull(instanceId, "Instance ID cannot be null");
     validateInstanceId(instanceId);
-    this.nid = Optional.ofNullable(nid);
-    this.tid = Optional.ofNullable(tid);
+    this.nid = nid;
+    this.tid = tid;
   }
 
   private static void validateInstanceId(String uuid) throws IllegalArgumentException {
@@ -141,23 +141,23 @@ public class CacheId implements Comparable<CacheId> {
   }
 
   public Optional<TableId> getTableId() {
-    return tid;
+    return Optional.ofNullable(tid);
   }
 
   private String getTableIdCanonical() {
-    if (tid.isPresent()) {
-      return tid.get().canonical();
+    if (Objects.nonNull(tid)) {
+      return tid.canonical();
     }
     return NULL_ID;
   }
 
   public Optional<NamespaceId> getNamespaceId() {
-    return nid;
+    return Optional.ofNullable(nid);
   }
 
   private String getNamespaceIdCanonical() {
-    if (nid.isPresent()) {
-      return nid.get().canonical();
+    if (Objects.nonNull(nid)) {
+      return nid.canonical();
     }
     return NULL_ID;
   }
@@ -168,10 +168,11 @@ public class CacheId implements Comparable<CacheId> {
 
   public IdType getType() {
 
-    if (tid.isPresent()) {
+    if (Objects.nonNull(tid)) {
       return IdType.TABLE;
     }
-    if (nid.isPresent()) {
+
+    if (Objects.nonNull(nid)) {
       return IdType.NAMESPACE;
     }
 
@@ -183,16 +184,16 @@ public class CacheId implements Comparable<CacheId> {
     StringBuilder sb = new StringBuilder();
     sb.append("CacheId{ instance: ");
     sb.append(iid);
-    if (tid.isEmpty() && nid.isEmpty()) {
+    if (Objects.isNull(tid) && Objects.isNull(nid)) {
       sb.append(", system");
     } else {
-      if (nid.isPresent()) {
+      if (Objects.nonNull(nid)) {
         sb.append(", nid: ");
-        sb.append(nid.get().canonical());
+        sb.append(nid.canonical());
       }
-      if (tid.isPresent()) {
+      if (Objects.nonNull(tid)) {
         sb.append(", tid: ");
-        sb.append(tid.get().canonical());
+        sb.append(tid.canonical());
       }
     }
     sb.append("}");
@@ -218,6 +219,9 @@ public class CacheId implements Comparable<CacheId> {
 
   @Override
   public int compareTo(CacheId other) {
+    if (Objects.isNull(other)) {
+      throw new IllegalArgumentException("Value to compare cannot be null");
+    }
     return Comparator.comparing(CacheId::getIID).thenComparing(CacheId::getTableIdCanonical)
         .thenComparing(CacheId::getNamespaceIdCanonical).compare(this, other);
   }
@@ -227,5 +231,42 @@ public class CacheId implements Comparable<CacheId> {
    */
   public enum IdType {
     UNKNOWN, SYSTEM, NAMESPACE, TABLE
+  }
+
+  /**
+   * Sort by CacheId key with primary sort by system, namespace and then tables and then
+   * alphabetically within each group.
+   */
+  public static class CacheIdComparator implements Comparator<CacheId> {
+
+    @Override
+    public int compare(CacheId o1, CacheId o2) {
+      var k1 = o1.asKey();
+      var k2 = o2.asKey();
+
+      if (k1.startsWith("-::-") && k2.startsWith("-::-")) {
+        return 0;
+      }
+      if (k1.startsWith("-::-")) {
+        return -1;
+      }
+      if (k2.startsWith("-::-")) {
+        return 1;
+      }
+
+      if (!k1.startsWith("-::") && !k2.startsWith("-::")) {
+        // both are table ids
+        return k1.compareTo(k2);
+      }
+
+      if (k1.startsWith("-::")) {
+        return 1;
+      }
+
+      if (k2.startsWith("-::")) {
+        return -1;
+      }
+      return k1.compareTo(k2);
+    }
   }
 }
