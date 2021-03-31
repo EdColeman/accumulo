@@ -200,7 +200,7 @@ public class ZooPropStoreTest {
     Map<String,String> props = new HashMap<>();
     props.put("invalid", "aValue");
 
-    store.setProperties(id, props);
+    store.add(id, props);
   }
 
   @Test
@@ -211,7 +211,7 @@ public class ZooPropStoreTest {
     props.put("table.bloom.enabled", "true");
     props.put("table.bulk.max.tablets", "3");
 
-    store.setProperties(id, props);
+    store.add(id, props);
 
     // direct read - confirm stored in zooKeeper
     PropEncoding readProps2 = store.readFromStore(id);
@@ -232,7 +232,7 @@ public class ZooPropStoreTest {
     Map<String,String> props = new HashMap<>();
     props.put("table.bulk.max.tablets", "3");
 
-    store.setProperties(id, props);
+    store.add(id, props);
 
     // direct read - confirm stored in zooKeeper
     PropEncoding readProps2 = store.readFromStore(id);
@@ -249,7 +249,7 @@ public class ZooPropStoreTest {
     props.put("table.bulk.max.tablets", "1");
     props.put("table.bloom.enabled", "true");
 
-    store.setProperties(id, props);
+    store.add(id, props);
 
     // direct read - confirm stored in zooKeeper
     readProps2 = store.readFromStore(id);

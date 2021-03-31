@@ -20,13 +20,15 @@ package org.apache.accumulo.server.conf2;
 
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
-public interface PropStore {
+public interface PropStore extends PropCache {
 
   boolean isReady();
 
   PropEncoding readFromStore(CacheId id) throws Exception;
 
   void writeToStore(CacheId id, PropEncoding props);
+
+  void deleteProperties(CacheId id);
 
   void cleanUp(CacheId id);
 }

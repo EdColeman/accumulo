@@ -18,11 +18,48 @@
  */
 package org.apache.accumulo.server.conf2.util;
 
+import java.io.PrintStream;
+import java.util.List;
+import java.util.TreeSet;
+
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 
 public class DumpPropConfig {
 
-  public DumpPropConfig(final ZooKeeper zooKeeper, final String instanceId) {
+  private final ZooKeeper zooKeeper;
+  private final String instanceId;
 
+  public DumpPropConfig(final ZooKeeper zooKeeper, final String instanceId) {
+    this.zooKeeper = zooKeeper;
+    this.instanceId = instanceId;
   }
+
+  public void print(PrintStream out) {
+    try {
+
+      var configRoot = CacheId.getConfigRoot(instanceId);
+
+      List<String> propNodes = zooKeeper.getChildren(configRoot, false);
+      TreeSet<String> sorted = new TreeSet<>(new CacheId.GroupByTypeNamesComparator());
+      sorted.addAll(propNodes);
+
+      for (String cacheIdName : sorted) {
+        var path = configRoot + "/" + cacheIdName;
+        byte[] payload = zooKeeper.getData(path, null, null);
+        PropEncodingV1 props = new PropEncodingV1(payload);
+        out.println(cacheIdName);
+        out.println(props.print(true));
+      }
+
+    } catch (KeeperException ex) {
+      out.println("Unavailable because of a ZooKeeper error - " + ex.getMessage());
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted reading from zookeeper", ex);
+    }
+  }
+
 }

@@ -32,7 +32,7 @@ class PopulateZookeeperWithNamespace extends ManagerRepo {
 
   private static final long serialVersionUID = 1L;
 
-  private NamespaceInfo namespaceInfo;
+  private final NamespaceInfo namespaceInfo;
 
   PopulateZookeeperWithNamespace(NamespaceInfo ti) {
     this.namespaceInfo = ti;
@@ -57,7 +57,7 @@ class PopulateZookeeperWithNamespace extends ManagerRepo {
           NodeExistsPolicy.OVERWRITE);
 
       CacheId cacheId = CacheId.forNamespace(manager.getContext(), namespaceInfo.namespaceId);
-      manager.getContext().getPropCache().setProperties(cacheId, namespaceInfo.props);
+      manager.getContext().getPropStore().create(cacheId, namespaceInfo.props);
 
       // TODO - is this cache still valid? what is cleared?
       Tables.clearCache(manager.getContext());

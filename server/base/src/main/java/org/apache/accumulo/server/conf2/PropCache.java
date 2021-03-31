@@ -26,19 +26,17 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public interface PropCache {
 
-  Optional<PropEncoding> getProperties(CacheId id) throws PropCacheException;
+  Optional<PropEncoding> get(CacheId id) throws PropCacheException;
 
-  boolean setProperties(CacheId id, Map<String,String> props) throws PropCacheException;
+  boolean add(CacheId id, Map<String,String> props) throws PropCacheException;
 
   boolean create(CacheId id, Map<String,String> props) throws PropCacheException;
 
   boolean removeProperties(CacheId id, Collection<String> keys) throws PropCacheException;
 
-  boolean setProperty(CacheId id, String name, String value) throws PropCacheException;
+  boolean add(CacheId id, String name, String value) throws PropCacheException;
 
   void clear(CacheId id);
-
-  void deleteProperties(CacheId id);
 
   void clearAll();
 

@@ -74,15 +74,15 @@ public abstract class ZooBasedConfiguration extends AccumuloConfiguration implem
     try {
 
       Map<String,
-          String> props = context.getPropCache().getProperties(cacheId)
-              .map(PropEncoding::getAllProperties).orElseThrow(() -> new IllegalStateException(
+          String> props = context.getPropStore().get(cacheId).map(PropEncoding::getAllProperties)
+              .orElseThrow(() -> new IllegalStateException(
                   "failed to get properties from cache for id " + cacheId));
 
       snapshot.set(props);
       updateCounter.incrementAndGet();
 
       if (registered.compareAndSet(false, true)) {
-        context.getPropCache().register(this); // register once
+        context.getPropStore().register(this); // register once
         changeEvent(cacheId); // trigger initial values
       }
 
@@ -126,7 +126,7 @@ public abstract class ZooBasedConfiguration extends AccumuloConfiguration implem
 
   @Override
   public void invalidateCache() {
-    context.getPropCache().clear(cacheId);
+    context.getPropStore().clear(cacheId);
   }
 
   @Override

@@ -459,14 +459,14 @@ public class Upgrader9to10 implements Upgrader {
       rootProps.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
           SimpleCompactionDispatcher.class.getName());
       rootProps.put(Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "root");
-      ctx.getPropCache().setProperties(CacheId.forTable(ctx, RootTable.ID), rootProps);
+      ctx.getPropStore().add(CacheId.forTable(ctx, RootTable.ID), rootProps);
 
       // metadata
       Map<String,String> metaProps = new HashMap<>();
       metaProps.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
           SimpleCompactionDispatcher.class.getName());
       metaProps.put(Property.TABLE_COMPACTION_DISPATCHER_OPTS.getKey() + "service", "meta");
-      ctx.getPropCache().setProperties(CacheId.forTable(ctx, MetadataTable.ID), metaProps);
+      ctx.getPropStore().add(CacheId.forTable(ctx, MetadataTable.ID), metaProps);
 
     } catch (PropCacheException ex) {
       throw new RuntimeException("Unable to set system table properties", ex);
@@ -539,7 +539,7 @@ public class Upgrader9to10 implements Upgrader {
     try {
 
       PropEncoding props =
-          ctx.getPropCache().getProperties(CacheId.forSystem(ctx)).orElse(new PropEncodingV1());
+          ctx.getPropStore().get(CacheId.forSystem(ctx)).orElse(new PropEncodingV1());
 
       Map<String,String> current = props.getAllProperties();
 
@@ -556,8 +556,8 @@ public class Upgrader9to10 implements Upgrader {
             deletes.remove(original);
           }));
 
-      ctx.getPropCache().setProperties(CacheId.forSystem(ctx), adds);
-      ctx.getPropCache().removeProperties(CacheId.forSystem(ctx), deletes);
+      ctx.getPropStore().add(CacheId.forSystem(ctx), adds);
+      ctx.getPropStore().removeProperties(CacheId.forSystem(ctx), deletes);
 
     } catch (PropCacheException ex) {
       throw new RuntimeException("Unable to covert system properties to manager naming", ex);

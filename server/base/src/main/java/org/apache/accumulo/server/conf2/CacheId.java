@@ -64,6 +64,17 @@ public class CacheId implements Comparable<CacheId> {
     }
   }
 
+  /**
+   * Returns the root path in zookeeper for encoded properties.
+   *
+   * @param instanceId
+   *          the instance id
+   * @return the property path in zookeeper
+   */
+  public static String getConfigRoot(final String instanceId) {
+    return ZROOT + "/" + instanceId + Constants.ZENCODED_CONFIG_ROOT;
+  }
+
   public static CacheId forSystem(final ServerContext context) {
     return forSystem(context.getInstanceID());
   }
@@ -237,12 +248,18 @@ public class CacheId implements Comparable<CacheId> {
    * Sort by CacheId key with primary sort by system, namespace and then tables and then
    * alphabetically within each group.
    */
-  public static class CacheIdComparator implements Comparator<CacheId> {
+  public static class GroupByTypeComparator implements Comparator<CacheId> {
+    Comparator<String> groupNames = new GroupByTypeNamesComparator();
 
     @Override
     public int compare(CacheId o1, CacheId o2) {
-      var k1 = o1.asKey();
-      var k2 = o2.asKey();
+      return groupNames.compare(o1.asKey(), o2.asKey());
+    }
+  }
+
+  public static class GroupByTypeNamesComparator implements Comparator<String> {
+    @Override
+    public int compare(String k1, String k2) {
 
       if (k1.startsWith("-::-") && k2.startsWith("-::-")) {
         return 0;
@@ -254,7 +271,7 @@ public class CacheId implements Comparable<CacheId> {
         return 1;
       }
 
-      if (!k1.startsWith("-::") && !k2.startsWith("-::")) {
+      if (k1.startsWith("-::") && k2.startsWith("-::")) {
         // both are table ids
         return k1.compareTo(k2);
       }
@@ -266,6 +283,8 @@ public class CacheId implements Comparable<CacheId> {
       if (k2.startsWith("-::")) {
         return -1;
       }
+
+      // both are namespace id
       return k1.compareTo(k2);
     }
   }

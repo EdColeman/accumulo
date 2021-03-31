@@ -432,7 +432,7 @@ public class ManagerClientServiceHandler extends FateServiceHandler
 
     try {
 
-      PropCache propCache = manager.getContext().getPropCache();
+      PropCache propCache = manager.getContext().getPropStore();
 
       var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableId);
 
@@ -441,7 +441,7 @@ public class ManagerClientServiceHandler extends FateServiceHandler
       } else {
         Map<String,String> p = new HashMap<>();
         p.put(property, value);
-        propCache.setProperties(cacheId, p);
+        propCache.add(cacheId, p);
       }
 
     } catch (PropCacheException e) {

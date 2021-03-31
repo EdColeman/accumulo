@@ -34,8 +34,8 @@ public class SystemConfiguration extends ZooBasedConfiguration {
   private static final Logger log = LoggerFactory.getLogger(SystemConfiguration.class);
 
   // props that are read into this do not change until restart;
-  // to be placed here, props must be retrieved with get(Property), not getProperties(...)
-  // getProperties(...) will show the current value that will take effect on the next restart,
+  // to be placed here, props must be retrieved with get(Property), not get(...)
+  // get(...) will show the current value that will take effect on the next restart,
   // but repeated calls to get(Property) will show the current (fixed) value in effect
   private final Map<String,String> requiresRestartProps =
       Collections.synchronizedMap(new HashMap<>());

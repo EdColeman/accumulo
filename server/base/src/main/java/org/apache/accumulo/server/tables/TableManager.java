@@ -42,6 +42,7 @@ import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -104,6 +105,9 @@ public class TableManager {
     zoo.putPersistentData(zTablePath + Constants.ZTABLE_COMPACT_CANCEL_ID, ZERO_BYTE, existsPolicy);
     zoo.putPersistentData(zTablePath + Constants.ZTABLE_STATE, state.name().getBytes(UTF_8),
         existsPolicy);
+
+    CacheId propId = CacheId.forTable(instanceId, tableId);
+    zoo.putPersistentData(propId.path(), new PropEncodingV1().toBytes(), existsPolicy);
   }
 
   public TableState getTableState(TableId tableId) {
@@ -194,22 +198,23 @@ public class TableManager {
     prepareNewTableState(zoo, instanceID, tableId, namespaceId, tableName, TableState.NEW,
         NodeExistsPolicy.OVERWRITE);
 
-    PropCache propCache = context.getPropCache();
-    var srcCacheId = new CacheId(instanceID, null, srcTableId);
+    PropCache propCache = context.getPropStore();
+    var srcCacheId = CacheId.forTable(instanceID, srcTableId);
     try {
 
-      PropEncoding srcProps =
-          propCache.getProperties(srcCacheId).orElseThrow(() -> new IllegalStateException(
-              "Could not get properties from source " + srcCacheId + "to clone"));
+      PropEncoding srcProps = propCache.get(srcCacheId).orElseThrow(() -> new IllegalStateException(
+          "Could not get properties from source " + srcCacheId + "to clone"));
 
       Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
 
       propertiesToExclude.forEach(p -> destProps.remove(p));
 
-      var destCacheId = new CacheId(instanceID, null, tableId);
+      destProps.putAll(propertiesToSet);
+
+      var destCacheId = CacheId.forTable(instanceID, tableId);
 
       log.info("CONFIG2: Cloning properties from {} to {}", srcCacheId, destCacheId);
-      var success = propCache.setProperties(destCacheId, destProps);
+      var success = propCache.add(destCacheId, destProps);
       log.info("CONFIG2: Properties for {} set {}", destCacheId, success);
 
     } catch (PropCacheException ex) {
@@ -228,7 +233,7 @@ public class TableManager {
           NodeMissingPolicy.SKIP);
       zoo.recursiveDelete(zkRoot + Constants.ZTABLES + "/" + tableId, NodeMissingPolicy.SKIP);
       CacheId id = CacheId.forTable(context, tableId);
-      context.getPropCache().deleteProperties(id);
+      context.getPropStore().deleteProperties(id);
     }
   }
 

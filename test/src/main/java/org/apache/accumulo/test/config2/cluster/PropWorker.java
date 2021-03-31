@@ -77,6 +77,6 @@ public abstract class PropWorker extends TestWorker {
 
   public void writePropsToStore(final CacheId id, final Map<String,String> props)
       throws PropCacheException {
-    store.setProperties(id, props);
+    store.add(id, props);
   }
 }

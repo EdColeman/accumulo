@@ -61,7 +61,7 @@ class PopulateZookeeper extends ManagerRepo {
       manager.getTableManager().addTable(tableInfo.getTableId(), tableInfo.getNamespaceId(),
           tableInfo.getTableName());
 
-      PropCache propCache = manager.getContext().getPropCache();
+      PropCache propCache = manager.getContext().getPropStore();
       var cacheId = new CacheId(manager.getContext().getInstanceID(), null, tableInfo.getTableId());
 
       try {

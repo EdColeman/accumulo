@@ -81,8 +81,7 @@ public class GuardValuesTest {
     Capture<CacheId> anId = newCapture();
     Capture<Map<String,String>> props = newCapture();
     expect(mockStore.readFromStore(capture(anId))).andReturn(new PropEncodingV1());
-    expect(mockStore.setProperties(anyObject(CacheId.class), capture(props))).andReturn(true)
-        .anyTimes();
+    expect(mockStore.add(anyObject(CacheId.class), capture(props))).andReturn(true).anyTimes();
 
     replay(mockStore);
 

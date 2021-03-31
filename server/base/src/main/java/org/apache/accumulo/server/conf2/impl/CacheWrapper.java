@@ -102,9 +102,9 @@ public class CacheWrapper {
       var result = Optional.ofNullable(cache.get(id));
       if (log.isTraceEnabled()) {
         if (result.isPresent()) {
-          log.trace("getProperties - from cache id {} - {}", id, result.get().print(true));
+          log.trace("get - from cache id {} - {}", id, result.get().print(true));
         } else {
-          log.info("getProperties - from cache id {} is not present", id);
+          log.info("get - from cache id {} is not present", id);
         }
       }
       return result;

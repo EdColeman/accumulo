@@ -30,7 +30,6 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropWatcher;
@@ -47,7 +46,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 
-public class ZooPropStore implements PropCache, PropStore {
+public class ZooPropStore implements PropStore {
 
   private static final Logger log = LoggerFactory.getLogger(ZooPropStore.class);
 
@@ -89,8 +88,8 @@ public class ZooPropStore implements PropCache, PropStore {
   }
 
   @Override
-  public Optional<PropEncoding> getProperties(CacheId id) {
-    log.info("CONFIG2: getProperties - read props from store: {}", id);
+  public Optional<PropEncoding> get(CacheId id) {
+    log.info("CONFIG2: get - read props from store: {}", id);
 
     var props = cache.getProperties(id);
 
@@ -98,15 +97,15 @@ public class ZooPropStore implements PropCache, PropStore {
       throw new UnsupportedOperationException("YEA - we returned null");
     }
 
-    log.info("CONFIG2: getProperties - cache returned: id: {}, version: {}: {}", id,
+    log.info("CONFIG2: get - cache returned: id: {}, version: {}: {}", id,
         props.get().getDataVersion(), props);
 
     return props;
   }
 
   /**
-   * Set the properties from the provided map. If validate is true, then the property name / values
-   * must pass a validation check.
+   * Add or update the properties from the provided map. If validate is true, then the property name
+   * / values must pass a validation check.
    *
    * @param id
    *          the cache id.
@@ -118,12 +117,13 @@ public class ZooPropStore implements PropCache, PropStore {
    * @throws PropCacheException
    *           if validate = true and invalid property passed in prop map.
    */
-  public boolean setProperties(CacheId id, Map<String,String> props, final boolean validate)
+  public boolean add(CacheId id, Map<String,String> props, final boolean validate)
       throws PropCacheException {
 
     log.info("CONFIG2: set properties: {} - {}", id, props);
 
-    var current = getProperties(id).orElse(new PropEncodingV1());
+    var current = get(id).orElseThrow(() -> new IllegalStateException(
+        "Tried to add properties for " + id + ", create should be called first."));
 
     for (Map.Entry<String,String> e : props.entrySet()) {
       if (!validate) {
@@ -144,8 +144,8 @@ public class ZooPropStore implements PropCache, PropStore {
   }
 
   @Override
-  public boolean setProperties(CacheId id, Map<String,String> props) throws PropCacheException {
-    return setProperties(id, props, false);
+  public boolean add(CacheId id, Map<String,String> props) throws PropCacheException {
+    return add(id, props, false);
   }
 
   @Override
@@ -154,7 +154,7 @@ public class ZooPropStore implements PropCache, PropStore {
       var propPath = getPropPath(id);
 
       if (Objects.nonNull(zooKeeper.exists(propPath, false))) {
-        return false;
+        return add(id, props);
       }
 
       writeInitProps(id, props);
@@ -167,19 +167,19 @@ public class ZooPropStore implements PropCache, PropStore {
       throw new IllegalStateException("Interrupted checking zookeeper node", ex);
     }
 
-    return setProperties(id, props, false);
+    return add(id, props, false);
   }
 
   @Override
   public boolean removeProperties(CacheId id, Collection<String> keys) {
-    var current = getProperties(id).orElse(new PropEncodingV1());
+    var current = get(id).orElse(new PropEncodingV1());
     keys.forEach(current::removeProperty);
     writeToStore(id, current);
     return true;
   }
 
   @Override
-  public boolean setProperty(final CacheId id, final String name, final String value) {
+  public boolean add(final CacheId id, final String name, final String value) {
     throw new UnsupportedOperationException("Not implemented.");
   }
 
@@ -238,7 +238,7 @@ public class ZooPropStore implements PropCache, PropStore {
   public void deleteFromStore(CacheId id) {
 
     var propPath = getPropPath(id);
-    var current = getProperties(id);
+    var current = get(id);
     if (current.isEmpty()) {
       return;
     }
@@ -318,7 +318,7 @@ public class ZooPropStore implements PropCache, PropStore {
     log.debug("CONFIG2: Write initial props for {}", id);
 
     PropEncodingV1 props = new PropEncodingV1();
-    initProps.putAll(initProps);
+    props.addProperties(initProps);
 
     writeToStore(id, props);
     return readFromStore(id);

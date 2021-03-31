@@ -38,15 +38,27 @@ public class DumpPropConfigTest {
 
     String id = UUID.randomUUID().toString();
 
-    SortedSet<CacheId> sorted = new TreeSet<>(new CacheId.CacheIdComparator());
+    SortedSet<CacheId> sorted = new TreeSet<>(new CacheId.GroupByTypeComparator());
 
     sorted.add(CacheId.forSystem(id));
     sorted.add(CacheId.forNamespace(id, NamespaceId.of("+default")));
     sorted.add(CacheId.forNamespace(id, NamespaceId.of("+accumulo")));
     sorted.add(CacheId.forNamespace(id, NamespaceId.of("n1")));
 
-    sorted.add(CacheId.forTable(id, TableId.of("t1")));
-    sorted.add(CacheId.forTable(id, TableId.of("t2")));
+    sorted.add(CacheId.forTable(id, TableId.of("+r")));
+    sorted.add(CacheId.forTable(id, TableId.of("+rep")));
+    sorted.add(CacheId.forTable(id, TableId.of("2")));
+    sorted.add(CacheId.forTable(id, TableId.of("1")));
+    sorted.add(CacheId.forTable(id, TableId.of("!0")));
+
+    // -::-
+    // +accumulo::-
+    // +default::-
+    // -::2
+    // -::+r
+    // -::1
+    // -::+rep
+    // -::!0
 
     for (CacheId cid : sorted) {
       log.info("id: {} - {}", cid.asKey(), cid.path());

@@ -497,7 +497,7 @@ public class Initialize implements KeywordExecutable {
         setMetadataReplication(min, "min");
       }
 
-      PropCache propCache = serverContext.getPropCache();
+      PropCache propCache = serverContext.getPropStore();
 
       var rootId = CacheId.forTable(serverContext, RootTable.ID);
       Map<String,String> props = new HashMap<>();
@@ -715,7 +715,7 @@ public class Initialize implements KeywordExecutable {
 
           CacheId cacheId = CacheId.forSystem(context);
 
-          if (!context.getPropCache().setProperties(cacheId, validProps)) {
+          if (!context.getPropStore().add(cacheId, validProps)) {
             return false;
           }
 

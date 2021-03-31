@@ -39,7 +39,7 @@ public class NamespacePropUtil {
     try {
       Map<String,String> props = new HashMap<>();
       props.put(property, value);
-      context.getPropCache().setProperties(CacheId.forNamespace(context, namespaceId), props);
+      context.getPropStore().add(CacheId.forNamespace(context, namespaceId), props);
     } catch (PropCacheException ex) {
       throw new IllegalStateException("Failed to set namespace property: " + property, ex);
     }
@@ -56,7 +56,7 @@ public class NamespacePropUtil {
   public static void removeNamespaceProperty(ServerContext context, NamespaceId namespaceId,
       String property) throws InterruptedException, KeeperException {
     try {
-      context.getPropCache().removeProperties(CacheId.forNamespace(context, namespaceId),
+      context.getPropStore().removeProperties(CacheId.forNamespace(context, namespaceId),
           Collections.singletonList(property));
     } catch (PropCacheException ex) {
       throw new IllegalStateException("Failed to remove property: " + property, ex);

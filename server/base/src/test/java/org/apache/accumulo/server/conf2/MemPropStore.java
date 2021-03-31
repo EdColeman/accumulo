@@ -36,13 +36,13 @@ public class MemPropStore implements PropCache, PropStore {
   public MemPropStore() {}
 
   @Override
-  public Optional<PropEncoding> getProperties(CacheId id) {
-    log.trace("getProperties from map for id: {}", id);
+  public Optional<PropEncoding> get(CacheId id) {
+    log.trace("get from map for id: {}", id);
     return Optional.ofNullable(store.get(id.nodeName()));
   }
 
   @Override
-  public boolean setProperties(CacheId id, Map<String,String> props) {
+  public boolean add(CacheId id, Map<String,String> props) {
     // writeToStore(id, props);
     return true;
   }
@@ -58,7 +58,7 @@ public class MemPropStore implements PropCache, PropStore {
   }
 
   @Override
-  public boolean setProperty(CacheId id, String name, String value) {
+  public boolean add(CacheId id, String name, String value) {
     return false;
   }
 

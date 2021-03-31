@@ -62,7 +62,7 @@ public class NamespaceConfigurationTest {
 
     expect(context.getInstanceID()).andReturn(iid).anyTimes();
     expect(context.getConfiguration()).andReturn(parent).anyTimes();
-    expect(context.getPropCache()).andReturn(memPropStore).anyTimes();
+    expect(context.getPropStore()).andReturn(memPropStore).anyTimes();
     replay(context);
 
     c = new NamespaceConfiguration(NSID, context);
@@ -115,7 +115,7 @@ public class NamespaceConfigurationTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperties(Map.of(p.getKey(), "sekrit"));
     memPropStore.writeToStore(cacheId, props);
-    context.getPropCache().clear(cacheId);
+    context.getPropStore().clear(cacheId);
     assertEquals("sekrit", c.get(p));
     c.invalidateCache();
     assertEquals("sekrit", c.get(p));

@@ -90,11 +90,11 @@ class ImportPopulateZookeeper extends ManagerRepo {
 
     VolumeManager volMan = env.getVolumeManager();
 
-    PropCache propCache = env.getContext().getPropCache();
+    PropCache propCache = env.getContext().getPropStore();
     var cacheId = new CacheId(env.getContext().getInstanceID(), null, tableInfo.tableId);
 
     try {
-      propCache.setProperties(cacheId, getExportedProps(volMan));
+      propCache.add(cacheId, getExportedProps(volMan));
     } catch (PropCacheException ex) {
       throw new AcceptableThriftTableOperationException(tableInfo.tableId.canonical(),
           tableInfo.tableName, TableOperation.IMPORT, TableOperationExceptionType.OTHER,

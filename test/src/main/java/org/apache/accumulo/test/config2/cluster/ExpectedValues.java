@@ -154,7 +154,7 @@ public class ExpectedValues {
 
       Map<String,String> updatedProps = updateProps(storedProps, expectedProp);
 
-      store.setProperties(id, updatedProps);
+      store.add(id, updatedProps);
 
       log.debug("Now: {}", expectedProp);
     } catch (PropCacheException ex) {

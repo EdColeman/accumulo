@@ -75,7 +75,7 @@ public class NewTableConfigurationIT extends SharedMiniClusterBase {
       initialProps.put(Property.TABLE_ARBITRARY_PROP_PREFIX.getKey() + "prop1", "val1");
       initialProps.put(Property.TABLE_ARBITRARY_PROP_PREFIX.getKey() + "prop2", "val2");
       ntc.setProperties(initialProps);
-      // Create a new set of properties and set them with setProperties
+      // Create a new set of properties and set them with add
       Map<String,String> updatedProps = new HashMap<>();
       updatedProps.put(Property.TABLE_ARBITRARY_PROP_PREFIX.getKey() + "newerprop1", "newerval1");
       updatedProps.put(Property.TABLE_ARBITRARY_PROP_PREFIX.getKey() + "newerprop2", "newerval2");
@@ -389,7 +389,7 @@ public class NewTableConfigurationIT extends SharedMiniClusterBase {
   }
 
   /**
-   * Create iterator and setProperties method together.
+   * Create iterator and add method together.
    */
   @Test
   public void testSettingIteratorAndProperties() throws AccumuloException, TableNotFoundException,
@@ -508,7 +508,7 @@ public class NewTableConfigurationIT extends SharedMiniClusterBase {
   }
 
   /**
-   * Verify use of all three ntc methods - setProperties, setLocalityGroups and attachIterator
+   * Verify use of all three ntc methods - add, setLocalityGroups and attachIterator
    */
   @Test
   public void testGroupsIteratorAndPropsTogether() throws AccumuloException, TableNotFoundException,
@@ -599,7 +599,7 @@ public class NewTableConfigurationIT extends SharedMiniClusterBase {
   }
 
   /**
-   * Verify that disjoint check works as expected with setProperties
+   * Verify that disjoint check works as expected with add
    */
   @Test(expected = IllegalArgumentException.class)
   public void testSetPropertiesDisjointCheck() {

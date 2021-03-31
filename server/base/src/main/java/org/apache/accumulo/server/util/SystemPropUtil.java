@@ -74,7 +74,7 @@ public class SystemPropUtil {
     try {
       Map<String,String> propMap = new HashMap<>();
       propMap.put(property, value);
-      context.getPropCache().setProperties(CacheId.forSystem(context), propMap);
+      context.getPropStore().add(CacheId.forSystem(context), propMap);
     } catch (PropCacheException ex) {
       throw new IllegalArgumentException("Could not set system property: " + property, ex);
     }
@@ -92,7 +92,7 @@ public class SystemPropUtil {
   public static void removePropWithoutDeprecationWarning(ServerContext context, String property)
       throws InterruptedException, KeeperException {
     try {
-      context.getPropCache().removeProperties(CacheId.forSystem(context),
+      context.getPropStore().removeProperties(CacheId.forSystem(context),
           Collections.singletonList(property));
     } catch (PropCacheException ex) {
       throw new IllegalStateException("Failed to remove property: " + property, ex);

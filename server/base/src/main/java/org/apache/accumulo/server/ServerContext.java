@@ -39,7 +39,7 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.server.conf.NamespaceConfiguration;
 import org.apache.accumulo.server.conf.ServerConfigurationFactory;
 import org.apache.accumulo.server.conf.TableConfiguration;
-import org.apache.accumulo.server.conf2.PropCache;
+import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.impl.ZooPropStore;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.metadata.ServerAmpleImpl;
@@ -65,7 +65,7 @@ public class ServerContext extends ClientContext {
   private DefaultConfiguration defaultConfig = null;
   private AuthenticationTokenSecretManager secretManager;
   private CryptoService cryptoService = null;
-  private PropCache propCache = null;
+  private PropStore propStore = null;
 
   public ServerContext(SiteConfiguration siteConfig) {
     this(new ServerInfo(siteConfig));
@@ -253,13 +253,13 @@ public class ServerContext extends ClientContext {
     return new ServerAmpleImpl(this);
   }
 
-  public PropCache getPropCache() {
-    if (propCache == null) {
+  public PropStore getPropStore() {
+    if (propStore == null) {
       // TODO - should a watcher be set?
-      propCache = new ZooPropStore.Builder().withZk(getZooReaderWriter().getZooKeeper())
+      propStore = new ZooPropStore.Builder().withZk(getZooReaderWriter().getZooKeeper())
           .forInstance(getInstanceID()).build();
     }
-    return propCache;
+    return propStore;
   }
 
 }
