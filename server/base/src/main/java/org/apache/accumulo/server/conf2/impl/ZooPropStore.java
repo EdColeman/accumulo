@@ -35,7 +35,6 @@ import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropWatcher;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -111,14 +110,14 @@ public class ZooPropStore implements PropStore {
    *          the cache id.
    * @param props
    *          a map of key, value pairs
-   * @param validate
-   *          if true, the property must pass TablePropUtil.isPropertyValid check.
+   *
    * @return true if all properties set.
    * @throws PropCacheException
    *           if validate = true and invalid property passed in prop map.
    */
-  public boolean add(CacheId id, Map<String,String> props, final boolean validate)
-      throws PropCacheException {
+
+  @Override
+  public boolean add(CacheId id, Map<String,String> props) throws PropCacheException {
 
     log.info("CONFIG2: set properties: {} - {}", id, props);
 
@@ -126,26 +125,14 @@ public class ZooPropStore implements PropStore {
         "Tried to add properties for " + id + ", create should be called first."));
 
     for (Map.Entry<String,String> e : props.entrySet()) {
-      if (!validate) {
-        current.addProperty(e.getKey(), e.getValue());
-      } else {
-        // TODO this restricts things to table props - other props for other contexts still valid.
-        if (TablePropUtil.isPropertyValid(e.getKey(), e.getValue())) {
-          current.addProperty(e.getKey(), e.getValue());
-        } else {
-          throw new PropCacheException(PropCacheException.REASON_CODE.INVALID_PROPERTY, String
-              .format("Invalid property for %s, key: %s, value: %s", id, e.getKey(), e.getValue()));
-        }
-      }
-    }
-    // TODO exception handling? Always returning true - so not very helpful
-    writeToStore(id, current);
-    return true;
-  }
 
-  @Override
-  public boolean add(CacheId id, Map<String,String> props) throws PropCacheException {
-    return add(id, props, false);
+      current.addProperty(e.getKey(), e.getValue());
+    }
+
+    writeToStore(id, current);
+    // TODO exception handling? Always returning true - so not very helpful
+
+    return true;
   }
 
   @Override
@@ -167,7 +154,7 @@ public class ZooPropStore implements PropStore {
       throw new IllegalStateException("Interrupted checking zookeeper node", ex);
     }
 
-    return add(id, props, false);
+    return add(id, props);
   }
 
   @Override
