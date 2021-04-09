@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.replication.ReplicationConstants;
 import org.apache.accumulo.core.replication.ReplicationTarget;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
@@ -139,7 +140,7 @@ public class UnorderedWorkAssigner extends DistributedWorkQueueWorkAssigner {
   @Override
   protected void cleanupFinishedWork() {
     final Iterator<String> work = queuedWork.iterator();
-    final String instanceId = client.instanceOperations().getInstanceID();
+    final InstanceId instanceId = InstanceId.of(client.instanceOperations().getInstanceID());
     while (work.hasNext()) {
       String filename = work.next();
       // Null equates to the work was finished

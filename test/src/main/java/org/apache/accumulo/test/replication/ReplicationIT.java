@@ -59,6 +59,7 @@ import org.apache.accumulo.core.client.admin.TableOperations;
 import org.apache.accumulo.core.clientImpl.ClientInfo;
 import org.apache.accumulo.core.conf.ClientProperty;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Range;
@@ -208,7 +209,7 @@ public class ReplicationIT extends ConfigurableMacBase {
     ClientInfo info = ClientInfo.from(client.properties());
     ZooCache zcache = zcf.getZooCache(info.getZooKeepers(), info.getZooKeepersSessionTimeOut());
     var zkPath = ServiceLock
-        .path(ZooUtil.getRoot(client.instanceOperations().getInstanceID()) + Constants.ZGC_LOCK);
+        .path(ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID())) + Constants.ZGC_LOCK);
     log.info("Looking for GC lock at {}", zkPath);
     byte[] data = ServiceLock.getLockData(zcache, zkPath, null);
     while (data == null) {

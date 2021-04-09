@@ -30,6 +30,7 @@ import org.apache.accumulo.core.client.security.tokens.PasswordToken;
 import org.apache.accumulo.core.clientImpl.Credentials;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
 import org.apache.commons.codec.digest.Crypt;
 import org.apache.hadoop.io.Writable;
@@ -45,12 +46,12 @@ public final class SystemCredentials extends Credentials {
 
   private final TCredentials AS_THRIFT;
 
-  public SystemCredentials(String instanceID, String principal, AuthenticationToken token) {
+  public SystemCredentials(InstanceId instanceID, String principal, AuthenticationToken token) {
     super(principal, token);
-    AS_THRIFT = super.toThrift(instanceID);
+    AS_THRIFT = super.toThrift(instanceID.canonical());
   }
 
-  public static SystemCredentials get(String instanceID, SiteConfiguration siteConfig) {
+  public static SystemCredentials get(InstanceId instanceID, SiteConfiguration siteConfig) {
     String principal = SYSTEM_PRINCIPAL;
     if (siteConfig.getBoolean(Property.INSTANCE_RPC_SASL_ENABLED)) {
       // Use the server's kerberos principal as the Accumulo principal. We could also unwrap the
@@ -120,9 +121,9 @@ public final class SystemCredentials extends Credentials {
       return Crypt.crypt(sb.toString(), SALT_PREFIX + wireVersion + SALT_SUFFIX);
     }
 
-    private static SystemToken generate(String instanceID, SiteConfiguration siteConfig) {
-      byte[] instanceIdBytes = instanceID.getBytes(UTF_8);
-      byte[] configHash = hashInstanceConfigs(instanceID, siteConfig).getBytes(UTF_8);
+    private static SystemToken generate(InstanceId instanceID, SiteConfiguration siteConfig) {
+      byte[] instanceIdBytes = instanceID.canonical().getBytes(UTF_8);
+      byte[] configHash = hashInstanceConfigs(instanceID.canonical(), siteConfig).getBytes(UTF_8);
 
       // the actual token is a base64-encoded composition of:
       // 1. the wire version,

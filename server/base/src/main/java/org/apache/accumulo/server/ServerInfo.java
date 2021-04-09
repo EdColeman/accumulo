@@ -33,6 +33,7 @@ import org.apache.accumulo.core.clientImpl.InstanceOperationsImpl;
 import org.apache.accumulo.core.conf.ClientProperty;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.singletons.SingletonManager;
 import org.apache.accumulo.core.singletons.SingletonManager.Mode;
 import org.apache.accumulo.fate.zookeeper.ZooCache;
@@ -47,7 +48,7 @@ public class ServerInfo implements ClientInfo {
 
   private SiteConfiguration siteConfig;
   private Configuration hadoopConf;
-  private String instanceID;
+  private InstanceId instanceID;
   private String instanceName;
   private String zooKeepers;
   private int zooKeepersSessionTimeOut;
@@ -74,12 +75,12 @@ public class ServerInfo implements ClientInfo {
       throw new RuntimeException("Instance name " + instanceName + " does not exist in zookeeper. "
           + "Run \"accumulo org.apache.accumulo.server.util.ListInstances\" to see a list.");
     }
-    instanceID = new String(iidb, UTF_8);
-    if (zooCache.get(Constants.ZROOT + "/" + instanceID) == null) {
+    instanceID = InstanceId.of(new String(iidb, UTF_8));
+    if (zooCache.get(Constants.ZROOT + "/" + instanceID.canonical()) == null) {
       if (instanceName == null) {
-        throw new RuntimeException("Instance id " + instanceID + " does not exist in zookeeper");
+        throw new RuntimeException("Instance id " + instanceID.canonical() + " does not exist in zookeeper");
       }
-      throw new RuntimeException("Instance id " + instanceID + " pointed to by the name "
+      throw new RuntimeException("Instance id " + instanceID.canonical() + " pointed to by the name "
           + instanceName + " does not exist in zookeeper");
     }
   }
@@ -94,14 +95,14 @@ public class ServerInfo implements ClientInfo {
       throw new IllegalStateException(e);
     }
     Path instanceIdPath = ServerUtil.getAccumuloInstanceIdPath(volumeManager);
-    instanceID = VolumeManager.getInstanceIDFromHdfs(instanceIdPath, hadoopConf);
+    instanceID = InstanceId.of(VolumeManager.getInstanceIDFromHdfs(instanceIdPath, hadoopConf));
     zooKeepers = config.get(Property.INSTANCE_ZK_HOST);
     zooKeepersSessionTimeOut = (int) config.getTimeInMillis(Property.INSTANCE_ZK_TIMEOUT);
     zooCache = new ZooCacheFactory().getZooCache(zooKeepers, zooKeepersSessionTimeOut);
-    instanceName = InstanceOperationsImpl.lookupInstanceName(zooCache, UUID.fromString(instanceID));
+    instanceName = InstanceOperationsImpl.lookupInstanceName(zooCache, UUID.fromString(instanceID.canonical()));
   }
 
-  ServerInfo(SiteConfiguration config, String instanceName, String instanceID) {
+  ServerInfo(SiteConfiguration config, String instanceName, InstanceId instanceID) {
     SingletonManager.setMode(Mode.SERVER);
     siteConfig = config;
     hadoopConf = new Configuration();
@@ -125,7 +126,7 @@ public class ServerInfo implements ClientInfo {
     return volumeManager;
   }
 
-  public String getInstanceID() {
+  public InstanceId getInstanceID() {
     return instanceID;
   }
 

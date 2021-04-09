@@ -38,11 +38,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import org.apache.accumulo.core.clientImpl.Credentials;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.server.ServerContext;
@@ -59,13 +61,14 @@ public class SimpleGarbageCollectorTest {
   private Credentials credentials;
   private SimpleGarbageCollector gc;
   private ConfigurationCopy systemConfig;
-  private static SiteConfiguration siteConfig = SiteConfiguration.auto();
+  private static final SiteConfiguration siteConfig = SiteConfiguration.auto();
 
   @Before
   public void setUp() {
+    InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
     volMgr = createMock(VolumeManager.class);
     context = createMock(ServerContext.class);
-    expect(context.getInstanceID()).andReturn("mock").anyTimes();
+    expect(context.getInstanceID()).andReturn(instanceId).anyTimes();
     expect(context.getZooKeepers()).andReturn("localhost").anyTimes();
     expect(context.getZooKeepersSessionTimeOut()).andReturn(30000).anyTimes();
 
@@ -73,7 +76,7 @@ public class SimpleGarbageCollectorTest {
     expect(context.getConfiguration()).andReturn(systemConfig).anyTimes();
     expect(context.getVolumeManager()).andReturn(volMgr).anyTimes();
 
-    credentials = SystemCredentials.get("mock", siteConfig);
+    credentials = SystemCredentials.get(instanceId, siteConfig);
     expect(context.getPrincipal()).andReturn(credentials.getPrincipal()).anyTimes();
     expect(context.getAuthenticationToken()).andReturn(credentials.getToken()).anyTimes();
     expect(context.getCredentials()).andReturn(credentials).anyTimes();

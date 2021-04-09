@@ -50,6 +50,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.crypto.CryptoServiceFactory;
 import org.apache.accumulo.core.crypto.CryptoServiceFactory.ClassloaderType;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
@@ -348,7 +349,7 @@ public class Initialize implements KeywordExecutable {
     String instanceName = instanceNamePath.substring(getInstanceNamePrefix().length());
 
     try (ServerContext context =
-        ServerContext.initialize(siteConfig, instanceName, uuid.toString())) {
+        ServerContext.initialize(siteConfig, instanceName, InstanceId.of(uuid.toString()))) {
       VolumeChooserEnvironment chooserEnv =
           new VolumeChooserEnvironmentImpl(Scope.INIT, RootTable.ID, null, context);
       String rootTabletDirName = RootTable.ROOT_TABLET_DIR_NAME;
@@ -358,7 +359,7 @@ public class Initialize implements KeywordExecutable {
           + rootTabletDirName + Path.SEPARATOR + "00000_00000." + ext).toString();
 
       try {
-        initZooKeeper(opts, uuid.toString(), instanceNamePath, rootTabletDirName,
+        initZooKeeper(opts, InstanceId.of(uuid.toString()), instanceNamePath, rootTabletDirName,
             rootTabletFileUri);
       } catch (Exception e) {
         log.error("FATAL: Failed to initialize zookeeper", e);
@@ -588,7 +589,7 @@ public class Initialize implements KeywordExecutable {
     }
   }
 
-  private static void initZooKeeper(Opts opts, String uuid, String instanceNamePath,
+  private static void initZooKeeper(Opts opts, InstanceId uuid, String instanceNamePath,
       String rootTabletDirName, String rootTabletFileUri)
       throws KeeperException, InterruptedException {
     // setup basic data in zookeeper
@@ -600,13 +601,13 @@ public class Initialize implements KeywordExecutable {
     if (opts.clearInstanceName) {
       zoo.recursiveDelete(instanceNamePath, NodeMissingPolicy.SKIP);
     }
-    zoo.putPersistentData(instanceNamePath, uuid.getBytes(UTF_8), NodeExistsPolicy.FAIL);
+    zoo.putPersistentData(instanceNamePath, uuid.canonical().getBytes(UTF_8), NodeExistsPolicy.FAIL);
 
     final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     final byte[] ZERO_CHAR_ARRAY = {'0'};
 
     // setup the instance
-    String zkInstanceRoot = Constants.ZROOT + "/" + uuid;
+    String zkInstanceRoot = Constants.ZROOT + "/" + uuid.canonical();
     zoo.putPersistentData(zkInstanceRoot, EMPTY_BYTE_ARRAY, NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZTABLES, Constants.ZTABLES_INITIAL_ID,
         NodeExistsPolicy.FAIL);

@@ -41,6 +41,7 @@ import org.apache.accumulo.core.client.admin.InstanceOperations;
 import org.apache.accumulo.core.clientImpl.thrift.ConfigurationType;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.conf.DeprecatedPropertyUtil;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Client;
 import org.apache.accumulo.core.trace.TraceUtil;
 import org.apache.accumulo.core.util.AddressUtil;
@@ -244,6 +245,11 @@ public class InstanceOperationsImpl implements InstanceOperations {
 
   @Override
   public String getInstanceID() {
+    return context.getInstanceID().canonical();
+  }
+
+  @Override
+  public InstanceId getInstanceIdType() {
     return context.getInstanceID();
   }
 }

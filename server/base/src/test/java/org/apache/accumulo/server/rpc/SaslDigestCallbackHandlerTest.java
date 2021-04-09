@@ -25,12 +25,14 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import javax.crypto.KeyGenerator;
 import javax.security.auth.callback.Callback;
 
 import org.apache.accumulo.core.client.admin.DelegationTokenConfig;
 import org.apache.accumulo.core.clientImpl.AuthenticationTokenIdentifier;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.rpc.SaslDigestCallbackHandler;
 import org.apache.accumulo.server.security.delegation.AuthenticationKey;
 import org.apache.accumulo.server.security.delegation.AuthenticationTokenSecretManager;
@@ -66,6 +68,7 @@ public class SaslDigestCallbackHandlerTest {
   private SaslTestDigestCallbackHandler handler;
   private DelegationTokenConfig cfg;
 
+  private final InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
   @Before
   public void setup() {
     handler = new SaslTestDigestCallbackHandler();
@@ -91,7 +94,7 @@ public class SaslDigestCallbackHandlerTest {
   @Test
   public void testTokenSerialization() throws Exception {
     AuthenticationTokenSecretManager secretManager =
-        new AuthenticationTokenSecretManager("instanceid", 1000L);
+        new AuthenticationTokenSecretManager(instanceId, 1000L);
 
     secretManager.addKey(new AuthenticationKey(1, 0L, 100L, keyGen.generateKey()));
     Entry<Token<AuthenticationTokenIdentifier>,AuthenticationTokenIdentifier> entry =
@@ -107,7 +110,7 @@ public class SaslDigestCallbackHandlerTest {
   @Test
   public void testTokenAndIdentifierSerialization() throws Exception {
     AuthenticationTokenSecretManager secretManager =
-        new AuthenticationTokenSecretManager("instanceid", 1000L);
+        new AuthenticationTokenSecretManager(instanceId, 1000L);
 
     secretManager.addKey(new AuthenticationKey(1, 0L, 1000 * 100L, keyGen.generateKey()));
     Entry<Token<AuthenticationTokenIdentifier>,AuthenticationTokenIdentifier> entry =

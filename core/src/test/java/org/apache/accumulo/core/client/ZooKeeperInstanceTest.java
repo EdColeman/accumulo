@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.easymock.EasyMock;
@@ -59,7 +60,7 @@ public class ZooKeeperInstanceTest {
   }
 
   private void mockNameConstruction(ClientConfiguration config) {
-    expect(config.get(INSTANCE_ID)).andReturn(null);
+    expect(config.get(INSTANCE_ID)).andReturn(InstanceId.of("").canonical());
     expect(config.get(INSTANCE_NAME)).andReturn("instance");
     expect(config.get(INSTANCE_ZK_HOST)).andReturn("zk1");
     expect(config.get(INSTANCE_ZK_TIMEOUT)).andReturn("30");

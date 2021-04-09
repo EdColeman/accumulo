@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.Accumulo;
@@ -39,6 +40,7 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.TableId;
@@ -50,6 +52,7 @@ import org.apache.accumulo.core.replication.ReplicationSchema.StatusSection;
 import org.apache.accumulo.core.replication.ReplicationTable;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.TablePermission;
+import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.replication.StatusUtil;
@@ -98,6 +101,9 @@ public class CloseWriteAheadLogReferencesIT extends ConfigurableMacBase {
 
   @Before
   public void setupEasyMockStuff() {
+
+    InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
+
     SiteConfiguration siteConfig = EasyMock.createMock(SiteConfiguration.class);
     final AccumuloConfiguration systemConf = new ConfigurationCopy(new HashMap<>());
 
@@ -118,8 +124,8 @@ public class CloseWriteAheadLogReferencesIT extends ConfigurableMacBase {
     expect(context.getZooKeepers()).andReturn("localhost").anyTimes();
     expect(context.getInstanceName()).andReturn("test").anyTimes();
     expect(context.getZooKeepersSessionTimeOut()).andReturn(30000).anyTimes();
-    expect(context.getInstanceID()).andReturn("1111").anyTimes();
-    expect(context.getZooKeeperRoot()).andReturn(Constants.ZROOT + "/1111").anyTimes();
+    expect(context.getInstanceID()).andReturn(instanceId).anyTimes();
+    expect(context.getZooKeeperRoot()).andReturn(ZooUtil.getRoot(instanceId)).anyTimes();
 
     replay(siteConfig, context);
 

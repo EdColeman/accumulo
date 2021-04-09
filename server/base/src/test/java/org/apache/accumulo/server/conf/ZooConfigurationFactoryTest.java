@@ -28,12 +28,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.zookeeper.Watcher;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.UUID;
 
 public class ZooConfigurationFactoryTest {
 
@@ -55,7 +58,7 @@ public class ZooConfigurationFactoryTest {
   @Test
   public void testGetInstance() {
     expect(context.getZooKeeperRoot()).andReturn("zkroot").anyTimes();
-    expect(context.getInstanceID()).andReturn("iid").anyTimes();
+    expect(context.getInstanceID()).andReturn(InstanceId.of(UUID.randomUUID().toString())).anyTimes();
     expect(context.getZooKeepers()).andReturn("localhost").anyTimes();
     expect(context.getZooKeepersSessionTimeOut()).andReturn(120000).anyTimes();
     replay(context);

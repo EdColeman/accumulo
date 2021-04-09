@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.accumulo.core.client.security.tokens.AuthenticationToken;
 import org.apache.accumulo.core.client.security.tokens.PasswordToken;
+import org.apache.accumulo.core.data.InstanceId;
 
 /**
  * This class represents the information a client needs to know to connect to an instance of
@@ -52,7 +53,7 @@ public interface Instance {
    *
    * @return a UUID
    */
-  String getInstanceID();
+  InstanceId getInstanceID();
 
   /**
    * Returns the instance name given at system initialization time.

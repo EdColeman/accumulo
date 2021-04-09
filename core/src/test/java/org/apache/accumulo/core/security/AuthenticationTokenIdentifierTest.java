@@ -27,8 +27,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.UUID;
 
 import org.apache.accumulo.core.clientImpl.AuthenticationTokenIdentifier;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
 
@@ -67,7 +69,7 @@ public class AuthenticationTokenIdentifierTest {
     dblNewToken.setKeyId(1);
     dblNewToken.setIssueDate(5L);
     dblNewToken.setExpirationDate(10L);
-    dblNewToken.setInstanceId("uuid");
+    dblNewToken.setInstanceId(InstanceId.of(UUID.randomUUID().toString()));
   }
 
   @Test

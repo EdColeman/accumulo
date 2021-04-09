@@ -32,6 +32,7 @@ import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.replication.ReplicationConstants;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.HostAndPort;
@@ -73,14 +74,14 @@ public class MultiTserverReplicationIT extends ConfigurableMacBase {
           new ZooReader(context.getZooKeepers(), context.getZooKeepersSessionTimeOut());
       Set<String> tserverHost = new HashSet<>();
       tserverHost.addAll(zreader.getChildren(
-          ZooUtil.getRoot(client.instanceOperations().getInstanceID()) + Constants.ZTSERVERS));
+          ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID())) + Constants.ZTSERVERS));
 
       Set<HostAndPort> replicationServices = new HashSet<>();
 
       for (String tserver : tserverHost) {
         try {
           byte[] portData =
-              zreader.getData(ZooUtil.getRoot(client.instanceOperations().getInstanceID())
+              zreader.getData(ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID()))
                   + ReplicationConstants.ZOO_TSERVERS + "/" + tserver);
           HostAndPort replAddress = HostAndPort.fromString(new String(portData, UTF_8));
           replicationServices.add(replAddress);
@@ -118,7 +119,7 @@ public class MultiTserverReplicationIT extends ConfigurableMacBase {
 
       // Get the manager replication coordinator addr
       String replCoordAddr =
-          new String(zreader.getData(ZooUtil.getRoot(client.instanceOperations().getInstanceID())
+          new String(zreader.getData(ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID()))
               + Constants.ZMANAGER_REPLICATION_COORDINATOR_ADDR), UTF_8);
 
       // They shouldn't be the same

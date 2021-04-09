@@ -31,9 +31,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.security.tokens.PasswordToken;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.SystemPermission;
 import org.apache.accumulo.core.security.TablePermission;
@@ -47,6 +49,8 @@ import org.easymock.EasyMock;
 import org.junit.Test;
 
 public class ZKAuthenticatorTest {
+
+  private final InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
 
   @Test
   public void testPermissionIdConversions() {
@@ -135,7 +139,7 @@ public class ZKAuthenticatorTest {
     ServerContext context = createMock(ServerContext.class);
     ZooReaderWriter zr = createMock(ZooReaderWriter.class);
     expect(context.getZooReaderWriter()).andReturn(zr).anyTimes();
-    expect(context.getInstanceID()).andReturn("example").once();
+    expect(context.getInstanceID()).andReturn(instanceId).once();
     ZooKeeper zk = createMock(ZooKeeper.class);
     expect(zk.getChildren(EasyMock.anyObject(), EasyMock.anyObject()))
         .andReturn(Arrays.asList(principal)).anyTimes();
@@ -169,7 +173,7 @@ public class ZKAuthenticatorTest {
     ServerContext context = createMock(ServerContext.class);
     ZooReaderWriter zr = createMock(ZooReaderWriter.class);
     expect(context.getZooReaderWriter()).andReturn(zr).anyTimes();
-    expect(context.getInstanceID()).andReturn("example").once();
+    expect(context.getInstanceID()).andReturn(instanceId).once();
     ZooKeeper zk = createMock(ZooKeeper.class);
     expect(zk.getChildren(EasyMock.anyObject(), EasyMock.anyObject()))
         .andReturn(Arrays.asList(principal)).anyTimes();

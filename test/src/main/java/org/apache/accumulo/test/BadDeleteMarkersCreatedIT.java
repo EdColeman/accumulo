@@ -36,6 +36,7 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.admin.InstanceOperations;
 import org.apache.accumulo.core.clientImpl.ClientInfo;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.metadata.MetadataTable;
@@ -104,7 +105,7 @@ public class BadDeleteMarkersCreatedIT extends AccumuloClusterHarness {
       ZooCache zcache = new ZooCache(info.getZooKeepers(), info.getZooKeepersSessionTimeOut());
       zcache.clear();
       var path = ServiceLock
-          .path(ZooUtil.getRoot(client.instanceOperations().getInstanceID()) + Constants.ZGC_LOCK);
+          .path(ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID())) + Constants.ZGC_LOCK);
       byte[] gcLockData;
       do {
         gcLockData = ServiceLock.getLockData(zcache, path, null);

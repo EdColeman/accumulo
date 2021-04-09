@@ -27,6 +27,7 @@ import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.TableId;
@@ -267,7 +268,7 @@ public class MergeStats {
         ZooReaderWriter zooReaderWriter = opts.getServerContext().getZooReaderWriter();
         for (Entry<String,String> entry : tableIdMap.entrySet()) {
           final String table = entry.getKey(), tableId = entry.getValue();
-          String path = ZooUtil.getRoot(client.instanceOperations().getInstanceID())
+          String path = ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID()))
               + Constants.ZTABLES + "/" + tableId + "/merge";
           MergeInfo info = new MergeInfo();
           if (zooReaderWriter.exists(path)) {

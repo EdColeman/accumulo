@@ -22,9 +22,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Collections;
 import java.util.TreeSet;
+import java.util.UUID;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.fate.zookeeper.ZooReader;
@@ -44,7 +46,7 @@ public class ManagerReplicationCoordinatorTest {
     ServerContext context = EasyMock.createMock(ServerContext.class);
     EasyMock.expect(context.getConfiguration()).andReturn(config).anyTimes();
     EasyMock.expect(manager.getContext()).andReturn(context);
-    EasyMock.expect(manager.getInstanceID()).andReturn("1234");
+    EasyMock.expect(manager.getInstanceID()).andReturn(InstanceId.of(UUID.randomUUID().toString()));
     EasyMock.replay(manager, reader);
 
     ManagerReplicationCoordinator coordinator = new ManagerReplicationCoordinator(manager, reader);
@@ -60,7 +62,7 @@ public class ManagerReplicationCoordinatorTest {
     EasyMock.expect(context.getConfiguration()).andReturn(config).anyTimes();
     ZooReader reader = EasyMock.createMock(ZooReader.class);
     EasyMock.expect(manager.getContext()).andReturn(context);
-    EasyMock.expect(manager.getInstanceID()).andReturn("1234");
+    EasyMock.expect(manager.getInstanceID()).andReturn(InstanceId.of(UUID.randomUUID().toString()));
     EasyMock.replay(manager, reader);
 
     ManagerReplicationCoordinator coordinator = new ManagerReplicationCoordinator(manager, reader);
@@ -71,13 +73,14 @@ public class ManagerReplicationCoordinatorTest {
 
   @Test
   public void randomServerFromMany() {
+    InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
     Manager manager = EasyMock.createMock(Manager.class);
     ZooReader reader = EasyMock.createMock(ZooReader.class);
     ServerContext context = EasyMock.createMock(ServerContext.class);
     EasyMock.expect(context.getConfiguration()).andReturn(config).anyTimes();
-    EasyMock.expect(context.getInstanceID()).andReturn("1234").anyTimes();
+    EasyMock.expect(context.getInstanceID()).andReturn(instanceId).anyTimes();
     EasyMock.expect(context.getZooReaderWriter()).andReturn(null).anyTimes();
-    EasyMock.expect(manager.getInstanceID()).andReturn("1234").anyTimes();
+    EasyMock.expect(manager.getInstanceID()).andReturn(instanceId).anyTimes();
     EasyMock.expect(manager.getContext()).andReturn(context).anyTimes();
     EasyMock.replay(manager, context, reader);
 

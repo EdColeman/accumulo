@@ -31,10 +31,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 
 import java.util.Properties;
+import java.util.UUID;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
@@ -48,7 +50,7 @@ import org.junit.Test;
 public class ServerConfigurationFactoryTest {
   private static final String ZK_HOST = "localhost";
   private static final int ZK_TIMEOUT = 120000;
-  private static final String IID = "iid";
+  private static final InstanceId IID = InstanceId.of(UUID.randomUUID().toString());
 
   // use the same mock ZooCacheFactory and ZooCache for all tests
   private static ZooCacheFactory zcf;

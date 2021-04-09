@@ -34,6 +34,7 @@ import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.accumulo.core.clientImpl.thrift.ClientService.Iface;
@@ -41,6 +42,7 @@ import org.apache.accumulo.core.clientImpl.thrift.ClientService.Processor;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.trace.TraceUtil;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.client.ClientServiceHandler;
@@ -115,7 +117,7 @@ public class TServerUtilsTest {
 
   private ServerContext ctx;
   private final ConfigurationCopy conf = new ConfigurationCopy(DefaultConfiguration.getInstance());
-
+  private final InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
   @Before
   public void createMockServerContext() {
     ctx = EasyMock.createMock(ServerContext.class);
@@ -124,7 +126,7 @@ public class TServerUtilsTest {
     expect(ctx.getZooKeepers()).andReturn("").anyTimes();
     expect(ctx.getInstanceName()).andReturn("instance").anyTimes();
     expect(ctx.getZooKeepersSessionTimeOut()).andReturn(1).anyTimes();
-    expect(ctx.getInstanceID()).andReturn("11111").anyTimes();
+    expect(ctx.getInstanceID()).andReturn(instanceId).anyTimes();
     expect(ctx.getConfiguration()).andReturn(conf).anyTimes();
     expect(ctx.getThriftServerType()).andReturn(ThriftServerType.THREADPOOL).anyTimes();
     expect(ctx.getServerSslParams()).andReturn(null).anyTimes();

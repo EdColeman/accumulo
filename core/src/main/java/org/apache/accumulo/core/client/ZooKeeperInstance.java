@@ -34,6 +34,7 @@ import org.apache.accumulo.core.clientImpl.InstanceOperationsImpl;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ClientProperty;
 import org.apache.accumulo.core.conf.ConfigurationTypeHelper;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.Location;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.LocationType;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
@@ -69,7 +70,7 @@ public class ZooKeeperInstance implements Instance {
 
   private static final Logger log = LoggerFactory.getLogger(ZooKeeperInstance.class);
 
-  private String instanceId = null;
+  private InstanceId instanceId = null;
   private String instanceName = null;
 
   private final ZooCache zooCache;
@@ -97,7 +98,7 @@ public class ZooKeeperInstance implements Instance {
     // Enable singletons before before getting a zoocache
     SingletonManager.setMode(Mode.CONNECTOR);
     this.clientConf = config;
-    this.instanceId = clientConf.get(ClientConfiguration.ClientProperty.INSTANCE_ID);
+    this.instanceId = InstanceId.of(clientConf.get(ClientConfiguration.ClientProperty.INSTANCE_ID));
     this.instanceName = clientConf.get(ClientConfiguration.ClientProperty.INSTANCE_NAME);
     if ((instanceId == null) == (instanceName == null))
       throw new IllegalArgumentException(
@@ -125,7 +126,7 @@ public class ZooKeeperInstance implements Instance {
   }
 
   @Override
-  public String getInstanceID() {
+  public InstanceId getInstanceID() {
     if (instanceId == null) {
       instanceId = ClientContext.getInstanceID(zooCache, instanceName);
     }
@@ -167,8 +168,8 @@ public class ZooKeeperInstance implements Instance {
   @Override
   public String getInstanceName() {
     if (instanceName == null)
-      instanceName =
-          InstanceOperationsImpl.lookupInstanceName(zooCache, UUID.fromString(getInstanceID()));
+      instanceName = InstanceOperationsImpl.lookupInstanceName(zooCache,
+          UUID.fromString(getInstanceID().canonical()));
 
     return instanceName;
   }

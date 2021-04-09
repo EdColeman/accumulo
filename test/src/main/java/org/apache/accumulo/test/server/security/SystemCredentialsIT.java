@@ -21,6 +21,7 @@ package org.apache.accumulo.test.server.security;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
@@ -31,6 +32,7 @@ import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.security.tokens.PasswordToken;
 import org.apache.accumulo.core.clientImpl.Credentials;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.metadata.RootTable;
@@ -63,7 +65,7 @@ public class SystemCredentialsIT extends ConfigurableMacBase {
     var siteConfig = SiteConfiguration.auto();
     try (ServerContext context = new ServerContext(siteConfig)) {
       Credentials creds;
-      String badInstanceID = SystemCredentials.class.getName();
+      InstanceId badInstanceID = InstanceId.of("00000000-0000-0000-0000-000000000000");
       if (args.length < 2) {
         throw new RuntimeException("Incorrect usage; expected to be run by test only");
       }

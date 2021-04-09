@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.ws.rs.WebApplicationException;
@@ -39,6 +40,7 @@ import jakarta.ws.rs.ext.MessageBodyWriter;
 
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.Monitor.MonitorFactory;
@@ -91,7 +93,7 @@ public class WebViewsIT extends JerseyTest {
   public static void createMocks() {
     ServerContext contextMock = EasyMock.createMock(ServerContext.class);
     expect(contextMock.getConfiguration()).andReturn(DefaultConfiguration.getInstance()).anyTimes();
-    expect(contextMock.getInstanceID()).andReturn("foo").atLeastOnce();
+    expect(contextMock.getInstanceID()).andReturn(InstanceId.of(UUID.randomUUID().toString())).atLeastOnce();
     expect(contextMock.getInstanceName()).andReturn("foo").anyTimes();
 
     Monitor monitorMock = EasyMock.createMock(Monitor.class);

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -89,8 +90,8 @@ public class ZooUtil {
     PUBLIC.add(new ACL(Perms.READ, Ids.ANYONE_ID_UNSAFE));
   }
 
-  public static String getRoot(final String instanceId) {
-    return Constants.ZROOT + "/" + instanceId;
+  public static String getRoot(final InstanceId instanceId) {
+    return Constants.ZROOT + "/" + instanceId.canonical();
   }
 
   /**

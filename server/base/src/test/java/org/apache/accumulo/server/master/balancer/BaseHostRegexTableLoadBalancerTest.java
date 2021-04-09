@@ -30,6 +30,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import org.apache.accumulo.core.Constants;
@@ -42,6 +43,7 @@ import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.master.thrift.TableInfo;
@@ -57,6 +59,8 @@ import org.easymock.EasyMock;
 
 @Deprecated(since = "2.1.0")
 public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableLoadBalancer {
+
+  private final InstanceId instanceId = InstanceId.of(UUID.randomUUID().toString());
 
   protected static class TestTable {
     private String tableName;
@@ -162,7 +166,7 @@ public abstract class BaseHostRegexTableLoadBalancerTest extends HostRegexTableL
     expect(mockContext.getZooKeepers()).andReturn("").anyTimes();
     expect(mockContext.getInstanceName()).andReturn("test").anyTimes();
     expect(mockContext.getZooKeepersSessionTimeOut()).andReturn(30).anyTimes();
-    expect(mockContext.getInstanceID()).andReturn("1111").anyTimes();
+    expect(mockContext.getInstanceID()).andReturn(instanceId).anyTimes();
     expect(mockContext.getZooKeeperRoot()).andReturn(Constants.ZROOT + "/1111").anyTimes();
     return mockContext;
   }

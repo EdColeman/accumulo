@@ -29,6 +29,7 @@ import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
@@ -90,7 +91,7 @@ public abstract class DistributedWorkQueueWorkAssigner implements WorkAssigner {
    */
   protected void initializeWorkQueue(AccumuloConfiguration conf) {
     workQueue =
-        new DistributedWorkQueue(ZooUtil.getRoot(client.instanceOperations().getInstanceID())
+        new DistributedWorkQueue(ZooUtil.getRoot(InstanceId.of(client.instanceOperations().getInstanceID()))
             + ReplicationConstants.ZOO_WORK_QUEUE, conf);
   }
 

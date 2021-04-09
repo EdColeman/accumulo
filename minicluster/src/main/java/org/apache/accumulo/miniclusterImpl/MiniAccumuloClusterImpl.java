@@ -68,6 +68,7 @@ import org.apache.accumulo.core.conf.ConfigurationCopy;
 import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.master.thrift.ManagerClientService;
 import org.apache.accumulo.core.master.thrift.ManagerGoalState;
 import org.apache.accumulo.core.master.thrift.ManagerMonitorInfo;
@@ -483,7 +484,7 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
       ZooReaderWriter zrw = new ZooReaderWriter(cc.get(Property.INSTANCE_ZK_HOST),
           (int) cc.getTimeInMillis(Property.INSTANCE_ZK_TIMEOUT), cc.get(Property.INSTANCE_SECRET));
 
-      String rootPath = ZooUtil.getRoot(instanceIdFromFile);
+      String rootPath = ZooUtil.getRoot(InstanceId.of(instanceIdFromFile));
 
       String instanceName = null;
       try {
