@@ -186,15 +186,15 @@ public class CacheId implements Comparable<CacheId> {
     return getNamespaceIdCanonical() + SEPARATOR + getTableIdCanonical();
   }
 
-  public static String displayId(final String key){
+  public static String displayId(final String key) {
     Objects.requireNonNull(key, "Provided cacheId key string cannot be null");
-    if(sysIdKey.compareTo(key) == 0){
+    if (sysIdKey.compareTo(key) == 0) {
       return "system:";
     }
-    if(key.startsWith(tableIdPrefixKey)){
+    if (key.startsWith(tableIdPrefixKey)) {
       return "table:" + key;
     }
-    return  "namespace:"+ key;
+    return "namespace:" + key;
   }
 
   public IdType getType() {
