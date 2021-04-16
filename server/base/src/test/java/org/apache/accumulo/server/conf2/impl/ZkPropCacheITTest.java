@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.server.conf2.impl;
 
+import static org.junit.Assume.assumeTrue;
+
 import org.apache.accumulo.server.conf2.ZooBase;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,7 +36,11 @@ public class ZkPropCacheITTest extends ZooBase {
   }
 
   @Test
-  public void readTest(){
+  public void readTest() {
+    assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper());
+
     ZkPropCache cache = new ZkPropCache();
+
+    log.info("cache is {}", cache);
   }
 }
