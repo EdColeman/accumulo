@@ -18,29 +18,35 @@
  */
 package org.apache.accumulo.server.conf2.impl;
 
-import static org.junit.Assume.assumeTrue;
+import static org.junit.Assert.assertTrue;
 
-import org.apache.accumulo.server.conf2.ZooBase;
-import org.junit.BeforeClass;
+import java.util.UUID;
+
+import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.zookeeper.ZooKeeper;
+import org.easymock.EasyMock;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkPropCacheITTest extends ZooBase {
+public class ZkPropCacheITTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZkPropCacheITTest.class);
 
-  @BeforeClass
-  public static void init() throws Exception {
-    ZooBase.init();
-  }
-
   @Test
   public void readTest() {
-    assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper());
 
-    ZkPropCache cache = new ZkPropCache();
+    ZooKeeper zooKeeper = EasyMock.mock(ZooKeeper.class);
+    var iid = UUID.randomUUID().toString();
+    var cacheId = CacheId.forTable(iid, TableId.of("a"));
+
+    ZkPropCache cache = new ZkPropCache(zooKeeper, iid);
 
     log.info("cache is {}", cache);
+
+    var props = cache.getProperties(cacheId);
+
+    assertTrue(props.isEmpty());
   }
 }
