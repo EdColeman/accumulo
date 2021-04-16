@@ -49,6 +49,7 @@ public class TableConfiguration extends ZooBasedConfiguration {
   private final TableId tableId;
 
   private final EnumMap<IteratorScope,Deriver<ParsedIteratorConfig>> iteratorConfig;
+
   private final Deriver<ScanDispatcher> scanDispatchDeriver;
   private final Deriver<CompactionDispatcher> compactionDispatchDeriver;
 
