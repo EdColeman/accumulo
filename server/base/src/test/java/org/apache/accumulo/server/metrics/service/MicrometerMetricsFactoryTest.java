@@ -52,12 +52,12 @@ public class MicrometerMetricsFactoryTest {
 
     Counter counter = Counter.builder("test.counter").register(factory.getRegistry());
 
-    // increase count, timout for manual testing
-    int count = 2;
+    // increase count, timeout for manual testing
+    int count = 20;
     while (count-- > 0) {
       try {
         counter.increment(1.0);
-        Thread.sleep(1_000);
+        Thread.sleep(10_000);
       } catch (InterruptedException ex) {
         // ignore
       }
