@@ -18,6 +18,9 @@
  */
 package org.apache.accumulo.server.metrics.service.hadoop;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.metrics2.AbstractMetric;
 import org.apache.hadoop.metrics2.MetricsCollector;
 import org.apache.hadoop.metrics2.MetricsInfo;
@@ -25,9 +28,6 @@ import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.MetricsTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Map;
 
 class HadoopMMCollector implements MetricsCollector {
 

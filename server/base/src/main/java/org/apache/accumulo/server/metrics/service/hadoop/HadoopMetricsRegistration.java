@@ -18,12 +18,22 @@
  */
 package org.apache.accumulo.server.metrics.service.hadoop;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToLongFunction;
+
+import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.metrics.service.MetricsRegistrationService;
+import org.apache.hadoop.metrics2.MetricsSystem;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.auto.service.AutoService;
 
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.Counter;
@@ -36,23 +46,12 @@ import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Statistic;
 import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
 import io.micrometer.core.instrument.distribution.pause.PauseDetector;
-import io.micrometer.core.instrument.step.StepMeterRegistry;
+import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
 import io.micrometer.core.instrument.step.StepRegistryConfig;
 import io.micrometer.core.instrument.util.HierarchicalNameMapper;
-import io.micrometer.core.instrument.util.NamedThreadFactory;
-import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.metrics.service.MetricsRegistrationService;
-import org.apache.hadoop.metrics2.MetricsSystem;
-import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.auto.service.AutoService;
-
-import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
-import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
 
 @AutoService(MetricsRegistrationService.class)
 public class HadoopMetricsRegistration implements MetricsRegistrationService {
@@ -81,19 +80,25 @@ public class HadoopMetricsRegistration implements MetricsRegistrationService {
 
     HadoopRegistryConfig DEFAULT = k -> null;
 
-    @Override default String prefix(){
+    @Override
+    default String prefix() {
       return "hadoop";
     }
   }
 
+  public interface HadoopPollable {
+    void poll();
+  }
   public class HadoopMeterRegistry extends MeterRegistry {
+
+    final Map<Meter.Id, HadoopPollable> meters = new HashMap<>();
 
     public HadoopMeterRegistry(HadoopRegistryConfig config, Clock clock) {
       this(config, HierarchicalNameMapper.DEFAULT, clock, null, null);
     }
 
-    public HadoopMeterRegistry(HadoopRegistryConfig config, HierarchicalNameMapper nameMapper, Clock clock,
-        Function<Meter.Id,HadoopLineBuilder> lineBuilderFunction,
+    public HadoopMeterRegistry(HadoopRegistryConfig config, HierarchicalNameMapper nameMapper,
+        Clock clock, Function<Meter.Id,HadoopLineBuilder> lineBuilderFunction,
         Consumer<String> lineSink) {
       super(clock);
       // start(new NamedThreadFactory("hadoop-metrics-publisher"));
@@ -102,11 +107,13 @@ public class HadoopMetricsRegistration implements MetricsRegistrationService {
 
     }
 
-    @Override protected <T> Gauge newGauge(Meter.Id id, T t, ToDoubleFunction<T> toDoubleFunction) {
+    @Override
+    protected <T> Gauge newGauge(Meter.Id id, T t, ToDoubleFunction<T> toDoubleFunction) {
       return null;
     }
 
-    @Override protected Counter newCounter(Meter.Id id) {
+    @Override
+    protected Counter newCounter(Meter.Id id) {
       return null;
     }
 
@@ -116,7 +123,8 @@ public class HadoopMetricsRegistration implements MetricsRegistrationService {
       return null;
     }
 
-    @Override protected DistributionSummary newDistributionSummary(Meter.Id id,
+    @Override
+    protected DistributionSummary newDistributionSummary(Meter.Id id,
         DistributionStatisticConfig distributionStatisticConfig, double v) {
       return null;
     }
@@ -132,20 +140,22 @@ public class HadoopMetricsRegistration implements MetricsRegistrationService {
       return null;
     }
 
-    @Override protected <T> FunctionCounter newFunctionCounter(Meter.Id id, T t,
+    @Override
+    protected <T> FunctionCounter newFunctionCounter(Meter.Id id, T t,
         ToDoubleFunction<T> toDoubleFunction) {
       return null;
     }
 
-    @Override protected TimeUnit getBaseTimeUnit() {
+    @Override
+    protected TimeUnit getBaseTimeUnit() {
       return null;
     }
 
-    @Override protected DistributionStatisticConfig defaultHistogramConfig() {
+    @Override
+    protected DistributionStatisticConfig defaultHistogramConfig() {
       return null;
     }
   }
-
 
   private interface HadoopLineBuilder {
     default String count(long amount) {
