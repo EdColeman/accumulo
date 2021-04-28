@@ -48,8 +48,8 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.gc.thrift.GCMonitorService;
 import org.apache.accumulo.core.gc.thrift.GCStatus;
-import org.apache.accumulo.core.master.thrift.ManagerClientService;
-import org.apache.accumulo.core.master.thrift.ManagerMonitorInfo;
+import org.apache.accumulo.core.manager.thrift.ManagerClientService;
+import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
 import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
 import org.apache.accumulo.core.rpc.ThriftUtil;
@@ -630,7 +630,7 @@ public class Monitor extends AbstractServer implements HighlyAvailableService {
     UUID zooLockUUID = UUID.randomUUID();
     while (true) {
       MoniterLockWatcher monitorLockWatcher = new MoniterLockWatcher();
-      monitorLock = new ServiceLock(context.getSiteConfiguration(), monitorLockPath, zooLockUUID);
+      monitorLock = new ServiceLock(zoo.getZooKeeper(), monitorLockPath, zooLockUUID);
       monitorLock.lock(monitorLockWatcher, new byte[0]);
 
       monitorLockWatcher.waitForChange();
