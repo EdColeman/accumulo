@@ -20,13 +20,32 @@ package org.apache.accumulo.server.metrics.service.hadoop;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToLongFunction;
 
 import io.micrometer.core.instrument.Clock;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.FunctionCounter;
+import io.micrometer.core.instrument.FunctionTimer;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Measurement;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Statistic;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.distribution.DistributionStatisticConfig;
+import io.micrometer.core.instrument.distribution.pause.PauseDetector;
 import io.micrometer.core.instrument.step.StepMeterRegistry;
 import io.micrometer.core.instrument.step.StepRegistryConfig;
+import io.micrometer.core.instrument.util.HierarchicalNameMapper;
 import io.micrometer.core.instrument.util.NamedThreadFactory;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.metrics.service.MetricsRegistrationService;
+import org.apache.hadoop.metrics2.MetricsSystem;
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,20 +86,82 @@ public class HadoopMetricsRegistration implements MetricsRegistrationService {
     }
   }
 
-  public class HadoopMeterRegistry extends StepMeterRegistry {
+  public class HadoopMeterRegistry extends MeterRegistry {
 
     public HadoopMeterRegistry(HadoopRegistryConfig config, Clock clock) {
-      super(config, clock);
-
-      start(new NamedThreadFactory("custom-metrics-publisher"));
+      this(config, HierarchicalNameMapper.DEFAULT, clock, null, null);
     }
 
-    @Override protected void publish() {
-      getMeters().stream().forEach(meter -> System.out.println("Publishing " + meter.getId() + ":" + meter.toString()));
+    public HadoopMeterRegistry(HadoopRegistryConfig config, HierarchicalNameMapper nameMapper, Clock clock,
+        Function<Meter.Id,HadoopLineBuilder> lineBuilderFunction,
+        Consumer<String> lineSink) {
+      super(clock);
+      // start(new NamedThreadFactory("hadoop-metrics-publisher"));
+
+      MetricsSystem ms = DefaultMetricsSystem.initialize("Accumulo");
+
+    }
+
+    @Override protected <T> Gauge newGauge(Meter.Id id, T t, ToDoubleFunction<T> toDoubleFunction) {
+      return null;
+    }
+
+    @Override protected Counter newCounter(Meter.Id id) {
+      return null;
+    }
+
+    @Override
+    protected Timer newTimer(Meter.Id id, DistributionStatisticConfig distributionStatisticConfig,
+        PauseDetector pauseDetector) {
+      return null;
+    }
+
+    @Override protected DistributionSummary newDistributionSummary(Meter.Id id,
+        DistributionStatisticConfig distributionStatisticConfig, double v) {
+      return null;
+    }
+
+    @Override
+    protected Meter newMeter(Meter.Id id, Meter.Type type, Iterable<Measurement> iterable) {
+      return null;
+    }
+
+    @Override
+    protected <T> FunctionTimer newFunctionTimer(Meter.Id id, T t, ToLongFunction<T> toLongFunction,
+        ToDoubleFunction<T> toDoubleFunction, TimeUnit timeUnit) {
+      return null;
+    }
+
+    @Override protected <T> FunctionCounter newFunctionCounter(Meter.Id id, T t,
+        ToDoubleFunction<T> toDoubleFunction) {
+      return null;
     }
 
     @Override protected TimeUnit getBaseTimeUnit() {
-      return TimeUnit.MILLISECONDS;
+      return null;
     }
+
+    @Override protected DistributionStatisticConfig defaultHistogramConfig() {
+      return null;
+    }
+  }
+
+
+  private interface HadoopLineBuilder {
+    default String count(long amount) {
+      return count(amount, Statistic.COUNT);
+    }
+
+    String count(long amount, Statistic stat);
+
+    default String gauge(double amount) {
+      return gauge(amount, Statistic.VALUE);
+    }
+
+    String gauge(double amount, Statistic stat);
+
+    String histogram(double amount);
+
+    String timing(double timeMs);
   }
 }
