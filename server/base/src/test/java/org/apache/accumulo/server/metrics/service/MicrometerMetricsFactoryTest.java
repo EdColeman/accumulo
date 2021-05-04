@@ -50,7 +50,11 @@ public class MicrometerMetricsFactoryTest {
     MicrometerMetricsFactory factory = MicrometerMetricsFactory.create(context, "test");
     log.info("Factory: {}", factory);
 
-    Counter counter = Counter.builder("test.counter").register(factory.getRegistry());
+    var reg = factory.getRegistry();
+    log.info("VVV: reg: {}", reg);
+
+    Counter counter = factory.getRegistry().counter("test.counter");
+    // Counter counter = Counter.builder("test.counter").register(factory.getRegistry());
 
     // increase count, timeout for manual testing
     int count = 20;

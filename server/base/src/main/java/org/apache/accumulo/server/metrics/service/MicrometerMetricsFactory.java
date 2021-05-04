@@ -71,6 +71,8 @@ public class MicrometerMetricsFactory {
         for (Map.Entry<String,Map<String,String>> entry : serviceProperties.entrySet()) {
           if (entry.getValue().get("classname").equals(metrics.getClass().getName())) {
             entry.getValue().put(CALLING_SERVICE_NAME, appName);
+            log.info("Register: {}, {}, {}. {}", CALLING_SERVICE_NAME, appName, entry.getKey(),
+                entry.getValue());
             metrics.register(context, entry.getKey(), entry.getValue(), registry);
           }
         }
