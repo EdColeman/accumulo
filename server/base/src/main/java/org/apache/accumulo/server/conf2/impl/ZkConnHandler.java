@@ -61,7 +61,10 @@ public class ZkConnHandler {
 
   public void blockUntilReady() throws InterruptedException {
 
+    log.info("is ready {}, sync required {}", isReady.get(), syncRequired.get());
+
     while (!isReady.get()) {
+      log.info("start block");
       syncRequired.set(true);
       synchronized (readyMonitor) {
         log.trace("Waiting for zookeeper");
@@ -69,7 +72,9 @@ public class ZkConnHandler {
       }
     }
 
+    log.info("ready");
     if (syncRequired.compareAndSet(true, false)) {
+      log.info("call clear");
       cache.clearAll();
     }
   }
