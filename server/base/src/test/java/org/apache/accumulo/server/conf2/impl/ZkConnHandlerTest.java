@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.server.conf2.impl;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.easymock.EasyMock;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,21 @@ import org.slf4j.LoggerFactory;
 public class ZkConnHandlerTest {
 
   private static final Logger log = LoggerFactory.getLogger(ZkConnHandlerTest.class);
+
+  private final int numPoolThreads = 5;
+  private final int numWorkerThreads = 4;
+
+  private CountDownLatch startLatch = null;
+  private CountDownLatch readyLatch = null;
+
+  private ThreadPoolExecutor pool =
+      ThreadPools.createFixedThreadPool(numPoolThreads, "zk-conn-test-pool", false);
+
+  @Before
+  public void init() {
+    startLatch = new CountDownLatch(numWorkerThreads);
+    readyLatch = new CountDownLatch(numWorkerThreads);
+  }
 
   @Test
   public void connectedTest() throws InterruptedException {
@@ -60,6 +77,42 @@ public class ZkConnHandlerTest {
     handler.blockUntilReady();
   }
 
+  @Test
+  public void disconnectTest() throws InterruptedException {
+    ZooBackedCache cache = EasyMock.mock(ZooBackedCache.class);
+    cache.clearAll();
+    EasyMock.expectLastCall();
+
+    EasyMock.replay(cache);
+
+    ZkConnHandler handler = new ZkConnHandler(cache);
+    WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.None,
+        Watcher.Event.KeeperState.SyncConnected, "/a/path");
+
+    handler.processWatchEvent(event);
+
+    assertTrue(handler.isZkConnected());
+
+    handler.blockUntilReady();
+
+    WatchedEvent event2 = new WatchedEvent(Watcher.Event.EventType.None,
+        Watcher.Event.KeeperState.Disconnected, "/a/path");
+
+    handler.processWatchEvent(event2);
+
+    assertFalse(handler.isZkConnected());
+
+    startLatch = new CountDownLatch(1);
+    readyLatch = new CountDownLatch(1);
+
+    ReadyTask r = new ReadyTask(handler, startLatch, readyLatch);
+    Future<Long> blockedTask = pool.submit(r);
+
+    Thread.sleep(1000);
+    assertFalse(blockedTask.isDone());
+
+  }
+
   /**
    * Runs multiple threads. The call to resync the cache shculd only be called once.
    *
@@ -76,15 +129,6 @@ public class ZkConnHandlerTest {
     EasyMock.replay(cache);
 
     ZkConnHandler handler = new ZkConnHandler(cache);
-
-    var numPoolThreads = 5;
-    var numWorkerThreads = 4;
-
-    CountDownLatch startLatch = new CountDownLatch(numWorkerThreads);
-    CountDownLatch readyLatch = new CountDownLatch(numWorkerThreads);
-
-    ThreadPoolExecutor pool =
-        ThreadPools.createFixedThreadPool(numPoolThreads, "zk-conn-test-pool", false);
 
     List<Future<Long>> tasks = new ArrayList<>();
     for (int i = 0; i < numWorkerThreads; i++) {

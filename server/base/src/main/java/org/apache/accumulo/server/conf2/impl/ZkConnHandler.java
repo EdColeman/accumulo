@@ -47,6 +47,10 @@ public class ZkConnHandler {
     isReady.set(false);
   }
 
+  public boolean isZkConnected() {
+    return isReady.get();
+  }
+
   private void setZkConnected() {
     if (isReady.compareAndSet(false, true)) {
       synchronized (readyMonitor) {
