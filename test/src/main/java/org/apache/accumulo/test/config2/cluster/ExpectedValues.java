@@ -37,7 +37,7 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,7 +140,7 @@ public class ExpectedValues {
     expected.finishUpdate();
   }
 
-  public Map<String,String> updateStore(final ZooPropStore store, final CacheId id) {
+  public Map<String,String> updateStore(final GuavaPropStore store, final CacheId id) {
 
     try {
 

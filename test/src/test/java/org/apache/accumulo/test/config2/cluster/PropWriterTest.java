@@ -31,7 +31,7 @@ import java.util.UUID;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.test.zookeeper.ZooKeeperTestingServer;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZKUtil;
@@ -55,7 +55,7 @@ public class PropWriterTest {
   private static ServerContext mockContext = null;
 
   // per-test values.
-  private ZooPropStore store;
+  private GuavaPropStore store;
   private ExpectedValues truth;
   private PropWriter writer;
 
@@ -82,7 +82,7 @@ public class PropWriterTest {
 
     szk.initPaths(ZK_CONFIG_ROOT);
 
-    store = new ZooPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
+    store = new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
 
     truth = new ExpectedValues(mockContext, 1);
     for (CacheId id : truth.getIds()) {

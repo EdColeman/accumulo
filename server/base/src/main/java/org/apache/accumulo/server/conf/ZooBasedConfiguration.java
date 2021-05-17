@@ -58,7 +58,7 @@ public abstract class ZooBasedConfiguration extends AccumuloConfiguration implem
       Map<String,String> updates = getSnapshot();
       var count = updateCounter.get();
       log.info(
-          "processed matched ZooPropStore change event for id: {}, update count: {}, prop count: {}",
+          "processed matched GuavaPropStore change event for id: {}, update count: {}, prop count: {}",
           id, count, updates.size());
     }
   }

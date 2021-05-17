@@ -39,9 +39,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooPropStoreUnoTest {
+public class GuavaPropStoreUnoTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooPropStoreUnoTest.class);
+  private static final Logger log = LoggerFactory.getLogger(GuavaPropStoreUnoTest.class);
   private static transient boolean haveZookeeper = false;
   private static ZooKeeper zookeeper;
   private final String unoInstId = "2b0234bb-c157-4de5-bed0-0446528f50e8";

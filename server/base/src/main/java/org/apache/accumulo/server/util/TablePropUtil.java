@@ -35,7 +35,7 @@ public class TablePropUtil {
 
     if (true) {
       throw new UnsupportedOperationException(
-          "Should not call setTableProperty directly - use ZooPropStore");
+          "Should not call setTableProperty directly - use GuavaPropStore");
     }
 
     // create the zk node for per-table properties for this table if it doesn't already exist

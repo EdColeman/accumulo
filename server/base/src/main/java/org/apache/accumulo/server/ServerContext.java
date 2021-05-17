@@ -40,7 +40,7 @@ import org.apache.accumulo.server.conf.NamespaceConfiguration;
 import org.apache.accumulo.server.conf.ServerConfigurationFactory;
 import org.apache.accumulo.server.conf.TableConfiguration;
 import org.apache.accumulo.server.conf2.PropStore;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.metadata.ServerAmpleImpl;
 import org.apache.accumulo.server.rpc.SaslServerConnectionParams;
@@ -256,7 +256,7 @@ public class ServerContext extends ClientContext {
   public PropStore getPropStore() {
     if (propStore == null) {
       // TODO - should a watcher be set?
-      propStore = new ZooPropStore.Builder().withZk(getZooReaderWriter().getZooKeeper())
+      propStore = new GuavaPropStore.Builder().withZk(getZooReaderWriter().getZooKeeper())
           .forInstance(getInstanceID()).build();
     }
     return propStore;

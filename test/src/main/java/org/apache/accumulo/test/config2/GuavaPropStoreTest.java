@@ -40,7 +40,7 @@ import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.PropWatcher;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.test.zookeeper.ZooKeeperTestingServer;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZKUtil;
@@ -55,16 +55,16 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooPropStoreTest {
+public class GuavaPropStoreTest {
 
   public static final String INSTANCE_ID = UUID.randomUUID().toString();
   public static final String ZK_CONFIG_ROOT =
       "/accumulo/" + INSTANCE_ID + Constants.ZENCODED_CONFIG_ROOT;
-  private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
+  private static final Logger log = LoggerFactory.getLogger(GuavaPropStoreTest.class);
   private static ZooKeeperTestingServer szk = null;
   private static ZooKeeper zooKeeper;
 
-  private ZooPropStore store;
+  private GuavaPropStore store;
 
   @BeforeClass
   public static void setupZk() {
@@ -84,7 +84,7 @@ public class ZooPropStoreTest {
   public void setupZnodes() throws Exception {
     szk.initPaths(ZK_CONFIG_ROOT);
 
-    store = new ZooPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
+    store = new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
   }
 
   @After

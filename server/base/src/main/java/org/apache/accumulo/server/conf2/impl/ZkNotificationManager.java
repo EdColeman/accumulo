@@ -122,6 +122,7 @@ public class ZkNotificationManager implements Watcher {
       case NOT_CONNECTED:
       case CONNECTING:
       case ASSOCIATING:
+      case CONNECTEDREADONLY:
         boolean haveConnection = pauseForConnection();
         if (haveConnection) {
           return ready();
@@ -129,7 +130,6 @@ public class ZkNotificationManager implements Watcher {
         return false;
 
       case CONNECTED:
-      case CONNECTEDREADONLY:
         return ready();
 
       case CLOSED:
@@ -155,9 +155,9 @@ public class ZkNotificationManager implements Watcher {
 
     switch (state) {
       case CONNECTED:
-      case CONNECTEDREADONLY:
         return true;
       case ASSOCIATING:
+      case CONNECTEDREADONLY:
       case CONNECTING:
       case AUTH_FAILED:
       case CLOSED:
@@ -226,7 +226,7 @@ public class ZkNotificationManager implements Watcher {
   }
 
   private void notifyListenersPropsChanges(WatchedEvent watchedEvent, String path) {
-    Optional<CacheId> id = parseZkPath(path);
+    Optional<CacheId> id = CacheId.fromPath(path);
     if (id.isPresent()) {
       var theId = id.get();
       log.info("Data change: {}, clearing {}", watchedEvent.getType(), id);
@@ -236,10 +236,6 @@ public class ZkNotificationManager implements Watcher {
     } else {
       log.trace("change notification received for non-prop node: {}", path);
     }
-  }
-
-  private Optional<CacheId> parseZkPath(final String path) {
-    return CacheId.fromPath(path);
   }
 
   /**

@@ -18,6 +18,13 @@
  */
 package org.apache.accumulo.server.conf2.impl;
 
-public class ZkEventHandler {
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 
+public class ZkEventHandler implements Watcher {
+
+  @Override
+  public void process(WatchedEvent watchedEvent) {
+
+  }
 }

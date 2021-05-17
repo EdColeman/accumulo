@@ -39,7 +39,7 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -51,9 +51,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooPropStoreTest {
+public class GuavaPropStoreTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooPropStoreTest.class);
+  private static final Logger log = LoggerFactory.getLogger(GuavaPropStoreTest.class);
 
   /**
    * Get a mock zookeeper for these tests that is connected and the config node exits.
@@ -79,7 +79,8 @@ public class ZooPropStoreTest {
 
     replay(mockZk);
 
-    ZooPropStore props = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+    GuavaPropStore props =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
     log.debug("props: {}", props);
 
@@ -100,7 +101,7 @@ public class ZooPropStoreTest {
 
     var instanceId = UUID.randomUUID().toString();
 
-    PropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
+    PropStore store = new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
 
     PropEncoding props = new PropEncodingV1();
     store.writeToStore(new CacheId(instanceId, null, TableId.of("a")), props);
@@ -156,7 +157,7 @@ public class ZooPropStoreTest {
 
     replay(mockZk);
 
-    PropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
+    PropStore store = new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
     assertNotNull(store);
 
     log.info("DID: {}", dataId);

@@ -37,7 +37,7 @@ import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.test.config2.cluster.ExpectedValues;
 import org.apache.accumulo.test.config2.cluster.PropReader;
 import org.apache.accumulo.test.config2.cluster.TestWorker;
@@ -114,7 +114,7 @@ public class MultiZooConfigTest {
 
     truth = new ExpectedValues(mockContext, NUM_SIMULATED_TABLES);
 
-    var store = new ZooPropStore.Builder().withZk(zoo).forInstance(INSTANCE_ID).build();
+    var store = new GuavaPropStore.Builder().withZk(zoo).forInstance(INSTANCE_ID).build();
     var ids = truth.getIds();
 
     Map<String,String> values = new HashMap<>();

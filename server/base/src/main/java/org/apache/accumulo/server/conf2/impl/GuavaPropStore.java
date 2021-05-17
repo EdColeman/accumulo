@@ -45,9 +45,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 
-public class ZooPropStore implements PropStore {
+public class GuavaPropStore implements PropStore {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooPropStore.class);
+  private static final Logger log = LoggerFactory.getLogger(GuavaPropStore.class);
 
   private final String configRoot;
 
@@ -60,11 +60,11 @@ public class ZooPropStore implements PropStore {
 
   private final CacheWrapper cache;
 
-  private ZooPropStore(final ZooKeeper zooKeeper, final String instanceId) {
+  private GuavaPropStore(final ZooKeeper zooKeeper, final String instanceId) {
     this(zooKeeper, instanceId, null);
   }
 
-  private ZooPropStore(final ZooKeeper zooKeeper, final String instanceId, Ticker ticker) {
+  private GuavaPropStore(final ZooKeeper zooKeeper, final String instanceId, Ticker ticker) {
 
     this.zooKeeper = zooKeeper;
 
@@ -388,12 +388,12 @@ public class ZooPropStore implements PropStore {
     private String instanceId;
     private Ticker ticker;
 
-    public ZooPropStore build() {
+    public GuavaPropStore build() {
 
       Objects.requireNonNull(zooKeeper, "Valid ZooKeeper instance must be supplied");
       Objects.requireNonNull(instanceId, "Valid instance ID must be supplied");
 
-      return new ZooPropStore(zooKeeper, instanceId);
+      return new GuavaPropStore(zooKeeper, instanceId);
 
     }
 

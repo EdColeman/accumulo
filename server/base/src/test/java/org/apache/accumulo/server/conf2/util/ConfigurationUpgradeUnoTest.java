@@ -37,7 +37,7 @@ import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -121,8 +121,8 @@ public class ConfigurationUpgradeUnoTest {
     Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
     // final String srcPath, final CacheId destId
-    ZooPropStore propStore =
-        new ZooPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
+    GuavaPropStore propStore =
+        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
 
     ServerContext mockContext = mock(ServerContext.class);
     AccumuloConfiguration mockConf = mock(AccumuloConfiguration.class);
@@ -158,8 +158,8 @@ public class ConfigurationUpgradeUnoTest {
     Assume.assumeTrue("Could not connect to zookeeper, skipping", haveZookeeper);
 
     // final String srcPath, final CacheId destId
-    ZooPropStore propStore =
-        new ZooPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
+    GuavaPropStore propStore =
+        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
 
     ServerContext mockContext = mock(ServerContext.class);
     AccumuloConfiguration mockConf = mock(AccumuloConfiguration.class);

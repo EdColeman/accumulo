@@ -19,15 +19,15 @@
 package org.apache.accumulo.server.conf2.impl;
 
 import static org.apache.zookeeper.Watcher.Event.EventType;
-import static org.apache.zookeeper.Watcher.Event.KeeperState.SyncConnected;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkConnHandler {
+public class ZkConnHandler implements Watcher {
 
   public static final int READY_TIMEOUT_MILLIS = 2_000;
   private static final Logger log = LoggerFactory.getLogger(ZkConnHandler.class);
@@ -59,8 +59,20 @@ public class ZkConnHandler {
     }
   }
 
-  private void setZkDisconnected() {
+  /**
+   * Currently calls closed to disable ready flag. There is room to differentiate between
+   * disconnected and closed. Closed is permanent, disconnection may be transient.
+   *
+   * @throws InterruptedException
+   *           if clearing cache is interrupted.
+   */
+  private void setZkDisconnected() throws InterruptedException {
+    setZkClosed();
+  }
+
+  private void setZkClosed() throws InterruptedException {
     isReady.set(false);
+    cache.clearAll();
   }
 
   public void blockUntilReady() throws InterruptedException {
@@ -78,30 +90,59 @@ public class ZkConnHandler {
 
     log.info("ready");
     if (syncRequired.compareAndSet(true, false)) {
-      log.info("call clear");
+      log.info("ready - call clear");
       cache.clearAll();
     }
   }
 
+  @Override
+  public void process(WatchedEvent event) {
+
+    final EventType eventType = event.getType();
+
+    if (EventType.None.equals(eventType)) {
+      try {
+        processWatchEvent(event.getState());
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Operation interrupted", ex);
+      }
+    }
+
+  }
+
   /**
    * Process a ZooKeeper connection event - other event types are ignored. Connection events have a
-   * event type of None and set the event state. Only allow processing through the isReady flag when
-   * the event state is connected. All other states should set the isReady flag to false;
+   * event type of None and set the event state. Only allow processing controlled by the isReady
+   * flag when the event state is connected. All other states should set the isReady flag to false;
    *
-   * @param event
-   *          a ZooKeeper watch event.
+   * @param state
+   *          The Zookeeper event state.
+   * @throws InterruptedException
+   *           is the operation is interrupted.
    */
-  public void processWatchEvent(final WatchedEvent event) {
+  private void processWatchEvent(final Event.KeeperState state) throws InterruptedException {
 
-    if (!EventType.None.equals(event.getType())) {
-      return;
-    }
+    switch (state) {
+      case SyncConnected:
+        setZkConnected();
+        return;
 
-    if (SyncConnected.equals(event.getState())) {
-      setZkConnected();
-      return;
+      case ConnectedReadOnly:
+      case Expired:
+        setZkClosed();
+        return;
+
+      case Disconnected:
+        setZkDisconnected();
+        return;
+
+      case AuthFailed:
+      case SaslAuthenticated:
+      default:
+        // empty
+        break;
     }
-    setZkDisconnected();
   }
 
 }

@@ -35,7 +35,7 @@ import java.util.UUID;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.easymock.Capture;
 import org.junit.Before;
 import org.junit.Test;
@@ -77,7 +77,7 @@ public class GuardValuesTest {
   @Test
   public void writeTest() throws Exception {
 
-    ZooPropStore mockStore = mock(ZooPropStore.class);
+    GuavaPropStore mockStore = mock(GuavaPropStore.class);
     Capture<CacheId> anId = newCapture();
     Capture<Map<String,String>> props = newCapture();
     expect(mockStore.readFromStore(capture(anId))).andReturn(new PropEncodingV1());

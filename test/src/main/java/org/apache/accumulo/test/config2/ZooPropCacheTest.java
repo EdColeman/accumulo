@@ -40,7 +40,7 @@ import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.PropWatcher;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.test.zookeeper.ZooKeeperTestingServer;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZKUtil;
@@ -64,7 +64,7 @@ public class ZooPropCacheTest {
   private static ZooKeeperTestingServer szk = null;
   private static ZooKeeper zooKeeper;
 
-  private ZooPropStore store;
+  private GuavaPropStore store;
 
   @BeforeClass
   public static void setupZk() {
@@ -84,7 +84,7 @@ public class ZooPropCacheTest {
   public void setupZnodes() throws Exception {
     szk.initPaths(ZK_CONFIG_ROOT);
 
-    store = new ZooPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
+    store = new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
   }
 
   @After

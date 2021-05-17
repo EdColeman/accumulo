@@ -26,7 +26,7 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.zookeeper.data.Stat;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,11 +34,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * ZooPropStore test that uses a live zookeeper instance.
+ * GuavaPropStore test that uses a live zookeeper instance.
  */
-public class ZooPropStoreZkITTest extends ZooBase {
+public class GuavaPropStoreZkITTest extends ZooBase {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooPropStoreZkITTest.class);
+  private static final Logger log = LoggerFactory.getLogger(GuavaPropStoreZkITTest.class);
 
   @BeforeClass
   public static void init() throws Exception {
@@ -54,7 +54,7 @@ public class ZooPropStoreZkITTest extends ZooBase {
     log.debug("Nodes: {}", nodes);
 
     PropStore store =
-        new ZooPropStore.Builder().withZk(getZooKeeper()).forInstance(getTestUuid()).build();
+        new GuavaPropStore.Builder().withZk(getZooKeeper()).forInstance(getTestUuid()).build();
 
     PropEncoding storedProp = new PropEncodingV1();
     fillMap(storedProp);

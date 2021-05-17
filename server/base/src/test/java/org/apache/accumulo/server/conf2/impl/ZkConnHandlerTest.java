@@ -34,6 +34,7 @@ import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.easymock.EasyMock;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -49,13 +50,25 @@ public class ZkConnHandlerTest {
   private CountDownLatch startLatch = null;
   private CountDownLatch readyLatch = null;
 
-  private ThreadPoolExecutor pool =
-      ThreadPools.createFixedThreadPool(numPoolThreads, "zk-conn-test-pool", false);
+  private ThreadPoolExecutor pool = null;
 
   @Before
   public void init() {
     startLatch = new CountDownLatch(numWorkerThreads);
     readyLatch = new CountDownLatch(numWorkerThreads);
+
+    pool = ThreadPools.createFixedThreadPool(numPoolThreads, "zk-conn-test-pool", false);
+  }
+
+  @After
+  public void teardown() {
+    pool.shutdownNow();
+    try {
+      pool.awaitTermination(1000, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException ex) {
+      // don't care.
+      pool.shutdownNow();
+    }
   }
 
   @Test
@@ -72,7 +85,7 @@ public class ZkConnHandlerTest {
     WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.SyncConnected, "/a/path");
 
-    handler.processWatchEvent(event);
+    handler.process(event);
 
     handler.blockUntilReady();
   }
@@ -89,7 +102,7 @@ public class ZkConnHandlerTest {
     WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.SyncConnected, "/a/path");
 
-    handler.processWatchEvent(event);
+    handler.process(event);
 
     assertTrue(handler.isZkConnected());
 
@@ -98,7 +111,7 @@ public class ZkConnHandlerTest {
     WatchedEvent event2 = new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.Disconnected, "/a/path");
 
-    handler.processWatchEvent(event2);
+    handler.process(event2);
 
     assertFalse(handler.isZkConnected());
 
@@ -144,7 +157,7 @@ public class ZkConnHandlerTest {
     log.info("Tasks ready");
 
     log.info("Sending connected event");
-    handler.processWatchEvent(new WatchedEvent(Watcher.Event.EventType.None,
+    handler.process(new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.SyncConnected, "/a/path"));
 
     log.info("Connected event sent");

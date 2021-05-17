@@ -22,14 +22,14 @@ import java.util.Map;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.accumulo.test.zookeeper.ZooKeeperTestingServer;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Parent class for test workers that interact with a ZooPropStore
+ * Parent class for test workers that interact with a GuavaPropStore
  */
 public abstract class PropWorker extends TestWorker {
 
@@ -38,7 +38,7 @@ public abstract class PropWorker extends TestWorker {
   private static final Logger log = LoggerFactory.getLogger(PropWorker.class);
 
   private final ZooKeeper zoo;
-  private final ZooPropStore store;
+  private final GuavaPropStore store;
 
   private final ExpectedValues truth;
 
@@ -51,7 +51,7 @@ public abstract class PropWorker extends TestWorker {
     this.zoo = new ZooKeeper(zkConnString, 5_000, null);
     ZooKeeperTestingServer.addDefaultAuth(zoo);
 
-    store = new ZooPropStore.Builder().withZk(zoo).forInstance(instanceId).build();
+    store = new GuavaPropStore.Builder().withZk(zoo).forInstance(instanceId).build();
 
   }
 

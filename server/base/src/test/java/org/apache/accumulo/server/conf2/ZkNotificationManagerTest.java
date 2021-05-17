@@ -31,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.accumulo.core.Constants;
-import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -59,7 +59,7 @@ public class ZkNotificationManagerTest {
 
     try {
 
-      new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+      new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
       fail("Expected exception with no zookeeper connection");
     } catch (IllegalStateException ex) {
@@ -86,7 +86,8 @@ public class ZkNotificationManagerTest {
 
     try {
 
-      ZooPropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+      GuavaPropStore store =
+          new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
       log.debug("s: {}", store);
 
@@ -117,7 +118,8 @@ public class ZkNotificationManagerTest {
 
     replay(mockZk);
 
-    ZooPropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+    GuavaPropStore store =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
     assertTrue(store.isReady());
 
@@ -144,7 +146,8 @@ public class ZkNotificationManagerTest {
 
     replay(mockZk);
 
-    ZooPropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+    GuavaPropStore store =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
     assertTrue(store.isReady());
 
@@ -169,7 +172,8 @@ public class ZkNotificationManagerTest {
 
     replay(mockZk);
 
-    ZooPropStore store = new ZooPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+    GuavaPropStore store =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
 
     assertNotNull(store);
 
