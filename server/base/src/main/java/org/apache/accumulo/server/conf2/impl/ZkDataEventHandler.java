@@ -18,13 +18,12 @@
  */
 package org.apache.accumulo.server.conf2.impl;
 
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
+public interface ZkDataEventHandler {
 
-public class ZkEventHandler implements Watcher {
+  void invalidateData();
 
-  @Override
-  public void process(WatchedEvent watchedEvent) {
+  void processDelete(final String zkPath);
 
-  }
+  void processDataChange(final String zkPath);
+
 }

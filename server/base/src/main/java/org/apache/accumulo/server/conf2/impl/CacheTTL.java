@@ -103,11 +103,15 @@ class CacheTTL {
     }
   }
 
-  public void clearAll() throws InterruptedException {
-    mapLock.lockInterruptibly();
+  public void clearAll() {
     try {
+      mapLock.lockInterruptibly();
+
       accessUpdateQueue.clear();
       accessMap.clear();
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Locking ttl cache interrupted", ex);
     } finally {
       mapLock.unlock();
     }

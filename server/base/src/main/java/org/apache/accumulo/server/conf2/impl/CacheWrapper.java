@@ -40,7 +40,7 @@ import com.google.common.cache.RemovalNotification;
 /**
  * Simple wrapper around guava loading cache and a concrete cache implementation.
  */
-public class CacheWrapper extends ZkEventHandler {
+public class CacheWrapper extends ZkEventProcessor {
 
   private static final Logger log = LoggerFactory.getLogger(CacheWrapper.class);
 
@@ -55,10 +55,11 @@ public class CacheWrapper extends ZkEventHandler {
       store.cleanUp(removalNotification.getKey());
     }
   };
+
   private final PropStore store;
 
   public CacheWrapper(final PropStore store) {
-
+    super(null);
     Objects.requireNonNull(store, "A PropStore implementation must be provided.");
 
     this.store = store;
@@ -75,6 +76,7 @@ public class CacheWrapper extends ZkEventHandler {
    *          external time source.
    */
   public CacheWrapper(final PropStore store, final Ticker ticker) {
+    super(null);
     Objects.requireNonNull(store, "A PropStore implementation must be provided.");
 
     this.store = store;
@@ -97,7 +99,7 @@ public class CacheWrapper extends ZkEventHandler {
     return loader;
   }
 
-  public Optional<PropEncoding> getProperties(CacheId id) {
+  public Optional<PropEncoding> getProperties(final CacheId id) {
     try {
       var result = Optional.ofNullable(cache.get(id));
       if (log.isTraceEnabled()) {

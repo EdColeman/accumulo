@@ -43,9 +43,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooBackedCacheMultiThreadTest {
+public class CacheAccessTTLMultiThreadTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooBackedCacheMultiThreadTest.class);
+  private static final Logger log = LoggerFactory.getLogger(CacheAccessTTLMultiThreadTest.class);
 
   /**
    * This test verifies that the load call to zookeeper is executed once. All threads should return
@@ -72,7 +72,7 @@ public class ZooBackedCacheMultiThreadTest {
         });
 
     EasyMock.replay(zooKeeper);
-    ZooBackedCache cache = new ZooBackedCache(zooKeeper);
+    CacheAccessTTL cache = new CacheAccessTTL(zooKeeper);
 
     var numPoolThreads = 5;
     var numWorkerThreads = 7;
@@ -107,12 +107,12 @@ public class ZooBackedCacheMultiThreadTest {
 
   private static class ReaderTask implements Callable<Optional<PropEncoding>> {
 
-    private final ZooBackedCache cache;
+    private final CacheAccessTTL cache;
     private final CacheId id;
     private final CountDownLatch startLatch;
     private final CountDownLatch completeLatch;
 
-    public ReaderTask(final ZooBackedCache cache, final CacheId id, final CountDownLatch startLatch,
+    public ReaderTask(final CacheAccessTTL cache, final CacheId id, final CountDownLatch startLatch,
         final CountDownLatch completeLatch) {
       this.cache = cache;
       this.id = id;

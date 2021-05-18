@@ -40,9 +40,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkConnHandlerTest {
+public class ZkEventProcessorTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ZkConnHandlerTest.class);
+  private static final Logger log = LoggerFactory.getLogger(ZkEventProcessorTest.class);
 
   private final int numPoolThreads = 5;
   private final int numWorkerThreads = 4;
@@ -74,13 +74,13 @@ public class ZkConnHandlerTest {
   @Test
   public void connectedTest() throws InterruptedException {
 
-    ZooBackedCache cache = EasyMock.mock(ZooBackedCache.class);
-    cache.clearAll();
+    ZkDataEventHandler eventHandler = EasyMock.mock(ZkDataEventHandler.class);
+    eventHandler.invalidateData();
     EasyMock.expectLastCall();
 
-    EasyMock.replay(cache);
+    EasyMock.replay(eventHandler);
 
-    ZkConnHandler handler = new ZkConnHandler(cache);
+    ZkEventProcessor handler = new ZkEventProcessor(eventHandler);
 
     WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.SyncConnected, "/a/path");
@@ -92,13 +92,14 @@ public class ZkConnHandlerTest {
 
   @Test
   public void disconnectTest() throws InterruptedException {
-    ZooBackedCache cache = EasyMock.mock(ZooBackedCache.class);
-    cache.clearAll();
+
+    ZkDataEventHandler eventHandler = EasyMock.mock(ZkDataEventHandler.class);
+    eventHandler.invalidateData();
     EasyMock.expectLastCall();
 
-    EasyMock.replay(cache);
+    EasyMock.replay(eventHandler);
 
-    ZkConnHandler handler = new ZkConnHandler(cache);
+    ZkEventProcessor handler = new ZkEventProcessor(eventHandler);
     WatchedEvent event = new WatchedEvent(Watcher.Event.EventType.None,
         Watcher.Event.KeeperState.SyncConnected, "/a/path");
 
@@ -135,13 +136,13 @@ public class ZkConnHandlerTest {
   @Test
   public void blockingTest() throws InterruptedException {
 
-    ZooBackedCache cache = EasyMock.mock(ZooBackedCache.class);
-    cache.clearAll();
-    EasyMock.expectLastCall().times(1);
+    ZkDataEventHandler eventHandler = EasyMock.mock(ZkDataEventHandler.class);
+    eventHandler.invalidateData();
+    EasyMock.expectLastCall();
 
-    EasyMock.replay(cache);
+    EasyMock.replay(eventHandler);
 
-    ZkConnHandler handler = new ZkConnHandler(cache);
+    ZkEventProcessor handler = new ZkEventProcessor(eventHandler);
 
     List<Future<Long>> tasks = new ArrayList<>();
     for (int i = 0; i < numWorkerThreads; i++) {
@@ -171,15 +172,15 @@ public class ZkConnHandlerTest {
       }
     });
 
-    EasyMock.verify(cache);
+    EasyMock.verify(eventHandler);
   }
 
   private static class ReadyTask implements Callable<Long> {
-    private final ZkConnHandler handler;
+    private final ZkEventProcessor handler;
     private final CountDownLatch startLatch;
     private final CountDownLatch completeLatch;
 
-    public ReadyTask(final ZkConnHandler handler, final CountDownLatch startLatch,
+    public ReadyTask(final ZkEventProcessor handler, final CountDownLatch startLatch,
         final CountDownLatch completeLatch) {
       this.handler = handler;
       this.startLatch = startLatch;

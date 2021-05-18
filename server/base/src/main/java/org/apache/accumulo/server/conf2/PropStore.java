@@ -24,7 +24,7 @@ import java.util.Optional;
 
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
-public interface PropStore extends PropCache {
+public interface PropStore {
 
   Optional<PropEncoding> get(CacheId id) throws PropCacheException;
 

@@ -118,4 +118,8 @@ public class MemPropStore implements PropCache, PropStore {
     store.put(id.nodeName(), props);
   }
 
+  @Override
+  public Optional<PropEncoding> getProperties(CacheId id) {
+    return Optional.empty();
+  }
 }

@@ -34,6 +34,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
@@ -42,9 +43,9 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooBackedCache {
+public class CacheAccessTTL implements PropCache, ZkDataEventHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooBackedCache.class);
+  private static final Logger log = LoggerFactory.getLogger(CacheAccessTTL.class);
 
   private final Map<CacheId,PropZNode> cache = new HashMap<>();
   private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
@@ -60,24 +61,24 @@ public class ZooBackedCache {
 
   private final Metrics metrics = new Metrics();
 
-  private final ZkConnHandler zkConnHandler;
+  // private final ZkDataEventHandler dataEventHandler;
 
-  public ZooBackedCache(final ZooKeeper zooKeeper) {
+  public CacheAccessTTL(final ZooKeeper zooKeeper) {
     this(zooKeeper, new CacheTTL(), Clock.systemUTC());
   }
 
-  public ZooBackedCache(final ZooKeeper zooKeeper, final CacheTTL cacheTTL, final Clock clock) {
+  public CacheAccessTTL(final ZooKeeper zooKeeper, final CacheTTL cacheTTL, final Clock clock) {
     this.zooKeeper = zooKeeper;
     this.cacheTTL = cacheTTL;
     this.clock = clock;
 
-    this.zkConnHandler = new ZkConnHandler(this);
+    // this.dataEventHandler = new ZkEventProcessor(this);
 
     scheduler.scheduleAtFixedRate(new CacheExpireTask(this, cacheTTL, clock), 1_000, 3_000,
         TimeUnit.SECONDS);
 
-    Runtime.getRuntime()
-        .addShutdownHook(new Thread(() -> new ShutdownTask(zkConnHandler, scheduler)));
+    // Runtime.getRuntime()
+    // .addShutdownHook(new Thread(() -> new ShutdownTask(zkEventProcessor, scheduler)));
 
   }
 
@@ -85,7 +86,7 @@ public class ZooBackedCache {
 
     Instant accessStart = clock.instant();
 
-    zkConnHandler.blockUntilReady();
+    // zkEventProcessor.blockUntilReady();
 
     try {
       metrics.updateAccessCount();
@@ -145,10 +146,25 @@ public class ZooBackedCache {
     }
   }
 
-  void clearAll() throws InterruptedException {
-    wLock.lockInterruptibly();
+  @Override
+  public Optional<PropEncoding> getProperties(CacheId id) {
+    return Optional.empty();
+  }
+
+  @Override
+  public void clear(CacheId id) {
+
+  }
+
+  @Override
+  public void clearAll() {
     try {
+      wLock.lockInterruptibly();
+
       cache.clear();
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted locking cache for clear", ex);
     } finally {
       wLock.unlock();
     }
@@ -213,21 +229,36 @@ public class ZooBackedCache {
     return null;
   }
 
+  @Override
+  public void invalidateData() {
+
+  }
+
+  @Override
+  public void processDelete(String zkPath) {
+
+  }
+
+  @Override
+  public void processDataChange(String zkPath) {
+
+  }
+
   private static class ShutdownTask implements Runnable {
 
     private final ScheduledExecutorService scheduler;
-    private final ZkConnHandler zkConnHandler;
+    private final ZkEventProcessor zkEventProcessor;
 
-    public ShutdownTask(final ZkConnHandler zkConnHandler,
+    public ShutdownTask(final ZkEventProcessor zkEventProcessor,
         final ScheduledExecutorService scheduler) {
-      this.zkConnHandler = zkConnHandler;
+      this.zkEventProcessor = zkEventProcessor;
       this.scheduler = scheduler;
     }
 
     @Override
     public void run() {
       try {
-        zkConnHandler.disable();
+        zkEventProcessor.disable();
         scheduler.shutdownNow();
       } catch (Exception ex) {
         // empty
@@ -237,13 +268,13 @@ public class ZooBackedCache {
 
   private static class CacheExpireTask implements Runnable {
 
-    private final ZooBackedCache zooBackedCache;
+    private final CacheAccessTTL cacheAccessTTL;
     private final CacheTTL cacheTTL;
     private final Clock clock;
 
-    public CacheExpireTask(final ZooBackedCache zooBackedCache, final CacheTTL cacheTTL,
+    public CacheExpireTask(final CacheAccessTTL cacheAccessTTL, final CacheTTL cacheTTL,
         final Clock clock) {
-      this.zooBackedCache = zooBackedCache;
+      this.cacheAccessTTL = cacheAccessTTL;
       this.cacheTTL = cacheTTL;
       this.clock = clock;
     }
@@ -253,15 +284,15 @@ public class ZooBackedCache {
       log.info("Clean...");
       List<CacheId> expired = cacheTTL.getExpired(clock.instant());
       try {
-        zooBackedCache.wLock.lock();
+        cacheAccessTTL.wLock.lock();
         expired.forEach(id -> {
-          var removedId = zooBackedCache.cache.remove(id);
+          var removedId = cacheAccessTTL.cache.remove(id);
           if (removedId != null) {
             log.trace("Expired: {}", id);
           }
         });
       } finally {
-        zooBackedCache.wLock.unlock();
+        cacheAccessTTL.wLock.unlock();
       }
     }
   }

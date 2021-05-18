@@ -24,14 +24,14 @@ import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.zookeeper.ZooKeeper;
 
-public class ZkPropCache extends ZkEventHandler {
-
-  public Optional<PropEncoding> getProperties(CacheId id) {
-    return Optional.empty();
-  }
+public class ZkPropCache {
 
   public ZkPropCache(final ZooKeeper zooKeeper, final String instanceId) {
 
+  }
+
+  public Optional<PropEncoding> getProperties(CacheId id) {
+    return Optional.empty();
   }
 
   public void clear(CacheId id) {

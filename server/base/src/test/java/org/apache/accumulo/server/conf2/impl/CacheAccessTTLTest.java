@@ -41,15 +41,15 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooBackedCacheTest {
+public class CacheAccessTTLTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ZooBackedCacheTest.class);
+  private static final Logger log = LoggerFactory.getLogger(CacheAccessTTLTest.class);
 
   @Test
   public void constructor() {
     ZooKeeper zooKeeper = EasyMock.mock(ZooKeeper.class);
     EasyMock.replay(zooKeeper);
-    ZooBackedCache cache = new ZooBackedCache(zooKeeper);
+    CacheAccessTTL cache = new CacheAccessTTL(zooKeeper);
     log.trace("cache: {}", cache);
   }
 
@@ -66,7 +66,7 @@ public class ZooBackedCacheTest {
     EasyMock.replay(zooKeeper);
 
     CacheId id = CacheId.forTable(UUID.randomUUID().toString(), TableId.of("a"));
-    ZooBackedCache cache = new ZooBackedCache(zooKeeper);
+    CacheAccessTTL cache = new CacheAccessTTL(zooKeeper);
 
     assertTrue(cache.load(id).isEmpty());
 
@@ -95,7 +95,7 @@ public class ZooBackedCacheTest {
 
     EasyMock.replay(zooKeeper);
 
-    ZooBackedCache cache = new ZooBackedCache(zooKeeper);
+    CacheAccessTTL cache = new CacheAccessTTL(zooKeeper);
 
     assertTrue(cache.load(id).isPresent());
 
@@ -131,7 +131,7 @@ public class ZooBackedCacheTest {
 
     EasyMock.replay(zooKeeper, cacheTTL);
 
-    ZooBackedCache cache = new ZooBackedCache(zooKeeper, cacheTTL, clock);
+    CacheAccessTTL cache = new CacheAccessTTL(zooKeeper, cacheTTL, clock);
 
     assertTrue(cache.load(id).isPresent());
 

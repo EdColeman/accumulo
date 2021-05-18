@@ -27,20 +27,20 @@ import org.apache.zookeeper.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkConnHandler implements Watcher {
+public class ZkEventProcessor implements Watcher {
 
   public static final int READY_TIMEOUT_MILLIS = 2_000;
-  private static final Logger log = LoggerFactory.getLogger(ZkConnHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(ZkEventProcessor.class);
 
   // signal zookeeper is connected
   private final AtomicBoolean isReady = new AtomicBoolean(false);
   private final Object readyMonitor = new Object();
   private final AtomicBoolean syncRequired = new AtomicBoolean(true);
 
-  private final ZooBackedCache cache;
+  private final ZkDataEventHandler dataEventHandler;
 
-  public ZkConnHandler(final ZooBackedCache cache) {
-    this.cache = cache;
+  public ZkEventProcessor(final ZkDataEventHandler dataEventHandler) {
+    this.dataEventHandler = dataEventHandler;
   }
 
   void disable() {
@@ -53,6 +53,9 @@ public class ZkConnHandler implements Watcher {
 
   private void setZkConnected() {
     if (isReady.compareAndSet(false, true)) {
+      // possible optimization - check Stat matches instead of blanket clear.
+      dataEventHandler.invalidateData();
+      syncRequired.set(false);
       synchronized (readyMonitor) {
         readyMonitor.notifyAll();
       }
@@ -62,22 +65,24 @@ public class ZkConnHandler implements Watcher {
   /**
    * Currently calls closed to disable ready flag. There is room to differentiate between
    * disconnected and closed. Closed is permanent, disconnection may be transient.
-   *
-   * @throws InterruptedException
-   *           if clearing cache is interrupted.
    */
-  private void setZkDisconnected() throws InterruptedException {
-    setZkClosed();
+  private void setZkDisconnected() {
+    isReady.set(false);
+    syncRequired.set(true);
   }
 
-  private void setZkClosed() throws InterruptedException {
+  /**
+   * ZooKeeper closed is a terminal state and requires a new ZooKeeper client connection to recover.
+   */
+  private void setZkClosed() {
     isReady.set(false);
-    cache.clearAll();
+    dataEventHandler.invalidateData();
+    syncRequired.set(false);
   }
 
   public void blockUntilReady() throws InterruptedException {
 
-    log.info("is ready {}, sync required {}", isReady.get(), syncRequired.get());
+    log.info("blockUntilReady - is ready {}, sync required {}", isReady.get(), syncRequired.get());
 
     while (!isReady.get()) {
       log.info("start block");
@@ -90,8 +95,8 @@ public class ZkConnHandler implements Watcher {
 
     log.info("ready");
     if (syncRequired.compareAndSet(true, false)) {
-      log.info("ready - call clear");
-      cache.clearAll();
+      log.info("blockUntilReady - now ready - call clear");
+      dataEventHandler.invalidateData();
     }
   }
 
@@ -100,16 +105,31 @@ public class ZkConnHandler implements Watcher {
 
     final EventType eventType = event.getType();
 
-    if (EventType.None.equals(eventType)) {
-      try {
-        processWatchEvent(event.getState());
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException("Operation interrupted", ex);
+    try {
+      switch (eventType) {
+        case None:
+          processWatchEvent(event.getState());
+          return;
+        case NodeDeleted:
+          dataEventHandler.processDelete(event.getPath());
+          return;
+        case NodeDataChanged:
+          dataEventHandler.processDataChange(event.getPath());
+          return;
+        case NodeChildrenChanged:
+        case NodeCreated:
+        default:
+          log.trace("ZooKeeper event {} received", eventType);
       }
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Operation interrupted", ex);
     }
-
   }
+
+  private void processDelete(final String path) {}
+
+  private void processDataChange(final String path) {}
 
   /**
    * Process a ZooKeeper connection event - other event types are ignored. Connection events have a
