@@ -21,7 +21,6 @@ package org.apache.accumulo.server.conf2.impl;
 import java.util.Optional;
 
 import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
@@ -30,21 +29,17 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZkLoaderImpl implements ZkDataEventHandler {
+public class ZkLoaderImpl {
 
   private static final Logger log = LoggerFactory.getLogger(ZkLoaderImpl.class);
 
   private final ZooKeeper zooKeeper;
-  private final PropCache cache;
 
   private ZkEventProcessor eventProcessor;
 
-  public ZkLoaderImpl(final ZooKeeper zooKeeper, final PropCache cache) {
+  public ZkLoaderImpl(final ZooKeeper zooKeeper, final ZkEventProcessor eventProcessor) {
     this.zooKeeper = zooKeeper;
-    this.cache = cache;
-
-    eventProcessor = new ZkEventProcessor(this);
-
+    this.eventProcessor = eventProcessor;
   }
 
   public Optional<PropEncoding> readFromZooKeeper(CacheId id) {
@@ -63,18 +58,4 @@ public class ZkLoaderImpl implements ZkDataEventHandler {
     }
   }
 
-  @Override
-  public void invalidateData() {
-
-  }
-
-  @Override
-  public void processDelete(String zkPath) {
-
-  }
-
-  @Override
-  public void processDataChange(String zkPath) {
-
-  }
 }

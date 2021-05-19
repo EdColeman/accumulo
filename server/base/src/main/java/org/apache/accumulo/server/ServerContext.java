@@ -257,7 +257,7 @@ public class ServerContext extends ClientContext {
     if (propStore == null) {
       // TODO - should a watcher be set?
       propStore = new GuavaPropStore.Builder().withZk(getZooReaderWriter().getZooKeeper())
-          .forInstance(getInstanceID()).build();
+          .forInstance(getInstanceID()).buildGuavaCache();
     }
     return propStore;
   }

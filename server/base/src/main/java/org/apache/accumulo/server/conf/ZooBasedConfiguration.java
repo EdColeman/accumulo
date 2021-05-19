@@ -31,11 +31,12 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
-import org.apache.accumulo.server.conf2.PropWatcher;
+import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.slf4j.Logger;
 
-public abstract class ZooBasedConfiguration extends AccumuloConfiguration implements PropWatcher {
+public abstract class ZooBasedConfiguration extends AccumuloConfiguration
+    implements PropChangeListener {
 
   protected final AccumuloConfiguration parent;
   private final AtomicBoolean registered = new AtomicBoolean(false);

@@ -82,7 +82,8 @@ public class PropWriterTest {
 
     szk.initPaths(ZK_CONFIG_ROOT);
 
-    store = new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
+    store =
+        new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).buildGuavaCache();
 
     truth = new ExpectedValues(mockContext, 1);
     for (CacheId id : truth.getIds()) {

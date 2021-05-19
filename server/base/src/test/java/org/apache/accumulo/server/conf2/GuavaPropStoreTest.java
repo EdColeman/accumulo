@@ -80,7 +80,7 @@ public class GuavaPropStoreTest {
     replay(mockZk);
 
     GuavaPropStore props =
-        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
     log.debug("props: {}", props);
 
@@ -101,7 +101,8 @@ public class GuavaPropStoreTest {
 
     var instanceId = UUID.randomUUID().toString();
 
-    PropStore store = new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
+    PropStore store =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).buildGuavaCache();
 
     PropEncoding props = new PropEncodingV1();
     store.writeToStore(new CacheId(instanceId, null, TableId.of("a")), props);
@@ -157,7 +158,8 @@ public class GuavaPropStoreTest {
 
     replay(mockZk);
 
-    PropStore store = new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).build();
+    PropStore store =
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance(instanceId).buildGuavaCache();
     assertNotNull(store);
 
     log.info("DID: {}", dataId);

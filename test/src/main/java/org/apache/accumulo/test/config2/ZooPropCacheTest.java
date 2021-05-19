@@ -37,7 +37,7 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
-import org.apache.accumulo.server.conf2.PropWatcher;
+import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.conf2.impl.GuavaPropStore;
@@ -84,7 +84,8 @@ public class ZooPropCacheTest {
   public void setupZnodes() throws Exception {
     szk.initPaths(ZK_CONFIG_ROOT);
 
-    store = new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).build();
+    store =
+        new GuavaPropStore.Builder().withZk(zooKeeper).forInstance(INSTANCE_ID).buildGuavaCache();
   }
 
   @After
@@ -275,7 +276,7 @@ public class ZooPropCacheTest {
     // TODO verifyById watcher?
   }
 
-  private static class MyPropWatchListener implements PropWatcher {
+  private static class MyPropWatchListener implements PropChangeListener {
 
     private final Map<String,Integer> changeCounts = new HashMap<>();
 

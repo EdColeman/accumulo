@@ -16,45 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2;
+package org.apache.accumulo.server.confRewrite;
 
-import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 
+import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
-public interface PropStore {
+public interface PropCache {
 
-  Optional<PropEncoding> get(CacheId id) throws PropCacheException;
+  Optional<PropEncoding> getProperties(final CacheId id);
 
-  boolean add(CacheId id, Map<String,String> props) throws PropCacheException;
-
-  boolean create(CacheId id, Map<String,String> props) throws PropCacheException;
-
-  boolean removeProperties(CacheId id, Collection<String> keys) throws PropCacheException;
-
-  // boolean add(CacheId id, String name, String value) throws PropCacheException;
-
-  void clear(CacheId id);
+  void clear(final CacheId id);
 
   void clearAll();
-
-  void register(PropChangeListener listener);
-
-  void deregister(PropChangeListener listener);
-
-  void changeEvent(CacheId id);
-
-  void deleteEvent(CacheId id);
-
-  boolean isReady();
-
-  PropEncoding readFromStore(CacheId id) throws Exception;
-
-  void writeToStore(CacheId id, PropEncoding props);
-
-  void deleteProperties(CacheId id);
-
-  void cleanUp(CacheId id);
 }

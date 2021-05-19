@@ -53,8 +53,8 @@ public class GuavaPropStoreZkITTest extends ZooBase {
 
     log.debug("Nodes: {}", nodes);
 
-    PropStore store =
-        new GuavaPropStore.Builder().withZk(getZooKeeper()).forInstance(getTestUuid()).build();
+    PropStore store = new GuavaPropStore.Builder().withZk(getZooKeeper()).forInstance(getTestUuid())
+        .buildGuavaCache();
 
     PropEncoding storedProp = new PropEncodingV1();
     fillMap(storedProp);

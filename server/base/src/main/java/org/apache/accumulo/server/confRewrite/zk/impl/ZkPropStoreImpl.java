@@ -16,55 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.conf2.impl;
-
-import java.util.Optional;
+package org.apache.accumulo.server.confRewrite.zk.impl;
 
 import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.PropCache;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.confRewrite.zk.ZkDataEventHandler;
+import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
 import org.apache.zookeeper.ZooKeeper;
 
-public class ZkPropCache implements ZkDataEventHandler {
+public class ZkPropStoreImpl implements ZkPropStore {
 
-  private PropCache cache;
+  private final ZooKeeper zooKeeper;
+  private final ZkDataEventHandler eventHandler;
 
-  public ZkPropCache(final ZooKeeper zooKeeper, final String instanceId) {}
-
-  public void setCache(PropCache cache) {
-    this.cache = cache;
+  public ZkPropStoreImpl(final ZooKeeper zooKeeper, final ZkDataEventHandler eventHandler) {
+    this.zooKeeper = zooKeeper;
+    this.eventHandler = eventHandler;
   }
 
-  public Optional<PropEncoding> getProperties(CacheId id) {
-    return Optional.empty();
+  @Override
+  public PropEncoding readFromStore(CacheId id) {
+    return null;
   }
 
-  public void clear(CacheId id) {
-
-  }
-
-  public void clearAll() {
+  @Override
+  public void writeToStore(CacheId id, PropEncoding props) {
 
   }
 
   @Override
-  public void invalidateData() {
-    cache.clearAll();
+  public void deleteFromStore(CacheId id) {
+
   }
 
-  @Override
-  public void processDelete(String zkPath) {
-    Optional<CacheId> id = CacheId.fromPath(zkPath);
-    if (id.isPresent()) {
-      cache.clear(id.get());
-    }
-  }
-
-  @Override
-  public void processDataChange(String zkPath) {
-    Optional<CacheId> id = CacheId.fromPath(zkPath);
-    if (id.isPresent()) {
-      cache.clear(id.get());
-    }
-  }
 }

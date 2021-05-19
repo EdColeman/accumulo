@@ -51,7 +51,7 @@ public abstract class PropWorker extends TestWorker {
     this.zoo = new ZooKeeper(zkConnString, 5_000, null);
     ZooKeeperTestingServer.addDefaultAuth(zoo);
 
-    store = new GuavaPropStore.Builder().withZk(zoo).forInstance(instanceId).build();
+    store = new GuavaPropStore.Builder().withZk(zoo).forInstance(instanceId).buildGuavaCache();
 
   }
 

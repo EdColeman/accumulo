@@ -122,7 +122,7 @@ public class ConfigurationUpgradeUnoTest {
 
     // final String srcPath, final CacheId destId
     GuavaPropStore propStore =
-        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
+        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).buildGuavaCache();
 
     ServerContext mockContext = mock(ServerContext.class);
     AccumuloConfiguration mockConf = mock(AccumuloConfiguration.class);
@@ -159,7 +159,7 @@ public class ConfigurationUpgradeUnoTest {
 
     // final String srcPath, final CacheId destId
     GuavaPropStore propStore =
-        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).build();
+        new GuavaPropStore.Builder().withZk(zookeeper).forInstance(unoInstId).buildGuavaCache();
 
     ServerContext mockContext = mock(ServerContext.class);
     AccumuloConfiguration mockConf = mock(AccumuloConfiguration.class);

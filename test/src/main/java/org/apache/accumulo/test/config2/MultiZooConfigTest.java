@@ -114,7 +114,7 @@ public class MultiZooConfigTest {
 
     truth = new ExpectedValues(mockContext, NUM_SIMULATED_TABLES);
 
-    var store = new GuavaPropStore.Builder().withZk(zoo).forInstance(INSTANCE_ID).build();
+    var store = new GuavaPropStore.Builder().withZk(zoo).forInstance(INSTANCE_ID).buildGuavaCache();
     var ids = truth.getIds();
 
     Map<String,String> values = new HashMap<>();

@@ -34,8 +34,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 
 /**
  * Simple wrapper around guava loading cache and a concrete cache implementation.
@@ -48,13 +46,6 @@ public class CacheWrapper extends ZkEventProcessor {
   private static final TimeUnit cacheTTLUnits = TimeUnit.MINUTES;
 
   private final LoadingCache<CacheId,PropEncoding> cache;
-  private final RemovalListener<CacheId,PropEncoding> removalListener = new RemovalListener<>() {
-    @Override
-    public void onRemoval(RemovalNotification<CacheId,PropEncoding> removalNotification) {
-      log.debug("{} removed from cache", removalNotification.getKey());
-      store.cleanUp(removalNotification.getKey());
-    }
-  };
 
   private final PropStore store;
 
@@ -64,13 +55,12 @@ public class CacheWrapper extends ZkEventProcessor {
 
     this.store = store;
 
-    cache = CacheBuilder.newBuilder().expireAfterWrite(cacheTTL, cacheTTLUnits)
-        .removalListener(removalListener).build(getLoader());
+    cache = CacheBuilder.newBuilder().expireAfterWrite(cacheTTL, cacheTTLUnits).build(getLoader());
   }
 
   /**
-   * TESTING - build cache with external time source so that tests do not need to wait for system
-   * clock.
+   * TESTING - buildGuavaCache cache with external time source so that tests do not need to wait for
+   * system clock.
    *
    * @param ticker
    *          external time source.
@@ -82,7 +72,7 @@ public class CacheWrapper extends ZkEventProcessor {
     this.store = store;
 
     cache = CacheBuilder.newBuilder().ticker(ticker).expireAfterWrite(cacheTTL, cacheTTLUnits)
-        .removalListener(removalListener).build(getLoader());
+        .build(getLoader());
   }
 
   private CacheLoader<CacheId,PropEncoding> getLoader() {

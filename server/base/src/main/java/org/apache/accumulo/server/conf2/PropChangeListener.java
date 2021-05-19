@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.server.conf2;
 
-public interface PropWatcher {
+public interface PropChangeListener {
 
   void changeEvent(final CacheId id);
 

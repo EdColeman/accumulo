@@ -59,7 +59,7 @@ public class ZkNotificationManagerTest {
 
     try {
 
-      new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+      new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
       fail("Expected exception with no zookeeper connection");
     } catch (IllegalStateException ex) {
@@ -87,7 +87,7 @@ public class ZkNotificationManagerTest {
     try {
 
       GuavaPropStore store =
-          new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+          new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
       log.debug("s: {}", store);
 
@@ -119,7 +119,7 @@ public class ZkNotificationManagerTest {
     replay(mockZk);
 
     GuavaPropStore store =
-        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
     assertTrue(store.isReady());
 
@@ -147,7 +147,7 @@ public class ZkNotificationManagerTest {
     replay(mockZk);
 
     GuavaPropStore store =
-        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
     assertTrue(store.isReady());
 
@@ -173,7 +173,7 @@ public class ZkNotificationManagerTest {
     replay(mockZk);
 
     GuavaPropStore store =
-        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").build();
+        new GuavaPropStore.Builder().withZk(mockZk).forInstance("a-b-c-d").buildGuavaCache();
 
     assertNotNull(store);
 

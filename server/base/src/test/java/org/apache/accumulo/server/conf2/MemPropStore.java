@@ -82,12 +82,12 @@ public class MemPropStore implements PropCache, PropStore {
   }
 
   @Override
-  public void register(PropWatcher listener) {
+  public void register(PropChangeListener listener) {
 
   }
 
   @Override
-  public void deregister(PropWatcher listener) {
+  public void deregister(PropChangeListener listener) {
 
   }
 

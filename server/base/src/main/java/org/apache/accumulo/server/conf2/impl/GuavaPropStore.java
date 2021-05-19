@@ -31,8 +31,8 @@ import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
+import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
-import org.apache.accumulo.server.conf2.PropWatcher;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.CreateMode;
@@ -54,11 +54,11 @@ public class GuavaPropStore implements PropStore {
   private final ZooKeeper zooKeeper;
   private final ZkNotificationManager zkWatchMgr;
 
-  private final Set<PropWatcher> watchers = ConcurrentHashMap.newKeySet();
+  private final Set<PropChangeListener> watchers = ConcurrentHashMap.newKeySet();
   private final ExecutorService executorService =
       ThreadPools.createFixedThreadPool(1, "prop_change", false);
 
-  private final CacheWrapper cache;
+  private CacheWrapper cache;
 
   private GuavaPropStore(final ZooKeeper zooKeeper, final String instanceId) {
     this(zooKeeper, instanceId, null);
@@ -71,14 +71,12 @@ public class GuavaPropStore implements PropStore {
     configRoot = String.format("/accumulo/%s%s", instanceId, Constants.ZENCODED_CONFIG_ROOT);
     log.debug("zooKeeper configuration root node: {}", configRoot);
 
-    if (Objects.isNull(ticker)) {
-      cache = new CacheWrapper(this);
-    } else {
-      cache = new CacheWrapper(this, ticker);
-    }
-
     zkWatchMgr = new ZkNotificationManager(configRoot, zooKeeper, this);
 
+  }
+
+  public void setCache(CacheWrapper cache) {
+    this.cache = cache;
   }
 
   @VisibleForTesting
@@ -110,7 +108,6 @@ public class GuavaPropStore implements PropStore {
    *          the cache id.
    * @param props
    *          a map of key, value pairs
-   *
    * @return true if all properties set.
    * @throws PropCacheException
    *           if validate = true and invalid property passed in prop map.
@@ -185,14 +182,14 @@ public class GuavaPropStore implements PropStore {
   }
 
   @Override
-  public void register(PropWatcher listener) {
+  public void register(PropChangeListener listener) {
     if (Objects.nonNull(listener)) {
       watchers.add(listener);
     }
   }
 
   @Override
-  public void deregister(PropWatcher listener) {
+  public void deregister(PropChangeListener listener) {
     if (Objects.nonNull(listener)) {
       watchers.remove(listener);
     }
@@ -200,14 +197,14 @@ public class GuavaPropStore implements PropStore {
 
   @Override
   public void changeEvent(final CacheId id) {
-    for (PropWatcher watcher : watchers) {
+    for (PropChangeListener watcher : watchers) {
       executorService.submit(() -> watcher.changeEvent(id));
     }
   }
 
   @Override
   public void deleteEvent(final CacheId id) {
-    for (PropWatcher watcher : watchers) {
+    for (PropChangeListener watcher : watchers) {
       executorService.submit(() -> watcher.deleteEvent(id));
     }
   }
@@ -386,14 +383,16 @@ public class GuavaPropStore implements PropStore {
 
     private ZooKeeper zooKeeper;
     private String instanceId;
-    private Ticker ticker;
 
-    public GuavaPropStore build() {
+    public GuavaPropStore buildGuavaCache() {
 
       Objects.requireNonNull(zooKeeper, "Valid ZooKeeper instance must be supplied");
       Objects.requireNonNull(instanceId, "Valid instance ID must be supplied");
 
-      return new GuavaPropStore(zooKeeper, instanceId);
+      GuavaPropStore propStore = new GuavaPropStore(zooKeeper, instanceId);
+      propStore.setCache(new CacheWrapper(propStore));
+
+      return propStore;
 
     }
 
@@ -406,11 +405,5 @@ public class GuavaPropStore implements PropStore {
       this.instanceId = instanceID;
       return this;
     }
-
-    public Builder usingTestCache(final Ticker ticker) {
-      this.ticker = ticker;
-      return this;
-    }
-
   }
 }

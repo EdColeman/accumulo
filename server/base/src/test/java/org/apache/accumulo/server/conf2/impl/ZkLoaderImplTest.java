@@ -57,7 +57,7 @@ public class ZkLoaderImplTest {
     Capture<Stat> stat = EasyMock.newCapture();
 
     ZooKeeper zooKeeper = EasyMock.mock(ZooKeeper.class);
-    PropCache cache = EasyMock.mock(PropCache.class);
+    ZkEventProcessor cache = EasyMock.mock(PropCache.class);
 
     expect(zooKeeper.getData(eq(zkDataPath), anyObject(), EasyMock.capture(stat)))
         .andAnswer(new IAnswer<byte[]>() {
