@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite;
+package org.apache.accumulo.server.confRewrite.impl;
 
-public interface PropStore {
-
-}
+public class PropStoreImpl {}
