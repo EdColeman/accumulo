@@ -19,7 +19,6 @@
 package org.apache.accumulo.server.confRewrite.impl;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -42,44 +41,71 @@ public class PropGuavaCache implements PropCache {
   private static final TimeUnit cacheTTLUnits = TimeUnit.MINUTES;
 
   private final ZkPropStore zooProps;
-  private final LoadingCache<CacheId,Optional<PropEncoding>> cache;
+  private final LoadingCache<CacheId,PropEncoding> cache;
 
   public PropGuavaCache(final ZkPropStore zooProps) {
     this.zooProps = zooProps;
     cache = CacheBuilder.newBuilder().expireAfterWrite(cacheTTL, cacheTTLUnits).build(getLoader());
   }
 
-  private CacheLoader<CacheId,Optional<PropEncoding>> getLoader() {
+  private CacheLoader<CacheId,PropEncoding> getLoader() {
 
-    CacheLoader<CacheId,Optional<PropEncoding>> loader;
+    CacheLoader<CacheId,PropEncoding> loader;
     loader = new CacheLoader<>() {
       @Override
-      public Optional<PropEncoding> load(final CacheId cacheId) throws Exception {
+      public PropEncoding load(final CacheId cacheId) throws Exception {
         Objects.requireNonNull(cacheId, "Invalid call to load cache with null cache id.");
         log.trace("Loading {} from backing store", cacheId);
-        return Optional.ofNullable(zooProps.readFromStore(cacheId));
+
+        PropEncoding props = zooProps.readFromStore(cacheId);
+        if (null == props) {
+          throw new NoSuchPropsException(cacheId);
+        }
+        return props;
       }
     };
     return loader;
   }
 
   @Override
-  public Optional<PropEncoding> getProperties(CacheId id) {
+  public PropEncoding getProperties(CacheId id) {
     try {
-      return cache.get(id);
+      PropEncoding p = cache.get(id);
+      log.info("Cached value:{} - {}", id, p.print(true));
+      return p;
     } catch (ExecutionException ex) {
+      if (ex.getCause() instanceof NoSuchPropsException) {
+        log.info("No properties for {}", id);
+        return null;
+      }
+      log.info("WHAT?");
       throw new IllegalStateException("Failed to read " + id + " from guava cache", ex);
     }
   }
 
   @Override
-  public void clear(CacheId id) {
+  public void clear(final CacheId id) {
     cache.invalidate(id);
   }
 
   @Override
   public void clearAll() {
     cache.invalidateAll();
+  }
+
+  private static class NoSuchPropsException extends Exception {
+    private static final long serialVersionUID = 1;
+
+    private CacheId id;
+
+    public NoSuchPropsException(final CacheId id) {
+      this("Zookeeper node for " + id + " not found");
+      this.id = id;
+    }
+
+    public NoSuchPropsException(final String message) {
+      super(message);
+    }
   }
 
 }

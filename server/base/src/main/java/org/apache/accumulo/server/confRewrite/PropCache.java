@@ -18,14 +18,12 @@
  */
 package org.apache.accumulo.server.confRewrite;
 
-import java.util.Optional;
-
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public interface PropCache {
 
-  Optional<PropEncoding> getProperties(final CacheId id);
+  PropEncoding getProperties(final CacheId id);
 
   void clear(final CacheId id);
 
