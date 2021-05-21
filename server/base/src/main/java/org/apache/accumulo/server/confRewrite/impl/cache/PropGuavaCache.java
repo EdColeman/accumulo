@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl;
+package org.apache.accumulo.server.confRewrite.impl.cache;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;

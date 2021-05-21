@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl;
+package org.apache.accumulo.server.confRewrite.impl.cache;
 
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.expect;
