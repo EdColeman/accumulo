@@ -18,4 +18,50 @@
  */
 package org.apache.accumulo.server.confRewrite.impl;
 
-public class PropStoreImpl {}
+import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
+
+public class PropStoreImpl implements ZkPropStore {
+
+  private final ZooKeeper zooKeeper;
+
+  public PropStoreImpl(final ZooKeeper zooKeeper) {
+    this.zooKeeper = zooKeeper;
+  }
+
+  @Override
+  public PropEncoding readFromStore(final CacheId id) {
+    return null;
+  }
+
+  @Override
+  public PropEncoding readFromStore(final CacheId id, Stat stat) {
+    return null;
+  }
+
+  @Override
+  public Stat readZkStat(final CacheId id) {
+    try {
+      return zooKeeper.exists(id.path(), false);
+    } catch (KeeperException ex) {
+      throw new IllegalStateException("Could not read node stat for " + id, ex);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted reading stat from zookeeper " + id, ex);
+    }
+  }
+
+  @Override
+  public void writeToStore(final CacheId id, final PropEncoding props) {
+
+  }
+
+  @Override
+  public void deleteFromStore(final CacheId id) {
+
+  }
+}

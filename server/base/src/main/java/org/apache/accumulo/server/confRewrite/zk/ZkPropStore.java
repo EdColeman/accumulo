@@ -20,6 +20,7 @@ package org.apache.accumulo.server.confRewrite.zk;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.zookeeper.data.Stat;
 
 /**
  * Defines ZooKeeper property management responsibilities to read, write and delete property nodes
@@ -28,6 +29,10 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 public interface ZkPropStore {
 
   PropEncoding readFromStore(final CacheId id);
+
+  PropEncoding readFromStore(final CacheId id, final Stat stat);
+
+  Stat readZkStat(final CacheId id);
 
   void writeToStore(final CacheId id, PropEncoding props);
 

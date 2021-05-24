@@ -117,6 +117,18 @@ class CacheTTL {
     }
   }
 
+  public void clear(CacheId cacheId) {
+    try {
+      mapLock.lockInterruptibly();
+      accessMap.remove(cacheId);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Locking ttl cache interrupted", ex);
+    } finally {
+      mapLock.unlock();
+    }
+  }
+
   public List<CacheId> getExpired(final Instant timestamp) {
     List<CacheId> expired = new ArrayList<>();
     try {
@@ -149,11 +161,11 @@ class CacheTTL {
     }
   }
 
-  public void update(CacheId id, Instant timestamp) {
+  public void update(CacheId cacheId, Instant timestamp) {
 
-    log.info("add entry");
+    log.info("add entry on update - id {}", cacheId);
 
-    var success = accessUpdateQueue.offer(new AccessEntry(id, timestamp));
+    var success = accessUpdateQueue.offer(new AccessEntry(cacheId, timestamp));
     if (!success) {
       log.debug(
           "Failed to update cache access time - cache entries may expire sooner than expected");

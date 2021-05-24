@@ -23,6 +23,7 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.confRewrite.zk.ZkDataEventHandler;
 import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 
 public class ZkPropStoreImpl implements ZkPropStore {
 
@@ -35,17 +36,27 @@ public class ZkPropStoreImpl implements ZkPropStore {
   }
 
   @Override
-  public PropEncoding readFromStore(CacheId id) {
+  public PropEncoding readFromStore(final CacheId id) {
+    return readFromStore(id, new Stat());
+  }
+
+  @Override
+  public PropEncoding readFromStore(final CacheId id, final Stat stat) {
     return null;
   }
 
   @Override
-  public void writeToStore(CacheId id, PropEncoding props) {
+  public Stat readZkStat(final CacheId id) {
+    return null;
+  }
+
+  @Override
+  public void writeToStore(final CacheId id, final PropEncoding props) {
 
   }
 
   @Override
-  public void deleteFromStore(CacheId id) {
+  public void deleteFromStore(final CacheId id) {
 
   }
 

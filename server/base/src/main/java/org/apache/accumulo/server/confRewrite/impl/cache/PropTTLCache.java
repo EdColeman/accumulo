@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -35,27 +34,26 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.confRewrite.PropCache;
+import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CacheAccessTTL implements PropCache {
+public class PropTTLCache implements PropCache {
 
-  private static final Logger log = LoggerFactory.getLogger(CacheAccessTTL.class);
+  private static final Logger log = LoggerFactory.getLogger(PropTTLCache.class);
 
-  private final Map<CacheId,PropZNode> cache = new HashMap<>();
+  private final DataCache theData;
+
   private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
   private final ReentrantReadWriteLock.ReadLock rLock = rwLock.readLock();
   private final ReentrantReadWriteLock.WriteLock wLock = rwLock.writeLock();
 
-  private final ZooKeeper zooKeeper;
+  private final ZkPropStore zooProps;
   private final Clock clock;
 
-  private final CacheTTL cacheTTL;
   private final ScheduledExecutorService scheduler =
       ThreadPools.createScheduledExecutorService(1, "ZooPropCleaner", false);
 
@@ -63,13 +61,13 @@ public class CacheAccessTTL implements PropCache {
 
   // private final ZkDataEventHandler dataEventHandler;
 
-  public CacheAccessTTL(final ZooKeeper zooKeeper) {
-    this(zooKeeper, new CacheTTL(), Clock.systemUTC());
+  public PropTTLCache(final ZkPropStore zooProps) {
+    this(zooProps, new CacheTTL(), Clock.systemUTC());
   }
 
-  public CacheAccessTTL(final ZooKeeper zooKeeper, final CacheTTL cacheTTL, final Clock clock) {
-    this.zooKeeper = zooKeeper;
-    this.cacheTTL = cacheTTL;
+  public PropTTLCache(final ZkPropStore zooProps, final CacheTTL cacheTTL, final Clock clock) {
+    this.zooProps = zooProps;
+    this.theData = new DataCache(cacheTTL);
     this.clock = clock;
 
     // this.dataEventHandler = new ZkEventProcessor(this);
@@ -82,7 +80,7 @@ public class CacheAccessTTL implements PropCache {
 
   }
 
-  public Optional<PropEncoding> load(final CacheId id) throws InterruptedException {
+  private PropEncoding load(final CacheId cacheId) throws InterruptedException {
 
     Instant accessStart = clock.instant();
 
@@ -91,13 +89,13 @@ public class CacheAccessTTL implements PropCache {
     try {
       metrics.updateAccessCount();
       try {
-        PropZNode p = getPropZNode(id, accessStart);
-        if (null != p) {
+        PropZNode p = getPropZNode(cacheId, accessStart);
+        if (Objects.nonNull(p)) {
           metrics.updateHitCount();
-          return Optional.of(p.getProps());
+          return p.getProps();
         }
       } catch (KeeperException.NoNodeException ex) {
-        return Optional.empty();
+        return null;
       } catch (KeeperException ex) {
         // todo - evaluate handling
         throw new IllegalStateException("Zookeeper read interrupted", ex);
@@ -108,9 +106,9 @@ public class CacheAccessTTL implements PropCache {
         wLock.lock();
 
         // read again under write lock - another thread could have loaded it while we were waiting.
-        PropZNode zNode = cache.get(id);
+        PropZNode zNode = theData.get(cacheId);
         if (Objects.nonNull(zNode)) {
-          return Optional.of(zNode.getProps());
+          return zNode.getProps();
         }
 
         Instant zkAccessStart = clock.instant();
@@ -118,57 +116,61 @@ public class CacheAccessTTL implements PropCache {
         try {
           // not found - get from zookeeper.
           Stat stat = new Stat();
-          byte[] data = zooKeeper.getData(id.path(), false, stat);
-          PropEncodingV1 props = new PropEncodingV1(data);
+          PropEncoding props = zooProps.readFromStore(cacheId, stat);
+
+          log.info("From zooKeeper: {} - {}", stat, props);
+
+          // not found - return null and don't store in cache
+          if (Objects.isNull(props)) {
+            return null;
+          }
+
           zNode = new PropZNode(props, stat, clock.instant());
 
           log.info("Loaded: {}", zNode);
 
-          cache.put(id, zNode);
+          theData.put(cacheId, zNode, accessStart);
 
-          return Optional.of(props);
+          return props;
         } finally {
           metrics.updateZkLoadTime(Duration.between(zkAccessStart, clock.instant()).toNanos());
         }
-      } catch (KeeperException.NoNodeException ex) {
-        return Optional.empty();
-      } catch (KeeperException ex) {
-        log.warn("Loading properties from zookeeper for {} failed", id, ex);
-        throw new IllegalStateException("Loading properties from zookeeper for " + id + " failed",
-            ex);
       } finally {
         wLock.unlock();
       }
 
     } finally {
-      cacheTTL.update(id, accessStart);
+      // cacheTTL.update(cacheId, accessStart);
       metrics.updateAccessTime(Duration.between(accessStart, clock.instant()).toNanos());
     }
   }
 
   @Override
-  public PropEncoding getProperties(CacheId id) {
-    return null;
+  public PropEncoding getProperties(CacheId cacheId) {
+    try {
+      return load(cacheId);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted reading from zookeeper. Id " + cacheId, ex);
+    }
   }
 
   @Override
-  public void clear(CacheId id) {
-
+  public void clear(CacheId cacheId) {
+    theData.remove(cacheId);
   }
 
   @Override
   public void clearAll() {
     try {
       wLock.lockInterruptibly();
-
-      cache.clear();
+      theData.clear();
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted locking cache for clear", ex);
     } finally {
       wLock.unlock();
     }
-    cacheTTL.clearAll();
   }
 
   public Map<String,Long> getMetrics() {
@@ -188,7 +190,7 @@ public class CacheAccessTTL implements PropCache {
     PropZNode zNode;
     try {
       rLock.lockInterruptibly();
-      zNode = cache.get(id);
+      zNode = theData.get(id);
     } finally {
       rLock.unlock();
     }
@@ -201,12 +203,13 @@ public class CacheAccessTTL implements PropCache {
 
         log.info("SYNC CHECK expired");
 
-        Stat current = zooKeeper.exists(id.path(), false);
+        Stat current = zooProps.readZkStat(id);
+
         if (current.getMzxid() != zNode.getMzxid()) {
           // node has changed since saved.
           try {
             wLock.lockInterruptibly();
-            cache.remove(id);
+            theData.remove(id);
           } finally {
             wLock.unlock();
           }
@@ -218,7 +221,7 @@ public class CacheAccessTTL implements PropCache {
 
           PropZNode update = new PropZNode(zNode.props, current, timestamp);
           wLock.lockInterruptibly();
-          cache.put(id, update);
+          theData.put(id, update, timestamp);
         } finally {
           wLock.unlock();
         }
@@ -231,13 +234,13 @@ public class CacheAccessTTL implements PropCache {
 
   private static class CacheExpireTask implements Runnable {
 
-    private final CacheAccessTTL cacheAccessTTL;
+    private final PropTTLCache propTTLCache;
     private final CacheTTL cacheTTL;
     private final Clock clock;
 
-    public CacheExpireTask(final CacheAccessTTL cacheAccessTTL, final CacheTTL cacheTTL,
+    public CacheExpireTask(final PropTTLCache propTTLCache, final CacheTTL cacheTTL,
         final Clock clock) {
-      this.cacheAccessTTL = cacheAccessTTL;
+      this.propTTLCache = propTTLCache;
       this.cacheTTL = cacheTTL;
       this.clock = clock;
     }
@@ -247,15 +250,15 @@ public class CacheAccessTTL implements PropCache {
       log.info("Clean...");
       List<CacheId> expired = cacheTTL.getExpired(clock.instant());
       try {
-        cacheAccessTTL.wLock.lock();
+        propTTLCache.wLock.lock();
         expired.forEach(id -> {
-          var removedId = cacheAccessTTL.cache.remove(id);
+          var removedId = propTTLCache.theData.remove(id);
           if (removedId != null) {
             log.trace("Expired: {}", id);
           }
         });
       } finally {
-        cacheAccessTTL.wLock.unlock();
+        propTTLCache.wLock.unlock();
       }
     }
   }
@@ -338,6 +341,42 @@ public class CacheAccessTTL implements PropCache {
     public String toString() {
       return new StringJoiner(", ", PropZNode.class.getSimpleName() + "[", "]")
           .add("props=" + props).add("mzxid=" + mzxid).add("lastCheck=" + lastCheck).toString();
+    }
+  }
+
+  /**
+   * Wrapper around the cache so that data (cache) and TTL access are updated as required.
+   */
+  private static class DataCache {
+    private final Map<CacheId,PropZNode> cache = new HashMap<>();
+    private final CacheTTL ttl;
+
+    public DataCache(final CacheTTL ttl) {
+      this.ttl = ttl;
+    }
+
+    public PropZNode get(final CacheId cacheId) {
+      return cache.get(cacheId);
+    }
+
+    public void put(final CacheId cacheId, final PropZNode zNode, final Instant accessTime) {
+      Objects.requireNonNull(cacheId, "must provide a cacheId");
+      // adding null value is a noop.
+      if (Objects.isNull(zNode)) {
+        return;
+      }
+      cache.put(cacheId, zNode);
+      ttl.update(cacheId, accessTime);
+    }
+
+    public PropZNode remove(final CacheId cacheId) {
+      ttl.clear(cacheId);
+      return cache.remove(cacheId);
+    }
+
+    public void clear() {
+      ttl.clearAll();
+      cache.clear();
     }
   }
 }
