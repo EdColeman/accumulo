@@ -20,19 +20,47 @@ package org.apache.accumulo.server.confRewrite.zk.impl;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.confRewrite.zk.ZkDataEventHandler;
-import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
+import org.apache.accumulo.server.confRewrite.zk.DataChangeEventHandler;
+import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-public class ZkPropStoreImpl implements ZkPropStore {
+public class ZkPropertiesImpl implements ZkProperties {
 
+  private final String instanceId;
   private final ZooKeeper zooKeeper;
-  private final ZkDataEventHandler eventHandler;
+  private final DataChangeEventHandler dataChangeEventHandler;
+  private final ZkEventProcessor eventProcessor;
 
-  public ZkPropStoreImpl(final ZooKeeper zooKeeper, final ZkDataEventHandler eventHandler) {
+  public ZkPropertiesImpl(final String instanceId, final ZooKeeper zooKeeper,
+      final DataChangeEventHandler dataChangeEventHandler) {
+    this(instanceId, zooKeeper, dataChangeEventHandler,
+        new ZkEventProcessor(dataChangeEventHandler));
+  }
+
+  public ZkPropertiesImpl(final String instanceId, final ZooKeeper zooKeeper,
+      final DataChangeEventHandler dataChangeEventHandler, final ZkEventProcessor eventProcessor) {
+    this.instanceId = instanceId;
     this.zooKeeper = zooKeeper;
-    this.eventHandler = eventHandler;
+    this.dataChangeEventHandler = dataChangeEventHandler;
+    this.eventProcessor = eventProcessor;
+
+    setInitialWatch();
+  }
+
+  private void setInitialWatch() {
+    final String propRootPath = CacheId.getConfigRoot(instanceId);
+    try {
+      zooKeeper.exists(propRootPath, eventProcessor);
+    } catch (KeeperException e) {
+      throw new IllegalStateException(
+          "Failed to read property root path " + propRootPath + " in ZooKeeper");
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(
+          "Interrupted reading property root path " + propRootPath + " from ZooKeeper", ex);
+    }
   }
 
   @Override

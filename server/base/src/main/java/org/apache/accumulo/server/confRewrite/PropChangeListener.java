@@ -16,26 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.zk;
+package org.apache.accumulo.server.confRewrite;
 
 import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.zookeeper.data.Stat;
 
-/**
- * Defines ZooKeeper property management responsibilities to read, write and delete property nodes
- * from zookeeper.
- */
-public interface ZkPropStore {
+public interface PropChangeListener {
 
-  PropEncoding readFromStore(final CacheId id);
+  void changeEvent(final CacheId id);
 
-  PropEncoding readFromStore(final CacheId id, final Stat stat);
-
-  Stat readZkStat(final CacheId id);
-
-  void writeToStore(final CacheId id, PropEncoding props);
-
-  void deleteFromStore(final CacheId id);
+  void deleteEvent(final CacheId id);
 
 }

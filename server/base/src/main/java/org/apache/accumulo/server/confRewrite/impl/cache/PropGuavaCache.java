@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.confRewrite.PropCache;
-import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
+import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +40,10 @@ public class PropGuavaCache implements PropCache {
   private static final long cacheTTL = 15;
   private static final TimeUnit cacheTTLUnits = TimeUnit.MINUTES;
 
-  private final ZkPropStore zooProps;
+  private final ZkProperties zooProps;
   private final LoadingCache<CacheId,PropEncoding> cache;
 
-  public PropGuavaCache(final ZkPropStore zooProps) {
+  public PropGuavaCache(final ZkProperties zooProps) {
     this.zooProps = zooProps;
     cache = CacheBuilder.newBuilder().expireAfterWrite(cacheTTL, cacheTTLUnits).build(getLoader());
   }

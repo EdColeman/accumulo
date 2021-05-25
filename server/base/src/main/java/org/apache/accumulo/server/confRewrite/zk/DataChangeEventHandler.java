@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.server.confRewrite.zk;
 
-public interface ZkDataEventHandler {
+public interface DataChangeEventHandler {
 
   void invalidateData();
 

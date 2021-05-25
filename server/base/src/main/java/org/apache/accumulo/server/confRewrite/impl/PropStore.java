@@ -20,16 +20,16 @@ package org.apache.accumulo.server.confRewrite.impl;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.confRewrite.zk.ZkPropStore;
+import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-public class PropStoreImpl implements ZkPropStore {
+public class PropStore implements ZkProperties {
 
   private final ZooKeeper zooKeeper;
 
-  public PropStoreImpl(final ZooKeeper zooKeeper) {
+  public PropStore(final ZooKeeper zooKeeper) {
     this.zooKeeper = zooKeeper;
   }
 
