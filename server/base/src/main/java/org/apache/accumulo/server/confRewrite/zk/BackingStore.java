@@ -30,8 +30,6 @@ public interface BackingStore {
 
   boolean createInStore(final CacheId id, PropEncoding props);
 
-  PropEncoding readFromStore(final CacheId id);
-
   PropEncoding readFromStore(final CacheId id, final Stat stat);
 
   Stat readZkStat(final CacheId id);

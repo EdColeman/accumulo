@@ -28,24 +28,13 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 public interface PropStore {
 
   /**
-   * Retrieve the properties for the provided cacheId from the backing store.
-   *
-   * @param cacheId
-   *          the cache id.
-   * @return the properties or null if not present in backing store.
-   * @throws PropCacheException
-   *           If an error occurs reading from the backing store.
-   */
-  PropEncoding get(CacheId cacheId) throws PropCacheException;
-
-  /**
    * Retrieve the properties for the provided cacheId from the backing store and register a listener
    * for changes (modifications, deletions)
    *
    * @param cacheId
    *          the cache id
    * @param listener
-   *          the listener that notified of changes (modified, deleted)
+   *          if the listener is non null it will be notified of changes (modified, deleted)
    * @return the properties or null if not present in backing store.
    * @throws PropCacheException
    *           If an error occurs reading from the backing store.
@@ -61,27 +50,13 @@ public interface PropStore {
    * @param props
    *          a map of key, value pairs
    * @param listener
-   *          the listener that notified of changes (modified, deleted)
+   *          if the listener is non null it will be notified of changes (modified, deleted)
    * @return true if created, false if the properties exist in the backing store.
    * @throws PropCacheException
    *           If an error occurs in the backing store.
    */
   boolean create(CacheId cacheId, Map<String,String> props, PropChangeListener listener)
       throws PropCacheException;
-
-  /**
-   * Create a map of properties (key, value pairs) and associate them with the cache id in the
-   * backing store.
-   *
-   * @param cacheId
-   *          the cache id.
-   * @param props
-   *          a map of key, value pairs
-   * @return true if created, false if the properties exist in the backing store.
-   * @throws PropCacheException
-   *           If an error occurs in the backing store.
-   */
-  boolean create(CacheId cacheId, Map<String,String> props) throws PropCacheException;
 
   /**
    * Delete the properties associated with the cache id.

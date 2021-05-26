@@ -24,10 +24,13 @@ import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.confRewrite.PropChangeListener;
 import org.apache.accumulo.server.confRewrite.PropStore;
 import org.apache.accumulo.server.confRewrite.cache.PropCache;
 import org.apache.accumulo.server.confRewrite.zk.BackingStore;
@@ -54,8 +57,40 @@ public class PropStoreImplTest {
 
     EasyMock.replay(propCache, backingStore);
 
-    assertTrue(propStore.create(tid, props));
+    assertTrue(propStore.create(tid, props, null));
 
     EasyMock.verify(propCache, backingStore);
+  }
+
+  private static class TestListener implements PropChangeListener {
+
+    private final AtomicInteger changeCount = new AtomicInteger(0);
+    private final AtomicInteger deleteCount = new AtomicInteger(0);
+
+    private AtomicReference<CacheId> lastEventCacheId = new AtomicReference<>();
+
+    @Override
+    public void changeEvent(CacheId id) {
+      lastEventCacheId.set(id);
+      changeCount.incrementAndGet();
+    }
+
+    @Override
+    public void deleteEvent(CacheId id) {
+      lastEventCacheId.set(id);
+      deleteCount.incrementAndGet();
+    }
+
+    public int getChangeCount() {
+      return changeCount.get();
+    }
+
+    public int getDeleteCount() {
+      return deleteCount.get();
+    }
+
+    public CacheId getLastEventCacheId() {
+      return lastEventCacheId.get();
+    }
   }
 }

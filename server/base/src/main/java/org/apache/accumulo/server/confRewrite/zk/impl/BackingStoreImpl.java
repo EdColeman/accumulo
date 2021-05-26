@@ -18,8 +18,14 @@
  */
 package org.apache.accumulo.server.confRewrite.zk.impl;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+
+import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.confRewrite.PropChangeListener;
 import org.apache.accumulo.server.confRewrite.zk.BackingStore;
 import org.apache.accumulo.server.confRewrite.zk.DataChangeEventHandler;
 import org.apache.zookeeper.KeeperException;
@@ -32,6 +38,10 @@ public class BackingStoreImpl implements BackingStore {
   private final ZooKeeper zooKeeper;
   private final DataChangeEventHandler dataChangeEventHandler;
   private final ZkEventProcessor eventProcessor;
+
+  private final Set<PropChangeListener> listeners = ConcurrentHashMap.newKeySet();
+  private final ExecutorService executorService =
+      ThreadPools.createFixedThreadPool(1, "prop_change", false);
 
   public BackingStoreImpl(final String instanceId, final ZooKeeper zooKeeper,
       final DataChangeEventHandler dataChangeEventHandler) {
@@ -68,13 +78,8 @@ public class BackingStoreImpl implements BackingStore {
   }
 
   @Override
-  public boolean createInStore(CacheId id, PropEncoding props) {
+  public boolean createInStore(final CacheId id, final PropEncoding props) {
     return false;
-  }
-
-  @Override
-  public PropEncoding readFromStore(final CacheId id) {
-    return readFromStore(id, new Stat());
   }
 
   @Override
@@ -104,4 +109,15 @@ public class BackingStoreImpl implements BackingStore {
 
   }
 
+  public void changeEvent(final CacheId id) {
+    // for (org.apache.accumulo.server.conf2.PropChangeListener watcher : listeners) {
+    // executorService.submit(() -> watcher.changeEvent(id));
+    // }
+  }
+
+  public void deleteEvent(final CacheId id) {
+    // for (org.apache.accumulo.server.conf2.PropChangeListener watcher : listeners) {
+    // executorService.submit(() -> watcher.deleteEvent(id));
+    // }
+  }
 }

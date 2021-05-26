@@ -49,12 +49,6 @@ public class PropStoreImpl implements PropStore {
   }
 
   @Override
-  public boolean create(final CacheId cacheId, final Map<String,String> props)
-      throws PropCacheException {
-    return create(cacheId, props, null);
-  }
-
-  @Override
   public boolean create(final CacheId cacheId, final Map<String,String> props,
       final PropChangeListener listener) throws PropCacheException {
 
@@ -65,18 +59,14 @@ public class PropStoreImpl implements PropStore {
   }
 
   @Override
-  public PropEncoding get(final CacheId cacheId) throws PropCacheException {
-    return get(cacheId, null);
-  }
-
-  @Override
   public PropEncoding get(final CacheId cacheId, final PropChangeListener listener)
       throws PropCacheException {
+
     PropEncoding props = propCache.getProperties(cacheId);
     if (Objects.nonNull(props)) {
       return props;
     }
-    return backingStore.readFromStore(cacheId);
+    return backingStore.readFromStore(cacheId, null);
   }
 
   @Override
@@ -95,4 +85,5 @@ public class PropStoreImpl implements PropStore {
       throws PropCacheException {
     return false;
   }
+
 }

@@ -56,7 +56,7 @@ public class PropGuavaCache implements PropCache {
         Objects.requireNonNull(cacheId, "Invalid call to load cache with null cache id.");
         log.trace("Loading {} from backing store", cacheId);
 
-        PropEncoding props = zooProps.readFromStore(cacheId);
+        PropEncoding props = zooProps.readFromStore(cacheId, null);
         if (null == props) {
           throw new NoSuchPropsException(cacheId);
         }

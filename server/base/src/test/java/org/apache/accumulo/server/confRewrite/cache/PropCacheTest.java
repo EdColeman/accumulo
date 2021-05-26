@@ -41,18 +41,18 @@ public class PropCacheTest {
   private static final Logger log = LoggerFactory.getLogger(PropCacheTest.class);
 
   @Test
-  public void loadTestGuava() {
+  public void loadGuavaTest() {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
     BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
-    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).once();
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).once();
     PropCache cache = new PropGuavaCache(mockBackingStore);
-    loadTest(cache, mockBackingStore);
+    doLoad(cache, mockBackingStore);
   }
 
   @Test
-  public void loadTestPropTTL() {
+  public void loadPropTTLTest() {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
@@ -60,10 +60,10 @@ public class PropCacheTest {
     expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).once();
 
     PropCache cache = new PropTTLCache(mockBackingStore);
-    loadTest(cache, mockBackingStore);
+    doLoad(cache, mockBackingStore);
   }
 
-  private void loadTest(final PropCache cache, final BackingStore mockBackingStore) {
+  private void doLoad(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
     EasyMock.replay(mockBackingStore);
@@ -83,10 +83,10 @@ public class PropCacheTest {
     props.addProperty("key_1", "value_1");
 
     BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
-    expect(mockBackingStore.readFromStore(anyObject())).andReturn(null).times(2);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(null).times(2);
     PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    loadMissTest(cache, mockBackingStore);
+    doLoadMiss(cache, mockBackingStore);
   }
 
   @Test
@@ -98,10 +98,10 @@ public class PropCacheTest {
     expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(null).times(2);
     PropCache cache = new PropTTLCache(mockBackingStore);
 
-    loadMissTest(cache, mockBackingStore);
+    doLoadMiss(cache, mockBackingStore);
   }
 
-  private void loadMissTest(final PropCache cache, final BackingStore mockBackingStore) {
+  private void doLoadMiss(final PropCache cache, final BackingStore mockBackingStore) {
 
     CacheId tid = generateCacheId();
 
@@ -132,9 +132,9 @@ public class PropCacheTest {
     BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
     PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearTest(cache, mockBackingStore);
+    doClear(cache, mockBackingStore);
   }
 
   @Test
@@ -147,10 +147,10 @@ public class PropCacheTest {
 
     expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearTest(cache, mockBackingStore);
+    doClear(cache, mockBackingStore);
   }
 
-  private void clearTest(final PropCache cache, final BackingStore mockBackingStore) {
+  private void doClear(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
     EasyMock.replay(mockBackingStore);
@@ -177,9 +177,9 @@ public class PropCacheTest {
     BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
     PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearAllTest(cache, mockBackingStore);
+    doClearAll(cache, mockBackingStore);
   }
 
   @Test
@@ -192,10 +192,10 @@ public class PropCacheTest {
 
     expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearAllTest(cache, mockBackingStore);
+    doClearAll(cache, mockBackingStore);
   }
 
-  private void clearAllTest(final PropCache cache, final BackingStore mockBackingStore) {
+  private void doClearAll(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
     EasyMock.replay(mockBackingStore);
@@ -219,7 +219,7 @@ public class PropCacheTest {
 
     BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
 
-    expect(mockBackingStore.readFromStore(anyObject()))
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject()))
         .andThrow(new IllegalStateException("a fake exception"));
 
     PropCache cache = new PropGuavaCache(mockBackingStore);
@@ -256,4 +256,5 @@ public class PropCacheTest {
   }
 
   // TODO additional exception testing??
+
 }
