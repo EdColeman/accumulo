@@ -16,16 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite;
+package org.apache.accumulo.test.config2.confRewrite;
 
-import org.apache.accumulo.server.conf2.CacheId;
-import org.apache.accumulo.server.conf2.codec.PropEncoding;
-
-public interface PropCache {
-
-  PropEncoding getProperties(final CacheId id);
-
-  void clear(final CacheId id);
-
-  void clearAll();
-}
+public class PropStoreZkITTest {}

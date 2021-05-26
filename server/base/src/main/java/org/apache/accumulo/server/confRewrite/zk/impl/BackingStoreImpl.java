@@ -20,26 +20,26 @@ package org.apache.accumulo.server.confRewrite.zk.impl;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.confRewrite.zk.BackingStore;
 import org.apache.accumulo.server.confRewrite.zk.DataChangeEventHandler;
-import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
-public class ZkPropertiesImpl implements ZkProperties {
+public class BackingStoreImpl implements BackingStore {
 
   private final String instanceId;
   private final ZooKeeper zooKeeper;
   private final DataChangeEventHandler dataChangeEventHandler;
   private final ZkEventProcessor eventProcessor;
 
-  public ZkPropertiesImpl(final String instanceId, final ZooKeeper zooKeeper,
+  public BackingStoreImpl(final String instanceId, final ZooKeeper zooKeeper,
       final DataChangeEventHandler dataChangeEventHandler) {
     this(instanceId, zooKeeper, dataChangeEventHandler,
         new ZkEventProcessor(dataChangeEventHandler));
   }
 
-  public ZkPropertiesImpl(final String instanceId, final ZooKeeper zooKeeper,
+  public BackingStoreImpl(final String instanceId, final ZooKeeper zooKeeper,
       final DataChangeEventHandler dataChangeEventHandler, final ZkEventProcessor eventProcessor) {
     this.instanceId = instanceId;
     this.zooKeeper = zooKeeper;
@@ -75,7 +75,14 @@ public class ZkPropertiesImpl implements ZkProperties {
 
   @Override
   public Stat readZkStat(final CacheId id) {
-    return null;
+    try {
+      return zooKeeper.exists(id.path(), false);
+    } catch (KeeperException ex) {
+      throw new IllegalStateException("Could not read node stat for " + id, ex);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted reading stat from zookeeper " + id, ex);
+    }
   }
 
   @Override

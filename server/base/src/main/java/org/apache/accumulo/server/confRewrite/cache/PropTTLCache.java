@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl.cache;
+package org.apache.accumulo.server.confRewrite.cache;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -34,8 +34,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.confRewrite.PropCache;
-import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
+import org.apache.accumulo.server.confRewrite.zk.BackingStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -51,7 +50,7 @@ public class PropTTLCache implements PropCache {
   private final ReentrantReadWriteLock.ReadLock rLock = rwLock.readLock();
   private final ReentrantReadWriteLock.WriteLock wLock = rwLock.writeLock();
 
-  private final ZkProperties zooProps;
+  private final BackingStore zooProps;
   private final Clock clock;
 
   private final ScheduledExecutorService scheduler =
@@ -61,11 +60,11 @@ public class PropTTLCache implements PropCache {
 
   // private final DataChangeEventHandler dataEventHandler;
 
-  public PropTTLCache(final ZkProperties zooProps) {
+  public PropTTLCache(final BackingStore zooProps) {
     this(zooProps, new CacheTTL(), Clock.systemUTC());
   }
 
-  public PropTTLCache(final ZkProperties zooProps, final CacheTTL cacheTTL, final Clock clock) {
+  public PropTTLCache(final BackingStore zooProps, final CacheTTL cacheTTL, final Clock clock) {
     this.zooProps = zooProps;
     this.theData = new DataCache(cacheTTL);
     this.clock = clock;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl.cache;
+package org.apache.accumulo.server.confRewrite.cache;
 
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.expect;
@@ -30,8 +30,7 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
-import org.apache.accumulo.server.confRewrite.PropCache;
-import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
+import org.apache.accumulo.server.confRewrite.zk.BackingStore;
 import org.easymock.EasyMock;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -46,10 +45,10 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    expect(mockZkProperties.readFromStore(anyObject())).andReturn(props).once();
-    PropCache cache = new PropGuavaCache(mockZkProperties);
-    loadTest(cache, mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).once();
+    PropCache cache = new PropGuavaCache(mockBackingStore);
+    loadTest(cache, mockBackingStore);
   }
 
   @Test
@@ -57,17 +56,17 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    expect(mockZkProperties.readFromStore(anyObject(), anyObject())).andReturn(props).once();
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).once();
 
-    PropCache cache = new PropTTLCache(mockZkProperties);
-    loadTest(cache, mockZkProperties);
+    PropCache cache = new PropTTLCache(mockBackingStore);
+    loadTest(cache, mockBackingStore);
   }
 
-  private void loadTest(final PropCache cache, final ZkProperties mockZkProperties) {
+  private void loadTest(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
-    EasyMock.replay(mockZkProperties);
+    EasyMock.replay(mockBackingStore);
 
     // load from zookeeper
     assertNotNull(cache.getProperties(tid));
@@ -75,7 +74,7 @@ public class PropCacheTest {
     // get from cache - no zookeeper call
     assertNotNull(cache.getProperties(tid));
 
-    EasyMock.verify(mockZkProperties);
+    EasyMock.verify(mockBackingStore);
   }
 
   @Test
@@ -83,11 +82,11 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    expect(mockZkProperties.readFromStore(anyObject())).andReturn(null).times(2);
-    PropCache cache = new PropGuavaCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    expect(mockBackingStore.readFromStore(anyObject())).andReturn(null).times(2);
+    PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    loadMissTest(cache, mockZkProperties);
+    loadMissTest(cache, mockBackingStore);
   }
 
   @Test
@@ -95,18 +94,18 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    expect(mockZkProperties.readFromStore(anyObject(), anyObject())).andReturn(null).times(2);
-    PropCache cache = new PropTTLCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(null).times(2);
+    PropCache cache = new PropTTLCache(mockBackingStore);
 
-    loadMissTest(cache, mockZkProperties);
+    loadMissTest(cache, mockBackingStore);
   }
 
-  private void loadMissTest(final PropCache cache, final ZkProperties mockZkProperties) {
+  private void loadMissTest(final PropCache cache, final BackingStore mockBackingStore) {
 
     CacheId tid = generateCacheId();
 
-    EasyMock.replay(mockZkProperties);
+    EasyMock.replay(mockBackingStore);
 
     PropEncoding returned = cache.getProperties(tid);
 
@@ -117,7 +116,7 @@ public class PropCacheTest {
     returned = cache.getProperties(tid);
     assertNull(returned);
 
-    EasyMock.verify(mockZkProperties);
+    EasyMock.verify(mockBackingStore);
   }
 
   private CacheId generateCacheId() {
@@ -130,12 +129,12 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    PropCache cache = new PropGuavaCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    expect(mockZkProperties.readFromStore(anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).times(2);
 
-    clearTest(cache, mockZkProperties);
+    clearTest(cache, mockBackingStore);
   }
 
   @Test
@@ -143,18 +142,18 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    PropCache cache = new PropTTLCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    PropCache cache = new PropTTLCache(mockBackingStore);
 
-    expect(mockZkProperties.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearTest(cache, mockZkProperties);
+    clearTest(cache, mockBackingStore);
   }
 
-  private void clearTest(final PropCache cache, final ZkProperties mockZkProperties) {
+  private void clearTest(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
-    EasyMock.replay(mockZkProperties);
+    EasyMock.replay(mockBackingStore);
 
     // load from zookeeper
     assertNotNull(cache.getProperties(tid));
@@ -167,7 +166,7 @@ public class PropCacheTest {
     // (re)load from zookeeper
     assertNotNull(cache.getProperties(tid));
 
-    EasyMock.verify(mockZkProperties);
+    EasyMock.verify(mockBackingStore);
   }
 
   @Test
@@ -175,12 +174,12 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    PropCache cache = new PropGuavaCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    expect(mockZkProperties.readFromStore(anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject())).andReturn(props).times(2);
 
-    clearAllTest(cache, mockZkProperties);
+    clearAllTest(cache, mockBackingStore);
   }
 
   @Test
@@ -188,18 +187,18 @@ public class PropCacheTest {
     PropEncoding props = new PropEncodingV1();
     props.addProperty("key_1", "value_1");
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
-    PropCache cache = new PropTTLCache(mockZkProperties);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
+    PropCache cache = new PropTTLCache(mockBackingStore);
 
-    expect(mockZkProperties.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject())).andReturn(props).times(2);
 
-    clearAllTest(cache, mockZkProperties);
+    clearAllTest(cache, mockBackingStore);
   }
 
-  private void clearAllTest(final PropCache cache, final ZkProperties mockZkProperties) {
+  private void clearAllTest(final PropCache cache, final BackingStore mockBackingStore) {
     CacheId tid = generateCacheId();
 
-    EasyMock.replay(mockZkProperties);
+    EasyMock.replay(mockBackingStore);
 
     // load from zookeeper
     assertNotNull(cache.getProperties(tid));
@@ -212,39 +211,39 @@ public class PropCacheTest {
     // (re)load from zookeeper
     assertNotNull(cache.getProperties(tid));
 
-    EasyMock.verify(mockZkProperties);
+    EasyMock.verify(mockBackingStore);
   }
 
   @Test
   public void exceptionGuavaTest() {
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
 
-    expect(mockZkProperties.readFromStore(anyObject()))
+    expect(mockBackingStore.readFromStore(anyObject()))
         .andThrow(new IllegalStateException("a fake exception"));
 
-    PropCache cache = new PropGuavaCache(mockZkProperties);
+    PropCache cache = new PropGuavaCache(mockBackingStore);
 
-    exception1Test(cache, mockZkProperties);
+    exception1Test(cache, mockBackingStore);
   }
 
   @Test
   public void exceptionCacheTTLTest() {
 
-    ZkProperties mockZkProperties = EasyMock.mock(ZkProperties.class);
+    BackingStore mockBackingStore = EasyMock.mock(BackingStore.class);
 
-    expect(mockZkProperties.readFromStore(anyObject(), anyObject()))
+    expect(mockBackingStore.readFromStore(anyObject(), anyObject()))
         .andThrow(new IllegalStateException("a fake exception"));
 
-    PropCache cache = new PropTTLCache(mockZkProperties);
+    PropCache cache = new PropTTLCache(mockBackingStore);
 
-    exception1Test(cache, mockZkProperties);
+    exception1Test(cache, mockBackingStore);
   }
 
-  private void exception1Test(final PropCache cache, final ZkProperties mockZkProperties) {
+  private void exception1Test(final PropCache cache, final BackingStore mockBackingStore) {
 
     CacheId tid = generateCacheId();
-    EasyMock.replay(mockZkProperties);
+    EasyMock.replay(mockBackingStore);
 
     try {
       PropEncoding returned = cache.getProperties(tid);

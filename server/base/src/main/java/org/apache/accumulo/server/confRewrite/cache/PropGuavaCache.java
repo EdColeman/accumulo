@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl.cache;
+package org.apache.accumulo.server.confRewrite.cache;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -24,8 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.confRewrite.PropCache;
-import org.apache.accumulo.server.confRewrite.zk.ZkProperties;
+import org.apache.accumulo.server.confRewrite.zk.BackingStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +39,10 @@ public class PropGuavaCache implements PropCache {
   private static final long cacheTTL = 15;
   private static final TimeUnit cacheTTLUnits = TimeUnit.MINUTES;
 
-  private final ZkProperties zooProps;
+  private final BackingStore zooProps;
   private final LoadingCache<CacheId,PropEncoding> cache;
 
-  public PropGuavaCache(final ZkProperties zooProps) {
+  public PropGuavaCache(final BackingStore zooProps) {
     this.zooProps = zooProps;
     cache = CacheBuilder.newBuilder().expireAfterWrite(cacheTTL, cacheTTLUnits).build(getLoader());
   }

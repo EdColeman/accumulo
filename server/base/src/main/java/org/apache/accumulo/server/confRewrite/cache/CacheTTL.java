@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.server.confRewrite.impl.cache;
+package org.apache.accumulo.server.confRewrite.cache;
 
 import java.time.Clock;
 import java.time.Duration;
