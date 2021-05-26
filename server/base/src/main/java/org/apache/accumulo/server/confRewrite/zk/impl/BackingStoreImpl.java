@@ -49,6 +49,10 @@ public class BackingStoreImpl implements BackingStore {
     setInitialWatch();
   }
 
+  /**
+   * The initial watch sets a zookeeper watcher on the root property node to receive connection
+   * events.
+   */
   private void setInitialWatch() {
     final String propRootPath = CacheId.getConfigRoot(instanceId);
     try {
@@ -61,6 +65,11 @@ public class BackingStoreImpl implements BackingStore {
       throw new IllegalStateException(
           "Interrupted reading property root path " + propRootPath + " from ZooKeeper", ex);
     }
+  }
+
+  @Override
+  public boolean createInStore(CacheId id, PropEncoding props) {
+    return false;
   }
 
   @Override

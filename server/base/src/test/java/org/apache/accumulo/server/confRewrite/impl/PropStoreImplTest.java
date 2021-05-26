@@ -18,12 +18,16 @@
  */
 package org.apache.accumulo.server.confRewrite.impl;
 
+import static org.easymock.EasyMock.isA;
+import static org.junit.Assert.assertTrue;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.conf2.CacheId;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.confRewrite.PropStore;
 import org.apache.accumulo.server.confRewrite.cache.PropCache;
 import org.apache.accumulo.server.confRewrite.zk.BackingStore;
@@ -37,7 +41,10 @@ public class PropStoreImplTest {
 
     String instanceId = UUID.randomUUID().toString();
     PropCache propCache = EasyMock.mock(PropCache.class);
+
     BackingStore backingStore = EasyMock.mock(BackingStore.class);
+    EasyMock.expect(backingStore.createInStore(isA(CacheId.class), isA(PropEncoding.class)))
+        .andReturn(true);
 
     PropStore propStore = new PropStoreImpl(instanceId, propCache, backingStore);
 
@@ -47,7 +54,7 @@ public class PropStoreImplTest {
 
     EasyMock.replay(propCache, backingStore);
 
-    propStore.create(tid, props);
+    assertTrue(propStore.create(tid, props));
 
     EasyMock.verify(propCache, backingStore);
   }

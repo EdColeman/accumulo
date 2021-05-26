@@ -20,10 +20,12 @@ package org.apache.accumulo.server.confRewrite.impl;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.accumulo.server.conf2.CacheId;
 import org.apache.accumulo.server.conf2.PropCacheException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.confRewrite.PropChangeListener;
 import org.apache.accumulo.server.confRewrite.PropStore;
 import org.apache.accumulo.server.confRewrite.cache.PropCache;
@@ -47,17 +49,6 @@ public class PropStoreImpl implements PropStore {
   }
 
   @Override
-  public PropEncoding get(final CacheId cacheId) throws PropCacheException {
-    return get(cacheId, null);
-  }
-
-  @Override
-  public PropEncoding get(final CacheId cacheId, final PropChangeListener listener)
-      throws PropCacheException {
-    return null;
-  }
-
-  @Override
   public boolean create(final CacheId cacheId, final Map<String,String> props)
       throws PropCacheException {
     return create(cacheId, props, null);
@@ -66,7 +57,26 @@ public class PropStoreImpl implements PropStore {
   @Override
   public boolean create(final CacheId cacheId, final Map<String,String> props,
       final PropChangeListener listener) throws PropCacheException {
-    return false;
+
+    PropEncoding encoded = new PropEncodingV1();
+    encoded.addProperties(props);
+
+    return backingStore.createInStore(cacheId, encoded);
+  }
+
+  @Override
+  public PropEncoding get(final CacheId cacheId) throws PropCacheException {
+    return get(cacheId, null);
+  }
+
+  @Override
+  public PropEncoding get(final CacheId cacheId, final PropChangeListener listener)
+      throws PropCacheException {
+    PropEncoding props = propCache.getProperties(cacheId);
+    if (Objects.nonNull(props)) {
+      return props;
+    }
+    return backingStore.readFromStore(cacheId);
   }
 
   @Override
