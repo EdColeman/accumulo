@@ -28,6 +28,8 @@ public class Constants {
   public static final String ZROOT = "/accumulo";
   public static final String ZINSTANCES = "/instances";
 
+  public static final String ZENCODED_CONFIG_ROOT = "/pe_config2";
+
   public static final String ZTABLES = "/tables";
   public static final byte[] ZTABLES_INITIAL_ID = {'0'};
   public static final String ZTABLE_NAME = "/name";

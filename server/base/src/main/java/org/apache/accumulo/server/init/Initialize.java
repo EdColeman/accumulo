@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import org.apache.accumulo.core.Constants;
@@ -93,6 +94,8 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.ServerUtil;
+import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.impl.ZooPropStore;
 import org.apache.accumulo.server.constraints.MetadataConstraints;
 import org.apache.accumulo.server.fs.VolumeChooserEnvironmentImpl;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -141,43 +144,15 @@ public class Initialize implements KeywordExecutable {
   private static final Logger log = LoggerFactory.getLogger(Initialize.class);
   private static final String DEFAULT_ROOT_USER = "root";
   private static final String TABLE_TABLETS_TABLET_DIR = "table_info";
-
+  // config only for root table
+  private static final HashMap<String,String> initialRootConf = new HashMap<>();
+  // config for root and metadata table
+  private static final HashMap<String,String> initialRootMetaConf = new HashMap<>();
+  // config for only metadata table
+  private static final HashMap<String,String> initialMetaConf = new HashMap<>();
+  private static final HashMap<String,String> initialReplicationTableConf = new HashMap<>();
   private static LineReader reader = null;
   private static ZooReaderWriter zoo = null;
-
-  private static LineReader getLineReader() throws IOException {
-    if (reader == null) {
-      reader = LineReaderBuilder.builder().build();
-    }
-    return reader;
-  }
-
-  /**
-   * Sets this class's ZooKeeper reader/writer.
-   *
-   * @param zooReaderWriter
-   *          reader/writer
-   */
-  static void setZooReaderWriter(ZooReaderWriter zooReaderWriter) {
-    zoo = zooReaderWriter;
-  }
-
-  /**
-   * Gets this class's ZooKeeper reader/writer.
-   *
-   * @return reader/writer
-   */
-  static ZooReaderWriter getZooReaderWriter() {
-    return zoo;
-  }
-
-  // config only for root table
-  private static HashMap<String,String> initialRootConf = new HashMap<>();
-  // config for root and metadata table
-  private static HashMap<String,String> initialRootMetaConf = new HashMap<>();
-  // config for only metadata table
-  private static HashMap<String,String> initialMetaConf = new HashMap<>();
-  private static HashMap<String,String> initialReplicationTableConf = new HashMap<>();
 
   static {
     initialRootConf.put(Property.TABLE_COMPACTION_DISPATCHER.getKey(),
@@ -262,6 +237,32 @@ public class Initialize implements KeywordExecutable {
         ReplicationUtil.STATUS_FORMATTER_CLASS_NAME);
   }
 
+  private static LineReader getLineReader() throws IOException {
+    if (reader == null) {
+      reader = LineReaderBuilder.builder().build();
+    }
+    return reader;
+  }
+
+  /**
+   * Gets this class's ZooKeeper reader/writer.
+   *
+   * @return reader/writer
+   */
+  static ZooReaderWriter getZooReaderWriter() {
+    return zoo;
+  }
+
+  /**
+   * Sets this class's ZooKeeper reader/writer.
+   *
+   * @param zooReaderWriter
+   *          reader/writer
+   */
+  static void setZooReaderWriter(ZooReaderWriter zooReaderWriter) {
+    zoo = zooReaderWriter;
+  }
+
   static boolean checkInit(VolumeManager fs, SiteConfiguration sconf, Configuration hadoopConf)
       throws IOException {
     log.info("Hadoop Filesystem is {}", FileSystem.getDefaultUri(hadoopConf));
@@ -311,135 +312,6 @@ public class Initialize implements KeywordExecutable {
         sconf.get(Property.INSTANCE_VOLUMES));
   }
 
-  public boolean doInit(SiteConfiguration siteConfig, Opts opts, Configuration hadoopConf,
-      VolumeManager fs) throws IOException {
-    if (!checkInit(fs, siteConfig, hadoopConf)) {
-      return false;
-    }
-
-    // prompt user for instance name and root password early, in case they
-    // abort, we don't leave an inconsistent HDFS/ZooKeeper structure
-    String instanceNamePath;
-    try {
-      instanceNamePath = getInstanceNamePath(opts);
-    } catch (Exception e) {
-      log.error("FATAL: Failed to talk to zookeeper", e);
-      return false;
-    }
-
-    String rootUser;
-    try {
-      rootUser = getRootUserName(siteConfig, opts);
-    } catch (Exception e) {
-      log.error("FATAL: Failed to obtain user for administrative privileges");
-      return false;
-    }
-
-    // Don't prompt for a password when we're running SASL(Kerberos)
-    if (siteConfig.getBoolean(Property.INSTANCE_RPC_SASL_ENABLED)) {
-      opts.rootpass = UUID.randomUUID().toString().getBytes(UTF_8);
-    } else {
-      opts.rootpass = getRootPassword(siteConfig, opts, rootUser);
-    }
-
-    UUID uuid = UUID.randomUUID();
-    // the actual disk locations of the root table and tablets
-    Set<String> configuredVolumes = VolumeConfiguration.getVolumeUris(siteConfig);
-    String instanceName = instanceNamePath.substring(getInstanceNamePrefix().length());
-
-    try (ServerContext context =
-        ServerContext.initialize(siteConfig, instanceName, uuid.toString())) {
-      VolumeChooserEnvironment chooserEnv =
-          new VolumeChooserEnvironmentImpl(Scope.INIT, RootTable.ID, null, context);
-      String rootTabletDirName = RootTable.ROOT_TABLET_DIR_NAME;
-      String ext = FileOperations.getNewFileExtension(DefaultConfiguration.getInstance());
-      String rootTabletFileUri = new Path(fs.choose(chooserEnv, configuredVolumes) + Path.SEPARATOR
-          + ServerConstants.TABLE_DIR + Path.SEPARATOR + RootTable.ID + Path.SEPARATOR
-          + rootTabletDirName + Path.SEPARATOR + "00000_00000." + ext).toString();
-
-      try {
-        initZooKeeper(opts, uuid.toString(), instanceNamePath, rootTabletDirName,
-            rootTabletFileUri);
-      } catch (Exception e) {
-        log.error("FATAL: Failed to initialize zookeeper", e);
-        return false;
-      }
-
-      try {
-        initFileSystem(siteConfig, hadoopConf, fs, uuid,
-            new Path(fs.choose(chooserEnv, configuredVolumes) + Path.SEPARATOR
-                + ServerConstants.TABLE_DIR + Path.SEPARATOR + RootTable.ID + rootTabletDirName)
-                    .toString(),
-            rootTabletFileUri, context);
-      } catch (Exception e) {
-        log.error("FATAL Failed to initialize filesystem", e);
-        return false;
-      }
-
-      // When we're using Kerberos authentication, we need valid credentials to perform
-      // initialization. If the user provided some, use them.
-      // If they did not, fall back to the credentials present in accumulo.properties that the
-      // servers will use themselves.
-      try {
-        if (siteConfig.getBoolean(Property.INSTANCE_RPC_SASL_ENABLED)) {
-          final UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
-          // We don't have any valid creds to talk to HDFS
-          if (!ugi.hasKerberosCredentials()) {
-            final String accumuloKeytab = siteConfig.get(Property.GENERAL_KERBEROS_KEYTAB),
-                accumuloPrincipal = siteConfig.get(Property.GENERAL_KERBEROS_PRINCIPAL);
-
-            // Fail if the site configuration doesn't contain appropriate credentials to login as
-            // servers
-            if (StringUtils.isBlank(accumuloKeytab) || StringUtils.isBlank(accumuloPrincipal)) {
-              log.error("FATAL: No Kerberos credentials provided, and Accumulo is"
-                  + " not properly configured for server login");
-              return false;
-            }
-
-            log.info("Logging in as {} with {}", accumuloPrincipal, accumuloKeytab);
-
-            // Login using the keytab as the 'accumulo' user
-            UserGroupInformation.loginUserFromKeytab(accumuloPrincipal, accumuloKeytab);
-          }
-        }
-      } catch (IOException e) {
-        log.error("FATAL: Failed to get the Kerberos user", e);
-        return false;
-      }
-
-      try {
-        initSecurity(context, opts, rootUser);
-      } catch (Exception e) {
-        log.error("FATAL: Failed to initialize security", e);
-        return false;
-      }
-
-      if (opts.uploadAccumuloProps) {
-        try {
-          log.info("Uploading properties in accumulo.properties to Zookeeper."
-              + " Properties that cannot be set in Zookeeper will be skipped:");
-          Map<String,String> entries = new TreeMap<>();
-          siteConfig.getProperties(entries, x -> true, false);
-          for (Map.Entry<String,String> entry : entries.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            if (Property.isValidZooPropertyKey(key)) {
-              SystemPropUtil.setSystemProperty(context, key, value);
-              log.info("Uploaded - {} = {}", key, Property.isSensitive(key) ? "<hidden>" : value);
-            } else {
-              log.info("Skipped - {} = {}", key, Property.isSensitive(key) ? "<hidden>" : value);
-            }
-          }
-        } catch (Exception e) {
-          log.error("FATAL: Failed to upload accumulo.properties to Zookeeper", e);
-          return false;
-        }
-      }
-
-      return true;
-    }
-  }
-
   private static boolean zookeeperAvailable() {
     try {
       return zoo.exists("/");
@@ -461,74 +333,6 @@ public class Initialize implements KeywordExecutable {
       if (print) {
         log.info("Initialized volume {}", baseDir);
       }
-    }
-  }
-
-  private void initFileSystem(SiteConfiguration siteConfig, Configuration hadoopConf,
-      VolumeManager fs, UUID uuid, String rootTabletDirUri, String rootTabletFileUri,
-      ServerContext serverContext) throws IOException {
-    initDirs(fs, uuid, VolumeConfiguration.getVolumeUris(siteConfig), false);
-
-    // initialize initial system tables config in zookeeper
-    initSystemTablesConfig(zoo, Constants.ZROOT + "/" + uuid, hadoopConf);
-
-    Text splitPoint = TabletsSection.getRange().getEndKey().getRow();
-
-    VolumeChooserEnvironment chooserEnv =
-        new VolumeChooserEnvironmentImpl(Scope.INIT, MetadataTable.ID, splitPoint, serverContext);
-    String tableMetadataTabletDirName = TABLE_TABLETS_TABLET_DIR;
-    String tableMetadataTabletDirUri =
-        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
-            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + MetadataTable.ID + Path.SEPARATOR
-            + tableMetadataTabletDirName;
-    chooserEnv =
-        new VolumeChooserEnvironmentImpl(Scope.INIT, ReplicationTable.ID, null, serverContext);
-    String replicationTableDefaultTabletDirName = ServerColumnFamily.DEFAULT_TABLET_DIR_NAME;
-    String replicationTableDefaultTabletDirUri =
-        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
-            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + ReplicationTable.ID + Path.SEPARATOR
-            + replicationTableDefaultTabletDirName;
-    chooserEnv =
-        new VolumeChooserEnvironmentImpl(Scope.INIT, MetadataTable.ID, null, serverContext);
-    String defaultMetadataTabletDirName = ServerColumnFamily.DEFAULT_TABLET_DIR_NAME;
-    String defaultMetadataTabletDirUri =
-        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
-            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + MetadataTable.ID + Path.SEPARATOR
-            + defaultMetadataTabletDirName;
-
-    // create table and default tablets directories
-    createDirectories(fs, rootTabletDirUri, tableMetadataTabletDirUri, defaultMetadataTabletDirUri,
-        replicationTableDefaultTabletDirUri);
-
-    String ext = FileOperations.getNewFileExtension(DefaultConfiguration.getInstance());
-
-    // populate the metadata tables tablet with info about the replication table's one initial
-    // tablet
-    String metadataFileName = tableMetadataTabletDirUri + Path.SEPARATOR + "0_1." + ext;
-    Tablet replicationTablet =
-        new Tablet(ReplicationTable.ID, replicationTableDefaultTabletDirName, null, null);
-    createMetadataFile(fs, metadataFileName, siteConfig, replicationTablet);
-
-    // populate the root tablet with info about the metadata table's two initial tablets
-    Tablet tablesTablet = new Tablet(MetadataTable.ID, tableMetadataTabletDirName, null, splitPoint,
-        metadataFileName);
-    Tablet defaultTablet =
-        new Tablet(MetadataTable.ID, defaultMetadataTabletDirName, splitPoint, null);
-    createMetadataFile(fs, rootTabletFileUri, siteConfig, tablesTablet, defaultTablet);
-  }
-
-  private static class Tablet {
-    TableId tableId;
-    String dirName;
-    Text prevEndRow, endRow;
-    String[] files;
-
-    Tablet(TableId tableId, String dirName, Text prevEndRow, Text endRow, String... files) {
-      this.tableId = tableId;
-      this.dirName = dirName;
-      this.prevEndRow = prevEndRow;
-      this.endRow = endRow;
-      this.files = files;
     }
   }
 
@@ -640,7 +444,10 @@ public class Initialize implements KeywordExecutable {
     zoo.putPersistentData(zkInstanceRoot + Constants.ZGC, EMPTY_BYTE_ARRAY, NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZGC_LOCK, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
+    // TODO - remove legacy prop path
     zoo.putPersistentData(zkInstanceRoot + Constants.ZCONFIG, EMPTY_BYTE_ARRAY,
+        NodeExistsPolicy.FAIL);
+    zoo.putPersistentData(zkInstanceRoot + Constants.ZENCODED_CONFIG_ROOT, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
     zoo.putPersistentData(zkInstanceRoot + Constants.ZTABLE_LOCKS, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
@@ -667,6 +474,371 @@ public class Initialize implements KeywordExecutable {
     zoo.putPersistentData(zkInstanceRoot + Constants.ZCOMPACTORS, EMPTY_BYTE_ARRAY,
         NodeExistsPolicy.FAIL);
 
+  }
+
+  private static void initSecurity(ServerContext context, Opts opts, String rootUser)
+      throws AccumuloSecurityException {
+    AuditedSecurityOperation.getInstance(context).initializeSecurity(context.rpcCreds(), rootUser,
+        opts.rootpass);
+  }
+
+  private static void validateTableProperties(final Map<String,String> props) throws IOException {
+    for (Entry<String,String> entry : props.entrySet()) {
+      Set<String> invalids = new TreeSet<>();
+      if (!TablePropUtil.isPropertyValid(entry.getKey(), entry.getValue())) {
+        invalids.add(entry.getKey());
+      }
+      if (!invalids.isEmpty()) {
+        throw new IOException("Cannot create per-table property. Invalid entry keys: ["
+            + String.join(",", invalids) + "]");
+      }
+    }
+  }
+
+  public static void initSystemTablesConfig(final String instanceId, ZooReaderWriter zoo,
+      String zooKeeperRoot, Configuration hadoopConf) throws IOException {
+    try {
+      int max = hadoopConf.getInt("dfs.replication.max", 512);
+      // Hadoop 0.23 switched the min value configuration name
+      int min = Math.max(hadoopConf.getInt("dfs.replication.min", 1),
+          hadoopConf.getInt("dfs.namenode.replication.min", 1));
+      if (max < 5) {
+        setMetadataReplication(max, "max");
+      }
+      if (min > 5) {
+        setMetadataReplication(min, "min");
+      }
+
+      // populate initial properties in PropStore.
+
+      // check and throw IOException if invalid prop(s) found
+      log.trace("Check root configuration properties");
+      validateTableProperties(initialRootConf);
+      log.trace("Check root metadata configuration properties");
+      validateTableProperties(initialRootMetaConf);
+      log.trace("Check metadata configuration properties");
+      validateTableProperties(initialMetaConf);
+      log.trace("Check replication configuration properties");
+      validateTableProperties(initialReplicationTableConf);
+
+      // create initial root table props.
+      Map<String,String> combinedRootProps = new HashMap<>(initialRootConf);
+      combinedRootProps.putAll(initialRootMetaConf);
+      ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
+          PropCacheId.forTable(instanceId, RootTable.ID), combinedRootProps);
+
+      // create initial metadata table props
+      Map<String,String> combinedMetadataProps = new HashMap<>(initialRootMetaConf);
+      combinedMetadataProps.putAll(initialMetaConf);
+      ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
+          PropCacheId.forTable(instanceId, MetadataTable.ID), combinedMetadataProps);
+
+      // create replication table props
+      ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
+          PropCacheId.forTable(instanceId, ReplicationTable.ID), initialReplicationTableConf);
+
+      legacyPropInit(zoo, zooKeeperRoot);
+
+    } catch (Exception e) {
+      log.error("FATAL: Error talking to ZooKeeper", e);
+      throw new IOException(e);
+    }
+  }
+
+  // TODO - remove. obsolete after encoded props dev complete.
+  private static void legacyPropInit(final ZooReaderWriter zoo, final String zooKeeperRoot)
+      throws IOException, InterruptedException, KeeperException {
+
+    for (Entry<String,String> entry : initialRootConf.entrySet()) {
+      if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, RootTable.ID, entry.getKey(),
+          entry.getValue())) {
+        throw new IOException("Cannot create per-table property " + entry.getKey());
+      }
+    }
+
+    for (Entry<String,String> entry : initialRootMetaConf.entrySet()) {
+      if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, RootTable.ID, entry.getKey(),
+          entry.getValue())) {
+        throw new IOException("Cannot create per-table property " + entry.getKey());
+      }
+      if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, MetadataTable.ID, entry.getKey(),
+          entry.getValue())) {
+        throw new IOException("Cannot create per-table property " + entry.getKey());
+      }
+    }
+
+    for (Entry<String,String> entry : initialMetaConf.entrySet()) {
+      if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, MetadataTable.ID, entry.getKey(),
+          entry.getValue())) {
+        throw new IOException("Cannot create per-table property " + entry.getKey());
+      }
+    }
+
+    // add configuration to the replication table
+    for (Entry<String,String> entry : initialReplicationTableConf.entrySet()) {
+      if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, ReplicationTable.ID, entry.getKey(),
+          entry.getValue())) {
+        throw new IOException("Cannot create per-table property " + entry.getKey());
+      }
+    }
+  }
+
+  private static void setMetadataReplication(int replication, String reason) throws IOException {
+    String rep = getLineReader()
+        .readLine("Your HDFS replication " + reason + " is not compatible with our default "
+            + MetadataTable.NAME + " replication of 5. What do you want to set your "
+            + MetadataTable.NAME + " replication to? (" + replication + ") ");
+    if (rep == null || rep.isEmpty()) {
+      rep = Integer.toString(replication);
+    } else {
+      // Lets make sure it's a number
+      Integer.parseInt(rep);
+    }
+    initialRootMetaConf.put(Property.TABLE_FILE_REPLICATION.getKey(), rep);
+  }
+
+  public static boolean isInitialized(VolumeManager fs, SiteConfiguration siteConfig)
+      throws IOException {
+    for (String baseDir : VolumeConfiguration.getVolumeUris(siteConfig)) {
+      if (fs.exists(new Path(baseDir, ServerConstants.INSTANCE_ID_DIR))
+          || fs.exists(new Path(baseDir, ServerConstants.VERSION_DIR))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private static void addVolumes(VolumeManager fs, SiteConfiguration siteConfig,
+      Configuration hadoopConf) throws IOException {
+
+    Set<String> volumeURIs = VolumeConfiguration.getVolumeUris(siteConfig);
+
+    Set<String> initializedDirs =
+        ServerConstants.checkBaseUris(siteConfig, hadoopConf, volumeURIs, true);
+
+    HashSet<String> uinitializedDirs = new HashSet<>();
+    uinitializedDirs.addAll(volumeURIs);
+    uinitializedDirs.removeAll(initializedDirs);
+
+    Path aBasePath = new Path(initializedDirs.iterator().next());
+    Path iidPath = new Path(aBasePath, ServerConstants.INSTANCE_ID_DIR);
+    Path versionPath = new Path(aBasePath, ServerConstants.VERSION_DIR);
+
+    UUID uuid = UUID.fromString(VolumeManager.getInstanceIDFromHdfs(iidPath, hadoopConf));
+    for (Pair<Path,Path> replacementVolume : ServerConstants.getVolumeReplacements(siteConfig,
+        hadoopConf)) {
+      if (aBasePath.equals(replacementVolume.getFirst())) {
+        log.error(
+            "{} is set to be replaced in {} and should not appear in {}."
+                + " It is highly recommended that this property be removed as data"
+                + " could still be written to this volume.",
+            aBasePath, Property.INSTANCE_VOLUMES_REPLACEMENTS, Property.INSTANCE_VOLUMES);
+      }
+    }
+
+    if (ServerUtil.getAccumuloPersistentVersion(versionPath.getFileSystem(hadoopConf), versionPath)
+        != ServerConstants.DATA_VERSION) {
+      throw new IOException("Accumulo " + Constants.VERSION + " cannot initialize data version "
+          + ServerUtil.getAccumuloPersistentVersion(fs));
+    }
+
+    initDirs(fs, uuid, uinitializedDirs, true);
+  }
+
+  public static void main(String[] args) {
+    new Initialize().execute(args);
+  }
+
+  public boolean doInit(SiteConfiguration siteConfig, Opts opts, Configuration hadoopConf,
+      VolumeManager fs) throws IOException {
+    if (!checkInit(fs, siteConfig, hadoopConf)) {
+      return false;
+    }
+
+    // prompt user for instance name and root password early, in case they
+    // abort, we don't leave an inconsistent HDFS/ZooKeeper structure
+    String instanceNamePath;
+    try {
+      instanceNamePath = getInstanceNamePath(opts);
+    } catch (Exception e) {
+      log.error("FATAL: Failed to talk to zookeeper", e);
+      return false;
+    }
+
+    String rootUser;
+    try {
+      rootUser = getRootUserName(siteConfig, opts);
+    } catch (Exception e) {
+      log.error("FATAL: Failed to obtain user for administrative privileges");
+      return false;
+    }
+
+    // Don't prompt for a password when we're running SASL(Kerberos)
+    if (siteConfig.getBoolean(Property.INSTANCE_RPC_SASL_ENABLED)) {
+      opts.rootpass = UUID.randomUUID().toString().getBytes(UTF_8);
+    } else {
+      opts.rootpass = getRootPassword(siteConfig, opts, rootUser);
+    }
+
+    UUID uuid = UUID.randomUUID();
+    // the actual disk locations of the root table and tablets
+    Set<String> configuredVolumes = VolumeConfiguration.getVolumeUris(siteConfig);
+    String instanceName = instanceNamePath.substring(getInstanceNamePrefix().length());
+
+    try (ServerContext context =
+        ServerContext.initialize(siteConfig, instanceName, uuid.toString())) {
+      VolumeChooserEnvironment chooserEnv =
+          new VolumeChooserEnvironmentImpl(Scope.INIT, RootTable.ID, null, context);
+      String rootTabletDirName = RootTable.ROOT_TABLET_DIR_NAME;
+      String ext = FileOperations.getNewFileExtension(DefaultConfiguration.getInstance());
+      String rootTabletFileUri = new Path(fs.choose(chooserEnv, configuredVolumes) + Path.SEPARATOR
+          + ServerConstants.TABLE_DIR + Path.SEPARATOR + RootTable.ID + Path.SEPARATOR
+          + rootTabletDirName + Path.SEPARATOR + "00000_00000." + ext).toString();
+
+      try {
+        initZooKeeper(opts, uuid.toString(), instanceNamePath, rootTabletDirName,
+            rootTabletFileUri);
+      } catch (Exception e) {
+        log.error("FATAL: Failed to initialize zookeeper", e);
+        return false;
+      }
+
+      // create default (empty) system prop node.
+      boolean status = ZooPropStore.initNode(uuid.toString(), zoo.getZooKeeper(),
+          PropCacheId.forSystem(uuid.toString()), null);
+
+      log.info("ZooPropStore init completed with status {}", status);
+
+      try {
+        initFileSystem(siteConfig, hadoopConf, fs, uuid,
+            new Path(fs.choose(chooserEnv, configuredVolumes) + Path.SEPARATOR
+                + ServerConstants.TABLE_DIR + Path.SEPARATOR + RootTable.ID + rootTabletDirName)
+                    .toString(),
+            rootTabletFileUri, context);
+      } catch (Exception e) {
+        log.error("FATAL Failed to initialize filesystem", e);
+        return false;
+      }
+
+      // When we're using Kerberos authentication, we need valid credentials to perform
+      // initialization. If the user provided some, use them.
+      // If they did not, fall back to the credentials present in accumulo.properties that the
+      // servers will use themselves.
+      try {
+        if (siteConfig.getBoolean(Property.INSTANCE_RPC_SASL_ENABLED)) {
+          final UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
+          // We don't have any valid creds to talk to HDFS
+          if (!ugi.hasKerberosCredentials()) {
+            final String accumuloKeytab = siteConfig.get(Property.GENERAL_KERBEROS_KEYTAB),
+                accumuloPrincipal = siteConfig.get(Property.GENERAL_KERBEROS_PRINCIPAL);
+
+            // Fail if the site configuration doesn't contain appropriate credentials to login as
+            // servers
+            if (StringUtils.isBlank(accumuloKeytab) || StringUtils.isBlank(accumuloPrincipal)) {
+              log.error("FATAL: No Kerberos credentials provided, and Accumulo is"
+                  + " not properly configured for server login");
+              return false;
+            }
+
+            log.info("Logging in as {} with {}", accumuloPrincipal, accumuloKeytab);
+
+            // Login using the keytab as the 'accumulo' user
+            UserGroupInformation.loginUserFromKeytab(accumuloPrincipal, accumuloKeytab);
+          }
+        }
+      } catch (IOException e) {
+        log.error("FATAL: Failed to get the Kerberos user", e);
+        return false;
+      }
+
+      try {
+        initSecurity(context, opts, rootUser);
+      } catch (Exception e) {
+        log.error("FATAL: Failed to initialize security", e);
+        return false;
+      }
+
+      if (opts.uploadAccumuloProps) {
+        try {
+          log.info("Uploading properties in accumulo.properties to Zookeeper."
+              + " Properties that cannot be set in Zookeeper will be skipped:");
+          Map<String,String> entries = new TreeMap<>();
+          siteConfig.getProperties(entries, x -> true, false);
+          for (Map.Entry<String,String> entry : entries.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (Property.isValidZooPropertyKey(key)) {
+              // TODO - Init ???
+              // long iid = context.getInstanceID();
+              SystemPropUtil.setSystemProperty(context, key, value);
+              log.info("Uploaded - {} = {}", key, Property.isSensitive(key) ? "<hidden>" : value);
+            } else {
+              log.info("Skipped - {} = {}", key, Property.isSensitive(key) ? "<hidden>" : value);
+            }
+          }
+        } catch (Exception e) {
+          log.error("FATAL: Failed to upload accumulo.properties to Zookeeper", e);
+          return false;
+        }
+      }
+
+      return true;
+    }
+  }
+
+  private void initFileSystem(SiteConfiguration siteConfig, Configuration hadoopConf,
+      VolumeManager fs, UUID uuid, String rootTabletDirUri, String rootTabletFileUri,
+      ServerContext serverContext) throws IOException {
+
+    initDirs(fs, uuid, VolumeConfiguration.getVolumeUris(siteConfig), false);
+
+    // initialize initial system tables config in zookeeper
+    initSystemTablesConfig(uuid.toString(), zoo, Constants.ZROOT + "/" + uuid, hadoopConf);
+
+    Text splitPoint = TabletsSection.getRange().getEndKey().getRow();
+
+    VolumeChooserEnvironment chooserEnv =
+        new VolumeChooserEnvironmentImpl(Scope.INIT, MetadataTable.ID, splitPoint, serverContext);
+    String tableMetadataTabletDirName = TABLE_TABLETS_TABLET_DIR;
+    String tableMetadataTabletDirUri =
+        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
+            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + MetadataTable.ID + Path.SEPARATOR
+            + tableMetadataTabletDirName;
+    chooserEnv =
+        new VolumeChooserEnvironmentImpl(Scope.INIT, ReplicationTable.ID, null, serverContext);
+    String replicationTableDefaultTabletDirName = ServerColumnFamily.DEFAULT_TABLET_DIR_NAME;
+    String replicationTableDefaultTabletDirUri =
+        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
+            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + ReplicationTable.ID + Path.SEPARATOR
+            + replicationTableDefaultTabletDirName;
+    chooserEnv =
+        new VolumeChooserEnvironmentImpl(Scope.INIT, MetadataTable.ID, null, serverContext);
+    String defaultMetadataTabletDirName = ServerColumnFamily.DEFAULT_TABLET_DIR_NAME;
+    String defaultMetadataTabletDirUri =
+        fs.choose(chooserEnv, ServerConstants.getBaseUris(siteConfig, hadoopConf))
+            + Constants.HDFS_TABLES_DIR + Path.SEPARATOR + MetadataTable.ID + Path.SEPARATOR
+            + defaultMetadataTabletDirName;
+
+    // create table and default tablets directories
+    createDirectories(fs, rootTabletDirUri, tableMetadataTabletDirUri, defaultMetadataTabletDirUri,
+        replicationTableDefaultTabletDirUri);
+
+    String ext = FileOperations.getNewFileExtension(DefaultConfiguration.getInstance());
+
+    // populate the metadata tables tablet with info about the replication table's one initial
+    // tablet
+    String metadataFileName = tableMetadataTabletDirUri + Path.SEPARATOR + "0_1." + ext;
+    Tablet replicationTablet =
+        new Tablet(ReplicationTable.ID, replicationTableDefaultTabletDirName, null, null);
+    createMetadataFile(fs, metadataFileName, siteConfig, replicationTablet);
+
+    // populate the root tablet with info about the metadata table's two initial tablets
+    Tablet tablesTablet = new Tablet(MetadataTable.ID, tableMetadataTabletDirName, null, splitPoint,
+        metadataFileName);
+    Tablet defaultTablet =
+        new Tablet(MetadataTable.ID, defaultMetadataTabletDirName, splitPoint, null);
+    createMetadataFile(fs, rootTabletFileUri, siteConfig, tablesTablet, defaultTablet);
   }
 
   private String getInstanceNamePrefix() {
@@ -766,7 +938,7 @@ public class Initialize implements KeywordExecutable {
 
   /**
    * Create warning message related to initial password, if appropriate.
-   *
+   * <p>
    * ACCUMULO-2907 Remove unnecessary security warning from console message unless its actually
    * appropriate. The warning message should only be displayed when the value of
    * <code>instance.security.authenticator</code> differs between the SiteConfiguration and the
@@ -783,155 +955,6 @@ public class Initialize implements KeywordExecutable {
       optionalWarning = " (this may not be applicable for your security setup): ";
     }
     return optionalWarning;
-  }
-
-  private static void initSecurity(ServerContext context, Opts opts, String rootUser)
-      throws AccumuloSecurityException {
-    AuditedSecurityOperation.getInstance(context).initializeSecurity(context.rpcCreds(), rootUser,
-        opts.rootpass);
-  }
-
-  public static void initSystemTablesConfig(ZooReaderWriter zoo, String zooKeeperRoot,
-      Configuration hadoopConf) throws IOException {
-    try {
-      int max = hadoopConf.getInt("dfs.replication.max", 512);
-      // Hadoop 0.23 switched the min value configuration name
-      int min = Math.max(hadoopConf.getInt("dfs.replication.min", 1),
-          hadoopConf.getInt("dfs.namenode.replication.min", 1));
-      if (max < 5) {
-        setMetadataReplication(max, "max");
-      }
-      if (min > 5) {
-        setMetadataReplication(min, "min");
-      }
-
-      for (Entry<String,String> entry : initialRootConf.entrySet()) {
-        if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, RootTable.ID, entry.getKey(),
-            entry.getValue())) {
-          throw new IOException("Cannot create per-table property " + entry.getKey());
-        }
-      }
-
-      for (Entry<String,String> entry : initialRootMetaConf.entrySet()) {
-        if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, RootTable.ID, entry.getKey(),
-            entry.getValue())) {
-          throw new IOException("Cannot create per-table property " + entry.getKey());
-        }
-        if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, MetadataTable.ID, entry.getKey(),
-            entry.getValue())) {
-          throw new IOException("Cannot create per-table property " + entry.getKey());
-        }
-      }
-
-      for (Entry<String,String> entry : initialMetaConf.entrySet()) {
-        if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, MetadataTable.ID, entry.getKey(),
-            entry.getValue())) {
-          throw new IOException("Cannot create per-table property " + entry.getKey());
-        }
-      }
-
-      // add configuration to the replication table
-      for (Entry<String,String> entry : initialReplicationTableConf.entrySet()) {
-        if (!TablePropUtil.setTableProperty(zoo, zooKeeperRoot, ReplicationTable.ID, entry.getKey(),
-            entry.getValue())) {
-          throw new IOException("Cannot create per-table property " + entry.getKey());
-        }
-      }
-    } catch (Exception e) {
-      log.error("FATAL: Error talking to ZooKeeper", e);
-      throw new IOException(e);
-    }
-  }
-
-  private static void setMetadataReplication(int replication, String reason) throws IOException {
-    String rep = getLineReader()
-        .readLine("Your HDFS replication " + reason + " is not compatible with our default "
-            + MetadataTable.NAME + " replication of 5. What do you want to set your "
-            + MetadataTable.NAME + " replication to? (" + replication + ") ");
-    if (rep == null || rep.isEmpty()) {
-      rep = Integer.toString(replication);
-    } else {
-      // Lets make sure it's a number
-      Integer.parseInt(rep);
-    }
-    initialRootMetaConf.put(Property.TABLE_FILE_REPLICATION.getKey(), rep);
-  }
-
-  public static boolean isInitialized(VolumeManager fs, SiteConfiguration siteConfig)
-      throws IOException {
-    for (String baseDir : VolumeConfiguration.getVolumeUris(siteConfig)) {
-      if (fs.exists(new Path(baseDir, ServerConstants.INSTANCE_ID_DIR))
-          || fs.exists(new Path(baseDir, ServerConstants.VERSION_DIR))) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private static void addVolumes(VolumeManager fs, SiteConfiguration siteConfig,
-      Configuration hadoopConf) throws IOException {
-
-    Set<String> volumeURIs = VolumeConfiguration.getVolumeUris(siteConfig);
-
-    Set<String> initializedDirs =
-        ServerConstants.checkBaseUris(siteConfig, hadoopConf, volumeURIs, true);
-
-    HashSet<String> uinitializedDirs = new HashSet<>();
-    uinitializedDirs.addAll(volumeURIs);
-    uinitializedDirs.removeAll(initializedDirs);
-
-    Path aBasePath = new Path(initializedDirs.iterator().next());
-    Path iidPath = new Path(aBasePath, ServerConstants.INSTANCE_ID_DIR);
-    Path versionPath = new Path(aBasePath, ServerConstants.VERSION_DIR);
-
-    UUID uuid = UUID.fromString(VolumeManager.getInstanceIDFromHdfs(iidPath, hadoopConf));
-    for (Pair<Path,Path> replacementVolume : ServerConstants.getVolumeReplacements(siteConfig,
-        hadoopConf)) {
-      if (aBasePath.equals(replacementVolume.getFirst())) {
-        log.error(
-            "{} is set to be replaced in {} and should not appear in {}."
-                + " It is highly recommended that this property be removed as data"
-                + " could still be written to this volume.",
-            aBasePath, Property.INSTANCE_VOLUMES_REPLACEMENTS, Property.INSTANCE_VOLUMES);
-      }
-    }
-
-    if (ServerUtil.getAccumuloPersistentVersion(versionPath.getFileSystem(hadoopConf), versionPath)
-        != ServerConstants.DATA_VERSION) {
-      throw new IOException("Accumulo " + Constants.VERSION + " cannot initialize data version "
-          + ServerUtil.getAccumuloPersistentVersion(fs));
-    }
-
-    initDirs(fs, uuid, uinitializedDirs, true);
-  }
-
-  static class Opts extends Help {
-    @Parameter(names = "--add-volumes",
-        description = "Initialize any uninitialized volumes listed in instance.volumes")
-    boolean addVolumes = false;
-    @Parameter(names = "--reset-security",
-        description = "just update the security information, will prompt")
-    boolean resetSecurity = false;
-    @Parameter(names = {"-f", "--force"},
-        description = "force reset of the security information without prompting")
-    boolean forceResetSecurity = false;
-    @Parameter(names = "--clear-instance-name",
-        description = "delete any existing instance name without prompting")
-    boolean clearInstanceName = false;
-    @Parameter(names = "--upload-accumulo-props",
-        description = "Uploads properties in accumulo.properties to Zookeeper")
-    boolean uploadAccumuloProps = false;
-    @Parameter(names = "--instance-name",
-        description = "the instance name, if not provided, will prompt")
-    String cliInstanceName = null;
-    @Parameter(names = "--password", description = "set the password on the command line")
-    String cliPassword = null;
-    @Parameter(names = {"-u", "--user"},
-        description = "the name of the user to grant system permissions to")
-    String rootUser = null;
-
-    byte[] rootpass = null;
   }
 
   @Override
@@ -1005,7 +1028,46 @@ public class Initialize implements KeywordExecutable {
     }
   }
 
-  public static void main(String[] args) {
-    new Initialize().execute(args);
+  private static class Tablet {
+    TableId tableId;
+    String dirName;
+    Text prevEndRow, endRow;
+    String[] files;
+
+    Tablet(TableId tableId, String dirName, Text prevEndRow, Text endRow, String... files) {
+      this.tableId = tableId;
+      this.dirName = dirName;
+      this.prevEndRow = prevEndRow;
+      this.endRow = endRow;
+      this.files = files;
+    }
+  }
+
+  static class Opts extends Help {
+    @Parameter(names = "--add-volumes",
+        description = "Initialize any uninitialized volumes listed in instance.volumes")
+    boolean addVolumes = false;
+    @Parameter(names = "--reset-security",
+        description = "just update the security information, will prompt")
+    boolean resetSecurity = false;
+    @Parameter(names = {"-f", "--force"},
+        description = "force reset of the security information without prompting")
+    boolean forceResetSecurity = false;
+    @Parameter(names = "--clear-instance-name",
+        description = "delete any existing instance name without prompting")
+    boolean clearInstanceName = false;
+    @Parameter(names = "--upload-accumulo-props",
+        description = "Uploads properties in accumulo.properties to Zookeeper")
+    boolean uploadAccumuloProps = false;
+    @Parameter(names = "--instance-name",
+        description = "the instance name, if not provided, will prompt")
+    String cliInstanceName = null;
+    @Parameter(names = "--password", description = "set the password on the command line")
+    String cliPassword = null;
+    @Parameter(names = {"-u", "--user"},
+        description = "the name of the user to grant system permissions to")
+    String rootUser = null;
+
+    byte[] rootpass = null;
   }
 }
