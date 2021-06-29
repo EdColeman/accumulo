@@ -188,6 +188,7 @@ public class ZooPropStore implements PropStore {
       propCache.put(propCacheId, encoded);
 
     } catch (KeeperException | InterruptedException ex) {
+      log.info("Create failed", ex);
       throw new PropStoreException(ZK_ERROR,
           "Failed to create properties for propCacheId " + propCacheId, ex);
     }

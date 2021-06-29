@@ -22,7 +22,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.accumulo.core.clientImpl.Namespace;
+import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.manager.state.tables.TableState;
@@ -50,6 +56,17 @@ public class TableManagerIT extends SharedMiniClusterBase
   private static ServerContext context;
   private static String instanceId;
 
+  // used to generate synthetic table ids - start past known tables.
+  private final static AtomicInteger nextId = new AtomicInteger(20);
+
+  private static String idGen() {
+    return "" + nextId.incrementAndGet();
+  }
+
+  private static String nameGen() {
+    return "name" + nextId.incrementAndGet();
+  }
+
   @Override
   public void configureMiniCluster(MiniAccumuloConfigImpl cfg, Configuration coreSite) {
     // cfg.setProperty("", "");
@@ -75,7 +92,11 @@ public class TableManagerIT extends SharedMiniClusterBase
   public void prepareNewNamespaceState()
       throws InterruptedException, KeeperException, PropStoreException {
 
-    NamespaceId ns2 = NamespaceId.of("ns2");
+    final String namespaceName = nameGen();
+
+    log.info("The name: {}", namespaceName);
+
+    NamespaceId ns2 = NamespaceId.of(idGen());
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
@@ -85,7 +106,7 @@ public class TableManagerIT extends SharedMiniClusterBase
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
     }
 
-    TableManager2.prepareNewNamespaceState(context, instanceId, ns2, "ns2",
+    TableManager2.prepareNewNamespaceState(context, instanceId, ns2, namespaceName,
         ZooUtil.NodeExistsPolicy.FAIL);
 
     assertNotNull(context.getPropStore().get(PropCacheId.forNamespace(instanceId, ns2)));
@@ -95,10 +116,12 @@ public class TableManagerIT extends SharedMiniClusterBase
   public void prepareNewTableState()
       throws InterruptedException, KeeperException, PropStoreException {
 
-    TableId tableId1 = TableId.of("t1");
+    TableId tableId1 = TableId.of(idGen());
+
+    var tableName = nameGen();
 
     TableManager.prepareNewTableState(context.getZooReaderWriter(), instanceId, tableId1,
-        Namespace.DEFAULT.id(), "table1", TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+        Namespace.DEFAULT.id(), tableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
@@ -109,23 +132,38 @@ public class TableManagerIT extends SharedMiniClusterBase
     }
 
     TableManager2.prepareNewTableState(context, instanceId, tableId1, Namespace.DEFAULT.id(),
-        "table1", TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+        tableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
 
     assertNotNull(context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1)));
   }
 
   @Test
-  public void prepareNewTableStateWithNamespace() throws InterruptedException, KeeperException {
-    NamespaceId ns2 = NamespaceId.of("ns2");
+  public void prepareNewTableStateWithNamespace()
+      throws InterruptedException, KeeperException, PropStoreException {
 
-    TableId tableId1 = TableId.of("t2");
+    NamespaceId ns2 = NamespaceId.of(idGen());
 
-    String tableName = "table2";
+    TableId tableId1 = TableId.of(idGen());
+
+    String tableName = nameGen();
 
     TableManager.prepareNewTableState(context.getZooReaderWriter(), instanceId, tableId1, ns2,
         tableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
 
     log.info("table name: {}", tableName);
+
+    // validate that prop node does not exists - expect node does not exist exception.
+    try {
+      context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1));
+      fail("Expected no node exception");
+    } catch (PropStoreException pex) {
+      assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
+    }
+
+    TableManager2.prepareNewTableState(context, instanceId, tableId1, Namespace.DEFAULT.id(),
+        nameGen(), TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+
+    assertNotNull(context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1)));
 
   }
 
@@ -139,10 +177,88 @@ public class TableManagerIT extends SharedMiniClusterBase
   public void updateTableStateCache() {}
 
   @Test
-  public void addTable() {}
+  public void addTable() throws Exception {
+
+    TableId tableId = TableId.of(idGen());
+
+    // TableManager tableManager1 = new TableManager(context);
+    // tableManager1.addTable(tableId, Namespace.DEFAULT.id(), "addTable1");
+
+    TableManager2 tableManager2 = new TableManager2(context);
+    tableManager2.addTable(tableId, Namespace.DEFAULT.id(), nameGen());
+
+    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+    assertNotNull(readProps);
+    log.info("Read: {}", readProps.print(true));
+
+  }
 
   @Test
-  public void cloneTable() {}
+  public void cloneTableNoProps() throws Exception {
+
+    TableId srcTableId = TableId.of(idGen());
+    TableId destTableId = TableId.of(idGen());
+
+    String srcTableName = "src" + nameGen();
+    String destTableName = "dest" + nameGen();
+
+    TableManager.prepareNewTableState(context.getZooReaderWriter(), instanceId, srcTableId,
+        Namespace.DEFAULT.id(), srcTableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+
+    TableManager tableManager1 = new TableManager(context);
+
+    tableManager1.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(),
+        Collections.emptyMap(), Collections.emptySet());
+
+    TableManager2.prepareNewTableState(context, instanceId, srcTableId, Namespace.DEFAULT.id(),
+        srcTableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+
+    TableManager2 tableManager2 = new TableManager2(context);
+
+    // also checks that nulls instead of empty collections work.
+    tableManager2.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(), null,
+        null);
+
+    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, destTableId));
+    assertNotNull(readProps);
+    log.info("Read: {}", readProps.print(true));
+  }
+
+  @Test
+  public void cloneTableWithProps() throws Exception {
+
+    TableId srcTableId = TableId.of(idGen());
+    TableId destTableId = TableId.of(idGen());
+
+    String srcTableName = "src" + nameGen();
+    String destTableName = "dest" + nameGen();
+
+    TableManager.prepareNewTableState(context.getZooReaderWriter(), instanceId, srcTableId,
+        Namespace.DEFAULT.id(), srcTableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+
+    TableManager tableManager1 = new TableManager(context);
+
+    tableManager1.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(),
+        Collections.emptyMap(), Collections.emptySet());
+
+    TableManager2.prepareNewTableState(context, instanceId, srcTableId, Namespace.DEFAULT.id(),
+        srcTableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
+
+    TableManager2 tableManager2 = new TableManager2(context);
+
+    Map<String,String> includes = new HashMap<>();
+    includes.put(Property.TABLE_BLOOM_ENABLED.getKey(), "true");
+    includes.put(Property.TABLE_FILE_REPLICATION.getKey(), "1");
+    includes.put("A", "INVALID");
+
+    // also checks that nulls instead of empty collections work.
+    tableManager2.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(),
+        includes, null);
+
+    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, destTableId));
+    assertNotNull(readProps);
+    log.info("Read: {} - {}", readProps.print(true), readProps.getAllProperties());
+  }
 
   @Test
   public void removeTable() {}
@@ -153,19 +269,4 @@ public class TableManagerIT extends SharedMiniClusterBase
   @Test
   public void removeNamespace() {}
 
-  private static class ARef {
-    private String n;
-  }
-
-  @Test
-  public void x() {
-    ARef aRef = new ARef();
-    aRef.n = "n1";
-    changeMe(aRef);
-    log.info("N:{}", aRef.n);
-  }
-
-  private void changeMe(final ARef ref) {
-    ref.n = ref.n + "+added";
-  }
 }

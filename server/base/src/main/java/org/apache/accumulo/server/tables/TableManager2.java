@@ -18,7 +18,15 @@
  */
 package org.apache.accumulo.server.tables;
 
-import com.google.common.base.Preconditions;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.clientImpl.Tables;
@@ -35,7 +43,6 @@ import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -44,14 +51,7 @@ import org.apache.zookeeper.Watcher.Event.EventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import com.google.common.base.Preconditions;
 
 public class TableManager2 {
 
@@ -65,7 +65,7 @@ public class TableManager2 {
   private final String zkRoot;
   private final String instanceID;
   private final ZooReaderWriter zoo;
-  private ZooCache zooStateCache;
+  private final ZooCache zooStateCache;
 
   public TableManager2(ServerContext context) {
     this.context = context;
@@ -182,8 +182,8 @@ public class TableManager2 {
   private void updateTableStateCache() {
     synchronized (tableStateCache) {
       for (String tableId : zooStateCache.getChildren(zkRoot + Constants.ZTABLES))
-        if (zooStateCache
-            .get(zkRoot + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_STATE) != null)
+        if (zooStateCache.get(zkRoot + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_STATE)
+            != null)
           updateTableStateCache(TableId.of(tableId));
     }
   }
@@ -228,29 +228,33 @@ public class TableManager2 {
       PropEncoding srcProps = propStore.get(PropCacheId.forTable(instanceID, srcTableId));
 
       Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
-      destProps.putAll(propertiesToSet);
-      propertiesToExclude.forEach(destProps::remove);
 
-      boolean created = propStore.create(PropCacheId.forTable(instanceID, destTableId), destProps);
+      if (Objects.nonNull(propertiesToSet)) {
+        destProps.putAll(propertiesToSet);
+      }
+
+      if (Objects.nonNull(propertiesToExclude)) {
+        propertiesToExclude.forEach(destProps::remove);
+      }
+
+      // check properties are valid - remove and log if invalid, then continue with remaining set.
+      Set<String> invalids = new HashSet<>();
+      destProps.forEach((k, v) -> {
+        if (!TablePropUtil.isPropertyValid(k, v)) {
+          log.info("Removing invalid property {}:{} from clone to {} properties", k, v, tableName);
+          invalids.add(k);
+        }
+      });
+
+      destProps.keySet().removeAll(invalids);
+
+      propStore.update(PropCacheId.forTable(instanceID, destTableId), destProps);
 
     } catch (PropStoreException ex) {
       // TODO evalute additional exception handling
-      throw new IllegalStateException("Failed to clone table properties from " + srcTableId
-          .canonical() + " to " + tableName + " (" + destTableId.canonical() + ")", ex);
+      throw new IllegalStateException("Failed to clone table properties from "
+          + srcTableId.canonical() + " to " + tableName + " (" + destTableId.canonical() + ")", ex);
     }
-    String srcTablePath =
-        Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + srcTableId + Constants.ZTABLE_CONF;
-    String newTablePath =
-        Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + destTableId + Constants.ZTABLE_CONF;
-    zoo.recursiveCopyPersistentOverwrite(srcTablePath, newTablePath);
-
-    for (Entry<String,String> entry : propertiesToSet.entrySet())
-      TablePropUtil.setTableProperty(context, destTableId, entry.getKey(), entry.getValue());
-
-    for (String prop : propertiesToExclude)
-      zoo.recursiveDelete(
-          Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + destTableId + Constants.ZTABLE_CONF + "/" + prop,
-          NodeMissingPolicy.SKIP);
 
     updateTableStateCache(destTableId);
   }
@@ -279,7 +283,8 @@ public class TableManager2 {
   }
 
   private class TableStateWatcher implements Watcher {
-    @Override public void process(WatchedEvent event) {
+    @Override
+    public void process(WatchedEvent event) {
       if (log.isTraceEnabled()) {
         log.trace("{}", event);
       }
@@ -321,10 +326,10 @@ public class TableManager2 {
           }
           break;
         case NodeDeleted:
-          if (zPath != null && tableId != null && (zPath
-              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_STATE) || zPath
-              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_CONF) || zPath
-              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_NAME)))
+          if (zPath != null && tableId != null
+              && (zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_STATE)
+                  || zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_CONF)
+                  || zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_NAME)))
             tableStateCache.remove(tableId);
           break;
         case None:
