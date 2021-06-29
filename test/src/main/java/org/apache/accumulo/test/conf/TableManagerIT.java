@@ -24,7 +24,9 @@ import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.accumulo.core.clientImpl.Namespace;
@@ -52,12 +54,10 @@ public class TableManagerIT extends SharedMiniClusterBase
     implements MiniClusterConfigurationCallback {
 
   private static final Logger log = LoggerFactory.getLogger(TableManagerIT.class);
-
-  private static ServerContext context;
-  private static String instanceId;
-
   // used to generate synthetic table ids - start past known tables.
   private final static AtomicInteger nextId = new AtomicInteger(20);
+  private static ServerContext context;
+  private static String instanceId;
 
   private static String idGen() {
     return "" + nextId.incrementAndGet();
@@ -181,9 +181,6 @@ public class TableManagerIT extends SharedMiniClusterBase
 
     TableId tableId = TableId.of(idGen());
 
-    // TableManager tableManager1 = new TableManager(context);
-    // tableManager1.addTable(tableId, Namespace.DEFAULT.id(), "addTable1");
-
     TableManager2 tableManager2 = new TableManager2(context);
     tableManager2.addTable(tableId, Namespace.DEFAULT.id(), nameGen());
 
@@ -249,24 +246,93 @@ public class TableManagerIT extends SharedMiniClusterBase
     Map<String,String> includes = new HashMap<>();
     includes.put(Property.TABLE_BLOOM_ENABLED.getKey(), "true");
     includes.put(Property.TABLE_FILE_REPLICATION.getKey(), "1");
+    includes.put(Property.TABLE_FILE_MAX.getKey(), "2");
     includes.put("A", "INVALID");
+
+    Set<String> excludes = new HashSet<>();
+    excludes.add(Property.TABLE_FILE_MAX.getKey());
 
     // also checks that nulls instead of empty collections work.
     tableManager2.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(),
-        includes, null);
+        includes, excludes);
 
     var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, destTableId));
     assertNotNull(readProps);
-    log.info("Read: {} - {}", readProps.print(true), readProps.getAllProperties());
+
+    assertEquals(2, readProps.getAllProperties().size());
+
   }
 
   @Test
-  public void removeTable() {}
+  public void removeTable() throws Exception {
+
+    TableId tableId = TableId.of(idGen());
+
+    TableManager2 tableManager2 = new TableManager2(context);
+    tableManager2.addTable(tableId, Namespace.DEFAULT.id(), nameGen());
+
+    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+    assertNotNull(readProps);
+    log.info("Read: {}", readProps.print(true));
+
+    tableManager2.removeTable(tableId);
+
+    try {
+      context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+      fail("Expected a node node exception");
+    } catch (PropStoreException ex) {
+      assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, ex.getCode());
+    }
+  }
 
   @Test
   public void addObserver() {}
 
   @Test
-  public void removeNamespace() {}
+  public void removeNamespace() throws Exception {
 
+    final String namespaceName = nameGen();
+
+    log.info("The name: {}", namespaceName);
+
+    NamespaceId nsId = NamespaceId.of(idGen());
+    TableId tableId = TableId.of(idGen());
+
+    // validate that prop node does not exists - expect node does not exist exception.
+    try {
+      context.getPropStore().get(PropCacheId.forNamespace(instanceId, nsId));
+      fail("Expected no node exception");
+    } catch (PropStoreException pex) {
+      assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
+    }
+
+    TableManager2.prepareNewNamespaceState(context, instanceId, nsId, namespaceName,
+        ZooUtil.NodeExistsPolicy.FAIL);
+
+    assertNotNull(context.getPropStore().get(PropCacheId.forNamespace(instanceId, nsId)));
+
+    TableManager2 tableManager2 = new TableManager2(context);
+    tableManager2.addTable(tableId, nsId, nameGen());
+
+    // while this passes, matching original behaviour, using a shell the namespace must be empty.
+    tableManager2.removeNamespace(nsId);
+  }
+
+  @Test
+  public void x() throws Exception {
+    NamespaceId nsId = NamespaceId.of(idGen());
+    String nsName = nameGen();
+    TableId t1Id = TableId.of(idGen());
+
+    String tableName = nameGen();
+
+    TableManager.prepareNewNamespaceState(context.getZooReaderWriter(), instanceId, nsId, nsName,
+        ZooUtil.NodeExistsPolicy.FAIL);
+
+    TableManager tableManager = new TableManager(context);
+
+    tableManager.addTable(t1Id, nsId, tableName);
+
+    tableManager.removeNamespace(nsId);
+  }
 }

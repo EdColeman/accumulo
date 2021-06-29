@@ -265,6 +265,14 @@ public class TableManager2 {
       zoo.recursiveDelete(zkRoot + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_STATE,
           NodeMissingPolicy.SKIP);
       zoo.recursiveDelete(zkRoot + Constants.ZTABLES + "/" + tableId, NodeMissingPolicy.SKIP);
+
+      try {
+        context.getPropStore().delete(PropCacheId.forTable(instanceID, tableId));
+      } catch (PropStoreException ex) {
+        // TODO evaluate exception handling.
+        throw new IllegalStateException(
+            "Could not delete properties for table id " + tableId.canonical(), ex);
+      }
     }
   }
 
@@ -280,6 +288,13 @@ public class TableManager2 {
   public void removeNamespace(NamespaceId namespaceId)
       throws KeeperException, InterruptedException {
     zoo.recursiveDelete(zkRoot + Constants.ZNAMESPACES + "/" + namespaceId, NodeMissingPolicy.SKIP);
+    try {
+      context.getPropStore().delete(PropCacheId.forNamespace(instanceID, namespaceId));
+    } catch (PropStoreException ex) {
+      // TODO examine exception handling
+      throw new IllegalStateException("Failed to remove properties for namespace id " + namespaceId,
+          ex);
+    }
   }
 
   private class TableStateWatcher implements Watcher {
