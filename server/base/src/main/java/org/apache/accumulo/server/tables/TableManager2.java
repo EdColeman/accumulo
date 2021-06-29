@@ -18,15 +18,7 @@
  */
 package org.apache.accumulo.server.tables;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
+import com.google.common.base.Preconditions;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.clientImpl.Tables;
@@ -40,7 +32,10 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
+import org.apache.accumulo.server.conf2.codec.PropEncoding;
+import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -49,7 +44,14 @@ import org.apache.zookeeper.Watcher.Event.EventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class TableManager2 {
 
@@ -180,8 +182,8 @@ public class TableManager2 {
   private void updateTableStateCache() {
     synchronized (tableStateCache) {
       for (String tableId : zooStateCache.getChildren(zkRoot + Constants.ZTABLES))
-        if (zooStateCache.get(zkRoot + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_STATE)
-            != null)
+        if (zooStateCache
+            .get(zkRoot + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_STATE) != null)
           updateTableStateCache(TableId.of(tableId));
     }
   }
@@ -211,26 +213,46 @@ public class TableManager2 {
     updateTableStateCache(tableId);
   }
 
-  public void cloneTable(TableId srcTableId, TableId tableId, String tableName,
-      NamespaceId namespaceId, Map<String,String> propertiesToSet, Set<String> propertiesToExclude)
+  public void cloneTable(final TableId srcTableId, final TableId destTableId,
+      final String tableName, final NamespaceId namespaceId,
+      final Map<String,String> propertiesToSet, final Set<String> propertiesToExclude)
       throws KeeperException, InterruptedException {
-    prepareNewTableState(context, instanceID, tableId, namespaceId, tableName, TableState.NEW,
+
+    prepareNewTableState(context, instanceID, destTableId, namespaceId, tableName, TableState.NEW,
         NodeExistsPolicy.OVERWRITE);
 
-    String srcTablePath = Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + srcTableId
-        + Constants.ZTABLE_CONF;
-    String newTablePath = Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + tableId
-        + Constants.ZTABLE_CONF;
+    try {
+
+      PropStore propStore = context.getPropStore();
+
+      PropEncoding srcProps = propStore.get(PropCacheId.forTable(instanceID, srcTableId));
+
+      Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
+      destProps.putAll(propertiesToSet);
+      propertiesToExclude.forEach(destProps::remove);
+
+      boolean created = propStore.create(PropCacheId.forTable(instanceID, destTableId), destProps);
+
+    } catch (PropStoreException ex) {
+      // TODO evalute additional exception handling
+      throw new IllegalStateException("Failed to clone table properties from " + srcTableId
+          .canonical() + " to " + tableName + " (" + destTableId.canonical() + ")", ex);
+    }
+    String srcTablePath =
+        Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + srcTableId + Constants.ZTABLE_CONF;
+    String newTablePath =
+        Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + destTableId + Constants.ZTABLE_CONF;
     zoo.recursiveCopyPersistentOverwrite(srcTablePath, newTablePath);
 
     for (Entry<String,String> entry : propertiesToSet.entrySet())
-      TablePropUtil.setTableProperty(context, tableId, entry.getKey(), entry.getValue());
+      TablePropUtil.setTableProperty(context, destTableId, entry.getKey(), entry.getValue());
 
     for (String prop : propertiesToExclude)
-      zoo.recursiveDelete(Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + tableId
-          + Constants.ZTABLE_CONF + "/" + prop, NodeMissingPolicy.SKIP);
+      zoo.recursiveDelete(
+          Constants.ZROOT + "/" + instanceID + Constants.ZTABLES + "/" + destTableId + Constants.ZTABLE_CONF + "/" + prop,
+          NodeMissingPolicy.SKIP);
 
-    updateTableStateCache(tableId);
+    updateTableStateCache(destTableId);
   }
 
   public void removeTable(TableId tableId) throws KeeperException, InterruptedException {
@@ -257,8 +279,7 @@ public class TableManager2 {
   }
 
   private class TableStateWatcher implements Watcher {
-    @Override
-    public void process(WatchedEvent event) {
+    @Override public void process(WatchedEvent event) {
       if (log.isTraceEnabled()) {
         log.trace("{}", event);
       }
@@ -300,10 +321,10 @@ public class TableManager2 {
           }
           break;
         case NodeDeleted:
-          if (zPath != null && tableId != null
-              && (zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_STATE)
-                  || zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_CONF)
-                  || zPath.equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_NAME)))
+          if (zPath != null && tableId != null && (zPath
+              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_STATE) || zPath
+              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_CONF) || zPath
+              .equals(tablesPrefix + "/" + tableId + Constants.ZTABLE_NAME)))
             tableStateCache.remove(tableId);
           break;
         case None:
