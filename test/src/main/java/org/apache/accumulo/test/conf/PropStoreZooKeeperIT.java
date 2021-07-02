@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
@@ -94,7 +94,7 @@ public class PropStoreZooKeeperIT {
   public void init() throws InterruptedException {
 
     log.info("Initialized zookeeper paths with default sys props: {}",
-        ZooPropStore.initNode(INSTANCE_ID, zooKeeper, PropCacheId.forSystem(INSTANCE_ID), null));
+        ZooPropStore.initNode(INSTANCE_ID, zooKeeper, PropCacheId1.forSystem(INSTANCE_ID), null));
 
     ZooPropStore propStore =
         (ZooPropStore) new PropStoreFactory().forInstance(INSTANCE_ID).withZk(zooKeeper).build();
@@ -110,7 +110,7 @@ public class PropStoreZooKeeperIT {
     ZooPropStore propStore =
         (ZooPropStore) new PropStoreFactory().forInstance(INSTANCE_ID).withZk(zooKeeper).build();
 
-    PropCacheId tableA = PropCacheId.forTable(INSTANCE_ID, TableId.of("A"));
+    PropCacheId1 tableA = PropCacheId1.forTable(INSTANCE_ID, TableId.of("A"));
     propStore.create(tableA, null);
 
     assertNotNull(propStore.get(tableA));
@@ -121,7 +121,7 @@ public class PropStoreZooKeeperIT {
     ZooPropStore propStore =
         (ZooPropStore) new PropStoreFactory().forInstance(INSTANCE_ID).withZk(zooKeeper).build();
 
-    PropCacheId tableA = PropCacheId.forTable(INSTANCE_ID, TableId.of("A"));
+    PropCacheId1 tableA = PropCacheId1.forTable(INSTANCE_ID, TableId.of("A"));
     Map<String,String> initialProps = new HashMap<>();
     initialProps.put(Property.TABLE_BLOOM_ENABLED.getKey(), "true");
     propStore.create(tableA, initialProps);
@@ -138,7 +138,7 @@ public class PropStoreZooKeeperIT {
 
     TestChangeListener listener = new TestChangeListener();
 
-    PropCacheId tableA = PropCacheId.forTable(INSTANCE_ID, TableId.of("A"));
+    PropCacheId1 tableA = PropCacheId1.forTable(INSTANCE_ID, TableId.of("A"));
     propStore.registerAsListener(tableA, listener);
 
     Map<String,String> initialProps = new HashMap<>();
@@ -195,8 +195,8 @@ public class PropStoreZooKeeperIT {
 
     TestChangeListener listener = new TestChangeListener();
 
-    PropCacheId tableA = PropCacheId.forTable(INSTANCE_ID, TableId.of("A"));
-    PropCacheId tableB = PropCacheId.forTable(INSTANCE_ID, TableId.of("B"));
+    PropCacheId1 tableA = PropCacheId1.forTable(INSTANCE_ID, TableId.of("A"));
+    PropCacheId1 tableB = PropCacheId1.forTable(INSTANCE_ID, TableId.of("B"));
 
     propStore.registerAsListener(tableA, listener);
     propStore.registerAsListener(tableB, listener);
@@ -247,8 +247,8 @@ public class PropStoreZooKeeperIT {
 
     TestChangeListener listener = new TestChangeListener();
 
-    PropCacheId tableA = PropCacheId.forTable(INSTANCE_ID, TableId.of("A"));
-    PropCacheId tableB = PropCacheId.forTable(INSTANCE_ID, TableId.of("B"));
+    PropCacheId1 tableA = PropCacheId1.forTable(INSTANCE_ID, TableId.of("A"));
+    PropCacheId1 tableB = PropCacheId1.forTable(INSTANCE_ID, TableId.of("B"));
 
     propStore.registerAsListener(tableA, listener);
     propStore.registerAsListener(tableB, listener);
@@ -293,24 +293,24 @@ public class PropStoreZooKeeperIT {
 
   private static class TestChangeListener implements PropChangeListener {
 
-    private final Map<PropCacheId,Integer> changeCounts = new ConcurrentHashMap<>();
-    private final Map<PropCacheId,Integer> deleteCounts = new ConcurrentHashMap<>();
+    private final Map<PropCacheId1,Integer> changeCounts = new ConcurrentHashMap<>();
+    private final Map<PropCacheId1,Integer> deleteCounts = new ConcurrentHashMap<>();
 
     @Override
-    public void changeEvent(PropCacheId id) {
+    public void changeEvent(PropCacheId1 id) {
       changeCounts.merge(id, 1, Integer::sum);
     }
 
     @Override
-    public void deleteEvent(PropCacheId id) {
+    public void deleteEvent(PropCacheId1 id) {
       deleteCounts.merge(id, 1, Integer::sum);
     }
 
-    public Map<PropCacheId,Integer> getChangeCounts() {
+    public Map<PropCacheId1,Integer> getChangeCounts() {
       return changeCounts;
     }
 
-    public Map<PropCacheId,Integer> getDeleteCounts() {
+    public Map<PropCacheId1,Integer> getDeleteCounts() {
       return deleteCounts;
     }
   }

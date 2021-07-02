@@ -35,7 +35,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.conf2.PropCache;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
@@ -74,7 +74,7 @@ public class ZooPropStore implements PropStore {
     watcher = new ZkChangeWatcher(propCache, zooKeeper, zkReadyMon);
 
     try {
-      var path = PropCacheId.getConfigRoot(instanceId);
+      var path = PropCacheId1.getConfigRoot(instanceId);
       Stat s = zooKeeper.exists(path, watcher);
       if (Objects.nonNull(s)) {
         log.info("ZooKeeper connection exists");
@@ -101,7 +101,7 @@ public class ZooPropStore implements PropStore {
    * @return true if empty props create, false if the node exists.
    */
   public synchronized static boolean init(final String instanceId, final ZooKeeper zooKeeper) {
-    PropCacheId sysPropsId = PropCacheId.forSystem(instanceId);
+    PropCacheId1 sysPropsId = PropCacheId1.forSystem(instanceId);
     return initNode(instanceId, zooKeeper, sysPropsId, null);
   }
 
@@ -112,26 +112,27 @@ public class ZooPropStore implements PropStore {
    *          the instance id.
    * @param zooKeeper
    *          a zooKeeper client
-   * @param propCacheId
-   *          the propCacheId that will be initialized / created.
+   * @param propCacheId1
+   *          the propCacheId1 that will be initialized / created.
    * @param initProps
    *          property key, value string pairs - if null, an empty node is created.
    * @return true if empty props create, false if the node exists.
    */
   public synchronized static boolean initNode(final String instanceId, final ZooKeeper zooKeeper,
-      final PropCacheId propCacheId, final Map<String,String> initProps) {
+      final PropCacheId1 propCacheId1, final Map<String,String> initProps) {
     PropEncoding props = new PropEncodingV1();
     try {
 
-      log.trace("Property init for path: {}", propCacheId.path());
+      log.trace("Property init for path: {}", propCacheId1.path());
 
-      if (Objects.nonNull(zooKeeper.exists(propCacheId.path(), false))) {
-        log.debug("Node {} already exists in zooKeeper - skipping initial prop write", propCacheId);
+      if (Objects.nonNull(zooKeeper.exists(propCacheId1.path(), false))) {
+        log.debug("Node {} already exists in zooKeeper - skipping initial prop write",
+            propCacheId1);
         return false;
       }
       props.addProperties(initProps);
 
-      zooKeeper.create(propCacheId.path(), props.toBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+      zooKeeper.create(propCacheId1.path(), props.toBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
           CreateMode.PERSISTENT);
       return true;
 
@@ -171,7 +172,7 @@ public class ZooPropStore implements PropStore {
 
   // TODO - evaluate returning the props instead of boolean.
   @Override
-  public boolean create(PropCacheId propCacheId, Map<String,String> props)
+  public boolean create(PropCacheId1 propCacheId1, Map<String,String> props)
       throws PropStoreException {
     try {
       PropEncoding encoded = new PropEncodingV1();
@@ -179,71 +180,72 @@ public class ZooPropStore implements PropStore {
         encoded.addProperties(props);
       }
 
-      var path = propCacheId.path();
+      var path = propCacheId1.path();
 
       zooKeeper.create(path, encoded.toBytes(), ZooUtil.PUBLIC, CreateMode.PERSISTENT);
 
       Stat stat = zooKeeper.exists(path, watcher);
 
-      propCache.put(propCacheId, encoded);
+      propCache.put(propCacheId1, encoded);
 
     } catch (KeeperException | InterruptedException ex) {
       log.info("Create failed", ex);
       throw new PropStoreException(ZK_ERROR,
-          "Failed to create properties for propCacheId " + propCacheId, ex);
+          "Failed to create properties for propCacheId1 " + propCacheId1, ex);
     }
     return false;
   }
 
   @Override
-  public PropEncoding get(final PropCacheId propCacheId) throws PropStoreException {
-    Objects.requireNonNull(propCacheId, "prop store get() - Must provide propCacheId");
+  public PropEncoding get(final PropCacheId1 propCacheId1) throws PropStoreException {
+    Objects.requireNonNull(propCacheId1, "prop store get() - Must provide propCacheId1");
 
     try {
 
       waitForConnection();
 
-      var cached = propCache.get(propCacheId);
+      var cached = propCache.get(propCacheId1);
       if (cached.isPresent()) {
         return cached.get();
       }
 
       Stat stat = new Stat();
-      byte[] data = zooKeeper.getData(propCacheId.path(), watcher, stat);
+      byte[] data = zooKeeper.getData(propCacheId1.path(), watcher, stat);
       PropEncoding props = new PropEncodingV1(data);
-      propCache.put(propCacheId, props);
+      propCache.put(propCacheId1, props);
       return props;
 
     } catch (KeeperException ex) {
-      throw new PropStoreException("Failed to read properties for propCacheId " + propCacheId, ex);
+      throw new PropStoreException("Failed to read properties for propCacheId1 " + propCacheId1,
+          ex);
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
       throw new PropStoreException(ZK_ERROR,
-          "Failed to read properties for propCacheId " + propCacheId, ex);
+          "Failed to read properties for propCacheId1 " + propCacheId1, ex);
     }
   }
 
-  private void writeAndCache(final PropCacheId propCacheId, final PropEncoding props)
+  private void writeAndCache(final PropCacheId1 propCacheId1, final PropEncoding props)
       throws InterruptedException, KeeperException {
 
-    log.info("Writing: {}, {}", propCacheId, props.print(true));
-    zooKeeper.setData(propCacheId.path(), props.toBytes(), props.getExpectedVersion());
-    propCache.put(propCacheId, props);
+    log.info("Writing: {}, {}", propCacheId1, props.print(true));
+    zooKeeper.setData(propCacheId1.path(), props.toBytes(), props.getExpectedVersion());
+    propCache.put(propCacheId1, props);
   }
 
   @Override
-  public boolean update(final PropCacheId propCacheId, final Map<String,String> properties)
+  public boolean update(final PropCacheId1 propCacheId1, final Map<String,String> properties)
       throws PropStoreException {
-    Objects.requireNonNull(propCacheId, "prop store update() - Must provide propCacheId");
+    Objects.requireNonNull(propCacheId1, "prop store update() - Must provide propCacheId1");
     try {
-      var path = propCacheId.path();
+      var path = propCacheId1.path();
 
-      var cached = propCache.get(propCacheId);
+      var cached = propCache.get(propCacheId1);
       if (cached.isPresent()) {
         PropEncoding cachedProps = cached.get();
         cachedProps.addProperties(properties);
         try {
-          writeAndCache(propCacheId, cachedProps);
+          writeAndCache(propCacheId1, cachedProps);
           log.info("Updated cached - wrote: {}", cachedProps.print(true));
           return true;
         } catch (KeeperException.BadVersionException ex) {
@@ -258,34 +260,34 @@ public class ZooPropStore implements PropStore {
       PropEncoding current = new PropEncodingV1(data);
       log.info("Updated cached - read: {}", current.print(true));
       current.addProperties(properties);
-      writeAndCache(propCacheId, current);
+      writeAndCache(propCacheId1, current);
       log.info("Updated cached - wrote: {}", current.print(true));
 
     } catch (KeeperException | InterruptedException ex) {
       throw new PropStoreException(ZK_ERROR,
-          "Failed to update properties for propCacheId " + propCacheId, ex);
+          "Failed to update properties for propCacheId1 " + propCacheId1, ex);
     }
     return true;
   }
 
   @Override
-  public void delete(final PropCacheId propCacheId) throws PropStoreException {
-    Objects.requireNonNull(propCacheId, "prop store delete() - Must provide propCacheId");
+  public void delete(final PropCacheId1 propCacheId1) throws PropStoreException {
+    Objects.requireNonNull(propCacheId1, "prop store delete() - Must provide propCacheId1");
     try {
-      final String path = propCacheId.path();
+      final String path = propCacheId1.path();
       Stat stat = new Stat();
       zooKeeper.delete(path, stat.getVersion());
-      propCache.remove(propCacheId);
+      propCache.remove(propCacheId1);
     } catch (KeeperException | InterruptedException ex) {
       throw new PropStoreException(ZK_ERROR,
-          "Failed to update properties for propCacheId " + propCacheId, ex);
+          "Failed to update properties for propCacheId1 " + propCacheId1, ex);
     }
   }
 
   @Override
-  public boolean removeProperties(final PropCacheId propCacheId, final Collection<String> keys)
+  public boolean removeProperties(final PropCacheId1 propCacheId1, final Collection<String> keys)
       throws PropStoreException {
-    var path = propCacheId.path();
+    var path = propCacheId1.path();
     Stat stat = new Stat();
     try {
       byte[] data = zooKeeper.getData(path, false, stat);
@@ -294,7 +296,7 @@ public class ZooPropStore implements PropStore {
       zooKeeper.setData(path, current.toBytes(), stat.getVersion());
     } catch (KeeperException | InterruptedException ex) {
       throw new PropStoreException(ZK_ERROR,
-          "Failed to update properties for propCacheId " + propCacheId, ex);
+          "Failed to update properties for propCacheId1 " + propCacheId1, ex);
     }
     return false;
   }
@@ -308,7 +310,7 @@ public class ZooPropStore implements PropStore {
 
     fixedProps = new HashMap<>();
 
-    PropCacheId systemId = PropCacheId.forSystem(instanceId);
+    PropCacheId1 systemId = PropCacheId1.forSystem(instanceId);
     try {
 
       Map<String,String> propsRead;
@@ -333,8 +335,8 @@ public class ZooPropStore implements PropStore {
   }
 
   @Override
-  public void registerAsListener(PropCacheId propCacheId, PropChangeListener listener) {
-    watcher.registerListener(propCacheId, listener);
+  public void registerAsListener(PropCacheId1 propCacheId1, PropChangeListener listener) {
+    watcher.registerListener(propCacheId1, listener);
   }
 
   private static class ZkChangeWatcher implements Watcher {
@@ -345,7 +347,7 @@ public class ZooPropStore implements PropStore {
     private final ExecutorService executorService =
         ThreadPools.createFixedThreadPool(1, "zoo_change_update", false);
 
-    private final Map<PropCacheId,Set<PropChangeListener>> listeners = new HashMap<>();
+    private final Map<PropCacheId1,Set<PropChangeListener>> listeners = new HashMap<>();
     private final ReentrantReadWriteLock.ReadLock listenerReadLock;
     private final ReentrantReadWriteLock.WriteLock listenerWriteLock;
     private final ReadyMonitor zkReadyMonitor;
@@ -361,10 +363,11 @@ public class ZooPropStore implements PropStore {
       listenerWriteLock = rwLock.writeLock();
     }
 
-    public void registerListener(final PropCacheId propCacheId, final PropChangeListener listener) {
+    public void registerListener(final PropCacheId1 propCacheId1,
+        final PropChangeListener listener) {
       listenerWriteLock.lock();
       try {
-        Set<PropChangeListener> set = listeners.computeIfAbsent(propCacheId, s -> new HashSet<>());
+        Set<PropChangeListener> set = listeners.computeIfAbsent(propCacheId1, s -> new HashSet<>());
         set.add(listener);
       } finally {
         listenerWriteLock.unlock();
@@ -392,7 +395,7 @@ public class ZooPropStore implements PropStore {
 
           log.info("handle change event");
 
-          PropCacheId.fromPath(path).ifPresent(cacheId -> {
+          PropCacheId1.fromPath(path).ifPresent(cacheId -> {
 
             cache.remove(cacheId);
 
@@ -408,7 +411,7 @@ public class ZooPropStore implements PropStore {
         case NodeDeleted:
           path = event.getPath();
 
-          PropCacheId.fromPath(path).ifPresent(cacheId -> {
+          PropCacheId1.fromPath(path).ifPresent(cacheId -> {
 
             cache.remove(cacheId);
 
@@ -454,12 +457,12 @@ public class ZooPropStore implements PropStore {
 
     }
 
-    private Set<PropChangeListener> getListenerSnapshot(final PropCacheId propCacheId) {
+    private Set<PropChangeListener> getListenerSnapshot(final PropCacheId1 propCacheId1) {
 
       Set<PropChangeListener> snapshot = null;
       listenerReadLock.lock();
       try {
-        Set<PropChangeListener> set = listeners.get(propCacheId);
+        Set<PropChangeListener> set = listeners.get(propCacheId1);
         if (Objects.nonNull(set)) {
           snapshot = Set.copyOf(set);
         }

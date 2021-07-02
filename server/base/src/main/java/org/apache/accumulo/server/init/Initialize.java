@@ -94,7 +94,7 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.ServerUtil;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.impl.ZooPropStore;
 import org.apache.accumulo.server.constraints.MetadataConstraints;
 import org.apache.accumulo.server.fs.VolumeChooserEnvironmentImpl;
@@ -525,17 +525,17 @@ public class Initialize implements KeywordExecutable {
       Map<String,String> combinedRootProps = new HashMap<>(initialRootConf);
       combinedRootProps.putAll(initialRootMetaConf);
       ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
-          PropCacheId.forTable(instanceId, RootTable.ID), combinedRootProps);
+          PropCacheId1.forTable(instanceId, RootTable.ID), combinedRootProps);
 
       // create initial metadata table props
       Map<String,String> combinedMetadataProps = new HashMap<>(initialRootMetaConf);
       combinedMetadataProps.putAll(initialMetaConf);
       ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
-          PropCacheId.forTable(instanceId, MetadataTable.ID), combinedMetadataProps);
+          PropCacheId1.forTable(instanceId, MetadataTable.ID), combinedMetadataProps);
 
       // create replication table props
       ZooPropStore.initNode(instanceId, zoo.getZooKeeper(),
-          PropCacheId.forTable(instanceId, ReplicationTable.ID), initialReplicationTableConf);
+          PropCacheId1.forTable(instanceId, ReplicationTable.ID), initialReplicationTableConf);
 
       legacyPropInit(zoo, zooKeeperRoot);
 
@@ -706,7 +706,7 @@ public class Initialize implements KeywordExecutable {
 
       // create default (empty) system prop node.
       boolean status = ZooPropStore.initNode(uuid.toString(), zoo.getZooKeeper(),
-          PropCacheId.forSystem(uuid.toString()), null);
+          PropCacheId1.forSystem(uuid.toString()), null);
 
       log.info("ZooPropStore init completed with status {}", status);
 

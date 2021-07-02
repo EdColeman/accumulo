@@ -19,7 +19,7 @@
 package org.apache.accumulo.server.conf;
 
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class SystemConfiguration2 extends ZooBasedConfiguration {
   private static final Logger log = LoggerFactory.getLogger(SystemConfiguration2.class);
 
   public SystemConfiguration2(ServerContext context) {
-    super(log, context, PropCacheId.forSystem(context.getInstanceID()),
+    super(log, context, PropCacheId1.forSystem(context.getInstanceID()),
         context.getSiteConfiguration());
   }
 

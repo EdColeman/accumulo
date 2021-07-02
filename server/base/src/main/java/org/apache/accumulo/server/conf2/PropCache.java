@@ -24,11 +24,11 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public interface PropCache {
 
-  void put(final PropCacheId propCacheId, final PropEncoding props);
+  void put(final PropCacheId1 propCacheId1, final PropEncoding props);
 
-  Optional<PropEncoding> get(final PropCacheId propCacheId);
+  Optional<PropEncoding> get(final PropCacheId1 propCacheId1);
 
-  void remove(final PropCacheId propCacheId);
+  void remove(final PropCacheId1 propCacheId1);
 
   void removeAll();
 }

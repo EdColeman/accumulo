@@ -20,40 +20,42 @@ package org.apache.accumulo.server.conf2.impl;
 
 import java.util.Set;
 
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 
 public abstract class ZkWatchEventProcessor implements Runnable {
 
-  private final PropCacheId propCacheId;
+  private final PropCacheId1 propCacheId1;
   private final Set<PropChangeListener> listeners;
 
-  ZkWatchEventProcessor(final PropCacheId propCacheId, final Set<PropChangeListener> listeners) {
-    this.propCacheId = propCacheId;
+  ZkWatchEventProcessor(final PropCacheId1 propCacheId1, final Set<PropChangeListener> listeners) {
+    this.propCacheId1 = propCacheId1;
     this.listeners = listeners;
   }
 
   public static class ZkChangeEventProcessor extends ZkWatchEventProcessor {
 
-    ZkChangeEventProcessor(final PropCacheId propCacheId, final Set<PropChangeListener> listeners) {
-      super(propCacheId, listeners);
+    ZkChangeEventProcessor(final PropCacheId1 propCacheId1,
+        final Set<PropChangeListener> listeners) {
+      super(propCacheId1, listeners);
     }
 
     @Override
     public void run() {
-      super.listeners.forEach(listener -> listener.changeEvent(super.propCacheId));
+      super.listeners.forEach(listener -> listener.changeEvent(super.propCacheId1));
     }
   }
 
   public static class ZkDeleteEventProcessor extends ZkWatchEventProcessor {
 
-    ZkDeleteEventProcessor(final PropCacheId propCacheId, final Set<PropChangeListener> listeners) {
-      super(propCacheId, listeners);
+    ZkDeleteEventProcessor(final PropCacheId1 propCacheId1,
+        final Set<PropChangeListener> listeners) {
+      super(propCacheId1, listeners);
     }
 
     @Override
     public void run() {
-      super.listeners.forEach(listener -> listener.deleteEvent(super.propCacheId));
+      super.listeners.forEach(listener -> listener.deleteEvent(super.propCacheId1));
     }
   }
 }

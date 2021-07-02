@@ -25,19 +25,19 @@ import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public interface PropStore {
 
-  boolean create(PropCacheId propCacheId, Map<String,String> props) throws PropStoreException;
+  boolean create(PropCacheId1 propCacheId1, Map<String,String> props) throws PropStoreException;
 
-  PropEncoding get(PropCacheId propCacheId) throws PropStoreException;
+  PropEncoding get(PropCacheId1 propCacheId1) throws PropStoreException;
 
-  boolean update(PropCacheId propCacheId, Map<String,String> props) throws PropStoreException;
+  boolean update(PropCacheId1 propCacheId1, Map<String,String> props) throws PropStoreException;
 
-  void delete(PropCacheId propCacheId) throws PropStoreException;
+  void delete(PropCacheId1 propCacheId1) throws PropStoreException;
 
-  boolean removeProperties(PropCacheId propCacheId, Collection<String> keys)
+  boolean removeProperties(PropCacheId1 propCacheId1, Collection<String> keys)
       throws PropStoreException;
 
   Map<String,String> readFixed();
 
-  void registerAsListener(PropCacheId propCacheId, PropChangeListener listener);
+  void registerAsListener(PropCacheId1 propCacheId1, PropChangeListener listener);
 
 }

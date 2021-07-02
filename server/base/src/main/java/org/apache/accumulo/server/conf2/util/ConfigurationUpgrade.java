@@ -34,7 +34,7 @@ import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.CreateMode;
@@ -155,7 +155,7 @@ public class ConfigurationUpgrade {
   }
 
   public void convertSystem() throws KeeperException, InterruptedException {
-    upgrade(getSrcSysPath(), PropCacheId.forSystem(context));
+    upgrade(getSrcSysPath(), PropCacheId1.forSystem(context));
   }
 
   public void convertNamespaces() throws KeeperException, InterruptedException {
@@ -165,7 +165,7 @@ public class ConfigurationUpgrade {
       var nid = NamespaceId.of(ns);
       var path = getSrcNsPath(nid);
       log.info("Looking for: {}", path);
-      upgrade(path, PropCacheId.forNamespace(context, nid));
+      upgrade(path, PropCacheId1.forNamespace(context, nid));
     }
   }
 
@@ -176,7 +176,7 @@ public class ConfigurationUpgrade {
       var tid = TableId.of(t);
       var path = getSrcTablePath(tid);
       log.info("Looking for: {}", path);
-      upgrade(path, PropCacheId.forTable(context, tid));
+      upgrade(path, PropCacheId1.forTable(context, tid));
     }
   }
 
@@ -255,13 +255,13 @@ public class ConfigurationUpgrade {
    *          the parent path to current configuration nodes (i.e
    *          /accumulo/[instance]/[tables|namespace]/id
    * @param destId
-   *          the PropCacheId for the destination.
+   *          the PropCacheId1 for the destination.
    * @throws KeeperException
    *           if a zooKeeper exception occurs
    * @throws InterruptedException
    *           if an interrupt occurs.
    */
-  public void upgrade(final String srcPath, final PropCacheId destId)
+  public void upgrade(final String srcPath, final PropCacheId1 destId)
       throws KeeperException, InterruptedException {
 
     log.info("ConfigurationUpgrade - src: {}, id: {}", srcPath, destId);
@@ -361,7 +361,7 @@ public class ConfigurationUpgrade {
       log.info("Verify system");
       // check system
       convertedCount++;
-      if (!verifyById(PropCacheId.forSystem(context))) {
+      if (!verifyById(PropCacheId1.forSystem(context))) {
         return false;
       }
 
@@ -373,7 +373,7 @@ public class ConfigurationUpgrade {
         var nid = NamespaceId.of(ns);
         var path = getSrcNsPath(nid);
         log.info("Looking for: {}", path);
-        if (!verifyById(PropCacheId.forNamespace(context, nid))) {
+        if (!verifyById(PropCacheId1.forNamespace(context, nid))) {
           return false;
         }
       }
@@ -387,7 +387,7 @@ public class ConfigurationUpgrade {
         var tid = TableId.of(t);
         var path = getSrcTablePath(tid);
         log.info("Looking for: {}", path);
-        if (!verifyById(PropCacheId.forTable(context, tid))) {
+        if (!verifyById(PropCacheId1.forTable(context, tid))) {
           return false;
         }
       }
@@ -405,7 +405,7 @@ public class ConfigurationUpgrade {
     }
   }
 
-  public boolean verifyById(final PropCacheId id) {
+  public boolean verifyById(final PropCacheId1 id) {
     var idType = id.getType();
 
     switch (idType) {
@@ -426,7 +426,7 @@ public class ConfigurationUpgrade {
     }
   }
 
-  private boolean verifyNode(final PropCacheId id, final String srcPath) {
+  private boolean verifyNode(final PropCacheId1 id, final String srcPath) {
     log.info("verifyById {} converted to {}", srcPath, id);
     try {
 
@@ -483,7 +483,7 @@ public class ConfigurationUpgrade {
    *          the path to the destination parent node (i.e
    *          /accumulo/[instance_id/[tables|namespace]/[id]/conf)
    */
-  public void downgrade(final PropCacheId srcId, final String destPath)
+  public void downgrade(final PropCacheId1 srcId, final String destPath)
       throws KeeperException, InterruptedException {
 
     String srcPath = String.format("%s/%s", destBasePath, srcId.nodeName());

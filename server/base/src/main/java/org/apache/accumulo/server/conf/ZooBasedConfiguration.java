@@ -27,7 +27,7 @@ import java.util.function.Predicate;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
@@ -39,29 +39,29 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
   private final Logger log;
   private final ServerContext context;
   private final AccumuloConfiguration parent;
-  private final PropCacheId propCacheId;
+  private final PropCacheId1 propCacheId1;
   private final PropStore propStore;
 
   private final Map<String,String> fixedProps;
 
   // private final AtomicReference<Instant> lastUpdate = new AtomicReference<>(Instant.EPOCH);
 
-  public ZooBasedConfiguration(Logger log, ServerContext context, PropCacheId propCacheId,
+  public ZooBasedConfiguration(Logger log, ServerContext context, PropCacheId1 propCacheId1,
       AccumuloConfiguration parent) {
     this.log = requireNonNull(log);
     this.context = requireNonNull(context);
-    this.propCacheId = requireNonNull(propCacheId);
+    this.propCacheId1 = requireNonNull(propCacheId1);
     this.parent = requireNonNull(parent);
 
     this.propStore = requireNonNull(context.getPropStore());
 
-    propStore.registerAsListener(propCacheId, this);
+    propStore.registerAsListener(propCacheId1, this);
 
     fixedProps = propStore.readFixed();
   }
 
-  public PropCacheId getCacheId() {
-    return propCacheId;
+  public PropCacheId1 getCacheId() {
+    return propCacheId1;
   }
 
   public AccumuloConfiguration getParent() {
@@ -69,7 +69,7 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
   }
 
   public PropEncoding getProperties() throws PropStoreException {
-    PropEncoding props = propStore.get(propCacheId);
+    PropEncoding props = propStore.get(propCacheId1);
     return props;
   }
 
@@ -133,7 +133,7 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
     }
 
     try {
-      PropEncoding encoded = propStore.get(propCacheId);
+      PropEncoding encoded = propStore.get(propCacheId1);
       if (Objects.nonNull(encoded.getAllProperties().get(prop.getKey()))) {
         return true;
       }
@@ -150,7 +150,7 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
     parent.getProperties(props, filter);
 
     try {
-      PropEncoding encoded = propStore.get(propCacheId);
+      PropEncoding encoded = propStore.get(propCacheId1);
       for (Map.Entry<String,String> entry : encoded.getAllProperties().entrySet()) {
         if (filter.test(entry.getKey())) {
           props.put(entry.getKey(), entry.getValue());
@@ -165,7 +165,7 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
   public long getUpdateCount() {
 
     try {
-      PropEncoding encoded = propStore.get(propCacheId);
+      PropEncoding encoded = propStore.get(propCacheId1);
       // mask truncates the sign extension when the int is cast to a long when negative number
       return (parent.getUpdateCount() << 32) | (0x0000_0000_ffff_ffffL & encoded.getDataVersion());
     } catch (PropStoreException pex) {
@@ -174,23 +174,23 @@ public class ZooBasedConfiguration extends AccumuloConfiguration implements Prop
   }
 
   @Override
-  public void changeEvent(PropCacheId watchedId) {
-    if (propCacheId.equals(watchedId)) {
-      log.trace("Received change event for {}", propCacheId);
+  public void changeEvent(PropCacheId1 watchedId) {
+    if (propCacheId1.equals(watchedId)) {
+      log.trace("Received change event for {}", propCacheId1);
     }
   }
 
   @Override
-  public void deleteEvent(PropCacheId watchedId) {
-    if (propCacheId.equals(watchedId)) {
-      log.trace("Received delete event for {}", propCacheId);
+  public void deleteEvent(PropCacheId1 watchedId) {
+    if (propCacheId1.equals(watchedId)) {
+      log.trace("Received delete event for {}", propCacheId1);
     }
   }
 
   private String getCachedProp(String key) {
     String value = null;
     try {
-      PropEncoding encoded = propStore.get(propCacheId);
+      PropEncoding encoded = propStore.get(propCacheId1);
       if (Objects.nonNull(encoded)) {
         Map<String,String> props = encoded.getAllProperties();
         value = props.get(key);

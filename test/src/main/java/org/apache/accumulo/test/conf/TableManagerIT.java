@@ -39,7 +39,7 @@ import org.apache.accumulo.harness.MiniClusterConfigurationCallback;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
 import org.apache.accumulo.miniclusterImpl.MiniAccumuloConfigImpl;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.tables.TableManager;
 import org.apache.accumulo.server.tables.TableManager2;
@@ -100,7 +100,7 @@ public class TableManagerIT extends SharedMiniClusterBase
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
-      context.getPropStore().get(PropCacheId.forNamespace(instanceId, ns2));
+      context.getPropStore().get(PropCacheId1.forNamespace(instanceId, ns2));
       fail("Expected no node exception");
     } catch (PropStoreException pex) {
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
@@ -109,7 +109,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2.prepareNewNamespaceState(context, instanceId, ns2, namespaceName,
         ZooUtil.NodeExistsPolicy.FAIL);
 
-    assertNotNull(context.getPropStore().get(PropCacheId.forNamespace(instanceId, ns2)));
+    assertNotNull(context.getPropStore().get(PropCacheId1.forNamespace(instanceId, ns2)));
   }
 
   @Test
@@ -125,7 +125,7 @@ public class TableManagerIT extends SharedMiniClusterBase
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
-      context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1));
+      context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId1));
       fail("Expected no node exception");
     } catch (PropStoreException pex) {
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
@@ -134,7 +134,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2.prepareNewTableState(context, instanceId, tableId1, Namespace.DEFAULT.id(),
         tableName, TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
 
-    assertNotNull(context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1)));
+    assertNotNull(context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId1)));
   }
 
   @Test
@@ -154,7 +154,7 @@ public class TableManagerIT extends SharedMiniClusterBase
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
-      context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1));
+      context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId1));
       fail("Expected no node exception");
     } catch (PropStoreException pex) {
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
@@ -163,7 +163,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2.prepareNewTableState(context, instanceId, tableId1, Namespace.DEFAULT.id(),
         nameGen(), TableState.NEW, ZooUtil.NodeExistsPolicy.OVERWRITE);
 
-    assertNotNull(context.getPropStore().get(PropCacheId.forTable(instanceId, tableId1)));
+    assertNotNull(context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId1)));
 
   }
 
@@ -184,7 +184,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2 tableManager2 = new TableManager2(context);
     tableManager2.addTable(tableId, Namespace.DEFAULT.id(), nameGen());
 
-    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+    var readProps = context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId));
     assertNotNull(readProps);
     log.info("Read: {}", readProps.print(true));
 
@@ -216,7 +216,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     tableManager2.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(), null,
         null);
 
-    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, destTableId));
+    var readProps = context.getPropStore().get(PropCacheId1.forTable(instanceId, destTableId));
     assertNotNull(readProps);
     log.info("Read: {}", readProps.print(true));
   }
@@ -256,7 +256,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     tableManager2.cloneTable(srcTableId, destTableId, destTableName, Namespace.DEFAULT.id(),
         includes, excludes);
 
-    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, destTableId));
+    var readProps = context.getPropStore().get(PropCacheId1.forTable(instanceId, destTableId));
     assertNotNull(readProps);
 
     assertEquals(2, readProps.getAllProperties().size());
@@ -271,14 +271,14 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2 tableManager2 = new TableManager2(context);
     tableManager2.addTable(tableId, Namespace.DEFAULT.id(), nameGen());
 
-    var readProps = context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+    var readProps = context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId));
     assertNotNull(readProps);
     log.info("Read: {}", readProps.print(true));
 
     tableManager2.removeTable(tableId);
 
     try {
-      context.getPropStore().get(PropCacheId.forTable(instanceId, tableId));
+      context.getPropStore().get(PropCacheId1.forTable(instanceId, tableId));
       fail("Expected a node node exception");
     } catch (PropStoreException ex) {
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, ex.getCode());
@@ -300,7 +300,7 @@ public class TableManagerIT extends SharedMiniClusterBase
 
     // validate that prop node does not exists - expect node does not exist exception.
     try {
-      context.getPropStore().get(PropCacheId.forNamespace(instanceId, nsId));
+      context.getPropStore().get(PropCacheId1.forNamespace(instanceId, nsId));
       fail("Expected no node exception");
     } catch (PropStoreException pex) {
       assertEquals(PropStoreException.REASON_CODE.NO_ZK_NODE, pex.getCode());
@@ -309,7 +309,7 @@ public class TableManagerIT extends SharedMiniClusterBase
     TableManager2.prepareNewNamespaceState(context, instanceId, nsId, namespaceName,
         ZooUtil.NodeExistsPolicy.FAIL);
 
-    assertNotNull(context.getPropStore().get(PropCacheId.forNamespace(instanceId, nsId)));
+    assertNotNull(context.getPropStore().get(PropCacheId1.forNamespace(instanceId, nsId)));
 
     TableManager2 tableManager2 = new TableManager2(context);
     tableManager2.addTable(tableId, nsId, nameGen());

@@ -20,7 +20,7 @@ package org.apache.accumulo.server.util;
 
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +34,7 @@ public class PropUtil {
    */
   private PropUtil() {}
 
-  public static boolean setProperty(final ServerContext context, final PropCacheId propCacheId,
+  public static boolean setProperty(final ServerContext context, final PropCacheId1 propCacheId1,
       final String property, final String value) throws PropStoreException {
 
     if (!isPropertyValid(property, value))
@@ -43,7 +43,7 @@ public class PropUtil {
     return false;
   }
 
-  public static void removeProperty(final ServerContext context, final PropCacheId propCacheId,
+  public static void removeProperty(final ServerContext context, final PropCacheId1 propCacheId1,
       final String property) {
 
   }

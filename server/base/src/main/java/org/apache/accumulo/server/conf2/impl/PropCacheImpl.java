@@ -23,26 +23,26 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.accumulo.server.conf2.PropCache;
-import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropCacheId1;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 
 public class PropCacheImpl implements PropCache {
 
-  private final Map<PropCacheId,PropEncoding> cache = new ConcurrentHashMap<>();
+  private final Map<PropCacheId1,PropEncoding> cache = new ConcurrentHashMap<>();
 
   @Override
-  public void put(PropCacheId propCacheId, PropEncoding props) {
-    cache.put(propCacheId, props);
+  public void put(PropCacheId1 propCacheId1, PropEncoding props) {
+    cache.put(propCacheId1, props);
   }
 
   @Override
-  public Optional<PropEncoding> get(PropCacheId propCacheId) {
-    return Optional.ofNullable(cache.get(propCacheId));
+  public Optional<PropEncoding> get(PropCacheId1 propCacheId1) {
+    return Optional.ofNullable(cache.get(propCacheId1));
   }
 
   @Override
-  public void remove(final PropCacheId propCacheId) {
-    cache.remove(propCacheId);
+  public void remove(final PropCacheId1 propCacheId1) {
+    cache.remove(propCacheId1);
   }
 
   @Override

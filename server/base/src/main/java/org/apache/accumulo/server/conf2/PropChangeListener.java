@@ -20,8 +20,8 @@ package org.apache.accumulo.server.conf2;
 
 public interface PropChangeListener {
 
-  void changeEvent(final PropCacheId id);
+  void changeEvent(final PropCacheId1 id);
 
-  void deleteEvent(final PropCacheId id);
+  void deleteEvent(final PropCacheId1 id);
 
 }
