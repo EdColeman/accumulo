@@ -39,4 +39,5 @@ public interface PropStore {
   Map<String,String> readFixed();
 
   void registerAsListener(PropCacheId propCacheId, PropChangeListener listener);
+
 }

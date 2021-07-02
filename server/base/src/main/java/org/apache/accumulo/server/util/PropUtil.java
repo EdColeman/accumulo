@@ -34,22 +34,24 @@ public class PropUtil {
    */
   private PropUtil() {}
 
-  public static boolean setNamespaceProperty(final ServerContext context,
-      final PropCacheId propCacheId, final String property, final String value)
-      throws PropStoreException {
+  public static boolean setProperty(final ServerContext context, final PropCacheId propCacheId,
+      final String property, final String value) throws PropStoreException {
+
+    if (!isPropertyValid(property, value))
+      return false;
+
     return false;
+  }
+
+  public static void removeProperty(final ServerContext context, final PropCacheId propCacheId,
+      final String property) {
+
   }
 
   public static boolean isPropertyValid(String property, String value) {
     Property p = Property.getPropertyByKey(property);
-
-    log.info("Prop: {}", p);
-
-    if (p == null) {
-      log.info("true isNull");
-    }
-
     return (p == null || p.getType().isValidFormat(value))
         && Property.isValidTablePropertyKey(property);
   }
+
 }

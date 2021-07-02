@@ -485,7 +485,7 @@ public class Initialize implements KeywordExecutable {
   private static void validateTableProperties(final Map<String,String> props) throws IOException {
     for (Entry<String,String> entry : props.entrySet()) {
       Set<String> invalids = new TreeSet<>();
-      if (!TablePropUtil.isPropertyValid(entry.getKey(), entry.getValue())) {
+      if (!Property.isPropertyValid(entry.getKey(), entry.getValue())) {
         invalids.add(entry.getKey());
       }
       if (!invalids.isEmpty()) {

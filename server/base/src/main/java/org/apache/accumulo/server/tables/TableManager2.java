@@ -30,6 +30,7 @@ import java.util.Set;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.clientImpl.Tables;
+import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.manager.state.tables.TableState;
@@ -43,7 +44,6 @@ import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
-import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -240,7 +240,7 @@ public class TableManager2 {
       // check properties are valid - remove and log if invalid, then continue with remaining set.
       Set<String> invalids = new HashSet<>();
       destProps.forEach((k, v) -> {
-        if (!TablePropUtil.isPropertyValid(k, v)) {
+        if (!Property.isPropertyValid(k, v)) {
           log.info("Removing invalid property {}:{} from clone to {} properties", k, v, tableName);
           invalids.add(k);
         }

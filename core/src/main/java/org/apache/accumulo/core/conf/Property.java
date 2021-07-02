@@ -1352,6 +1352,12 @@ public enum Property {
     return false;
   }
 
+  public static boolean isPropertyValid(String property, String value) {
+    Property p = Property.getPropertyByKey(property);
+    return (p == null || p.getType().isValidFormat(value))
+        && Property.isValidTablePropertyKey(property);
+  }
+
   private static HashSet<String> validTableProperties = null;
   private static HashSet<String> validProperties = null;
   private static HashSet<String> validPrefixes = null;
