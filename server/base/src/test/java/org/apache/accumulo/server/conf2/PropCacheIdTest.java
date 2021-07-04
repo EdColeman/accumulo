@@ -23,7 +23,6 @@ import static org.apache.accumulo.core.Constants.ZNAMESPACES;
 import static org.apache.accumulo.core.Constants.ZTABLES;
 import static org.apache.accumulo.server.conf2.PropCacheId.PROP_NODE_NAME;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
@@ -105,19 +104,23 @@ public class PropCacheIdTest {
     log.info("Sorted: {}", nodes);
   }
 
-  @Test public void fromPath(){
+  @Test
+  public void fromPath() {
 
-    Optional<PropCacheId> t1 = PropCacheId.fromPath("/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/tables/t1/conf/encoded_props");
+    Optional<PropCacheId> t1 = PropCacheId
+        .fromPath("/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/tables/t1/conf/encoded_props");
     assertTrue(t1.isPresent());
     assertTrue(t1.get().getNamespaceId().isEmpty());
     assertEquals(TableId.of("t1"), t1.get().getTableId().get());
 
-    Optional<PropCacheId> n1 = PropCacheId.fromPath("/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/namespaces/n1/conf/encoded_props");
+    Optional<PropCacheId> n1 = PropCacheId.fromPath(
+        "/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/namespaces/n1/conf/encoded_props");
     assertTrue(n1.isPresent());
     assertEquals(NamespaceId.of("n1"), n1.get().getNamespaceId().get());
     assertTrue(n1.get().getTableId().isEmpty());
 
-    Optional<PropCacheId> s1 = PropCacheId.fromPath("/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/config/encoded_props");
+    Optional<PropCacheId> s1 =
+        PropCacheId.fromPath("/accumulo/3f9976c6-3bf1-41ab-9751-1b0a9be3551d/config/encoded_props");
     assertTrue(s1.isPresent());
     assertTrue(s1.get().getNamespaceId().isEmpty());
     assertTrue(s1.get().getTableId().isEmpty());

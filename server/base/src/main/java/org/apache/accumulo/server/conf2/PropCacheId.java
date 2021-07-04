@@ -110,7 +110,8 @@ public class PropCacheId implements Comparable<PropCacheId> {
       case SYSTEM:
         return Optional.of(PropCacheId.forSystem(instanceId));
       case NAMESPACE:
-        return Optional.of(PropCacheId.forNamespace(instanceId, NamespaceId.of(tokens[ID_TOKEN_POSITION])));
+        return Optional
+            .of(PropCacheId.forNamespace(instanceId, NamespaceId.of(tokens[ID_TOKEN_POSITION])));
       case TABLE:
         return Optional.of(PropCacheId.forTable(instanceId, TableId.of(tokens[ID_TOKEN_POSITION])));
       case UNKNOWN:
@@ -169,7 +170,8 @@ public class PropCacheId implements Comparable<PropCacheId> {
     return Objects.hash(path);
   }
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     return new StringJoiner(", ", PropCacheId.class.getSimpleName() + "[", "]")
         .add("path='" + path + "'").add("idType=" + idType).add("namespaceId=" + namespaceId)
         .add("tableId=" + tableId).toString();
