@@ -40,7 +40,7 @@ import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
@@ -89,7 +89,7 @@ public class TableManager2 {
         existsPolicy);
 
     try {
-      context.getPropStore().create(PropCacheId1.forNamespace(instanceId, namespaceId), null);
+      context.getPropStore().create(PropCacheId.forNamespace(instanceId, namespaceId), null);
     } catch (PropStoreException ex) {
       // TODO exception handling?
       throw new IllegalStateException(
@@ -124,7 +124,7 @@ public class TableManager2 {
         existsPolicy);
 
     try {
-      context.getPropStore().create(PropCacheId1.forTable(instanceId, tableId), null);
+      context.getPropStore().create(PropCacheId.forTable(instanceId, tableId), null);
     } catch (PropStoreException ex) {
       throw new IllegalStateException(
           "Failed to prepare entries for table " + tableName + " (" + tableId.canonical() + ")",
@@ -225,7 +225,7 @@ public class TableManager2 {
 
       PropStore propStore = context.getPropStore();
 
-      PropEncoding srcProps = propStore.get(PropCacheId1.forTable(instanceID, srcTableId));
+      PropEncoding srcProps = propStore.get(PropCacheId.forTable(instanceID, srcTableId));
 
       Map<String,String> destProps = new HashMap<>(srcProps.getAllProperties());
 
@@ -248,7 +248,7 @@ public class TableManager2 {
 
       destProps.keySet().removeAll(invalids);
 
-      propStore.update(PropCacheId1.forTable(instanceID, destTableId), destProps);
+      propStore.update(PropCacheId.forTable(instanceID, destTableId), destProps);
 
     } catch (PropStoreException ex) {
       // TODO evalute additional exception handling
@@ -267,7 +267,7 @@ public class TableManager2 {
       zoo.recursiveDelete(zkRoot + Constants.ZTABLES + "/" + tableId, NodeMissingPolicy.SKIP);
 
       try {
-        context.getPropStore().delete(PropCacheId1.forTable(instanceID, tableId));
+        context.getPropStore().delete(PropCacheId.forTable(instanceID, tableId));
       } catch (PropStoreException ex) {
         // TODO evaluate exception handling.
         throw new IllegalStateException(
@@ -289,7 +289,7 @@ public class TableManager2 {
       throws KeeperException, InterruptedException {
     zoo.recursiveDelete(zkRoot + Constants.ZNAMESPACES + "/" + namespaceId, NodeMissingPolicy.SKIP);
     try {
-      context.getPropStore().delete(PropCacheId1.forNamespace(instanceID, namespaceId));
+      context.getPropStore().delete(PropCacheId.forNamespace(instanceID, namespaceId));
     } catch (PropStoreException ex) {
       // TODO examine exception handling
       throw new IllegalStateException("Failed to remove properties for namespace id " + namespaceId,

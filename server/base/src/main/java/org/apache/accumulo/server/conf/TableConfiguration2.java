@@ -38,7 +38,7 @@ import org.apache.accumulo.core.spi.compaction.CompactionDispatcher;
 import org.apache.accumulo.core.spi.scan.ScanDispatcher;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.ServiceEnvironmentImpl;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public class TableConfiguration2 extends ZooBasedConfiguration {
 
   public TableConfiguration2(ServerContext context, TableId tableId,
       NamespaceConfiguration2 parent) {
-    super(log, context, PropCacheId1.forTable(context, tableId), parent);
+    super(log, context, PropCacheId.forTable(context, tableId), parent);
 
     iteratorConfig = new EnumMap<>(IteratorScope.class);
     for (IteratorScope scope : IteratorScope.values()) {

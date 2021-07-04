@@ -43,7 +43,7 @@ import org.apache.accumulo.server.conf.ServerConfigurationFactory2;
 import org.apache.accumulo.server.conf.TableConfiguration;
 import org.apache.accumulo.server.conf.ZooBasedConfiguration;
 import org.apache.accumulo.server.conf.ZooConfiguration;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.impl.PropStoreFactory;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -156,7 +156,7 @@ public class ServerContext extends ClientContext {
 
   public AccumuloConfiguration getConfiguration2() {
     if (systemConfig2 == null) {
-      systemConfig2 = new ZooBasedConfiguration(log, this, PropCacheId1.forSystem(getInstanceID()),
+      systemConfig2 = new ZooBasedConfiguration(log, this, PropCacheId.forSystem(getInstanceID()),
           getSiteConfiguration());
     }
     return systemConfig2;

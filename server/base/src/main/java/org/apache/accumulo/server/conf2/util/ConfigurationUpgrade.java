@@ -34,7 +34,7 @@ import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.CreateMode;
@@ -155,7 +155,7 @@ public class ConfigurationUpgrade {
   }
 
   public void convertSystem() throws KeeperException, InterruptedException {
-    upgrade(getSrcSysPath(), PropCacheId1.forSystem(context));
+    upgrade(getSrcSysPath(), PropCacheId.forSystem(context));
   }
 
   public void convertNamespaces() throws KeeperException, InterruptedException {
@@ -165,7 +165,7 @@ public class ConfigurationUpgrade {
       var nid = NamespaceId.of(ns);
       var path = getSrcNsPath(nid);
       log.info("Looking for: {}", path);
-      upgrade(path, PropCacheId1.forNamespace(context, nid));
+      upgrade(path, PropCacheId.forNamespace(context, nid));
     }
   }
 
@@ -176,7 +176,7 @@ public class ConfigurationUpgrade {
       var tid = TableId.of(t);
       var path = getSrcTablePath(tid);
       log.info("Looking for: {}", path);
-      upgrade(path, PropCacheId1.forTable(context, tid));
+      upgrade(path, PropCacheId.forTable(context, tid));
     }
   }
 
@@ -261,12 +261,12 @@ public class ConfigurationUpgrade {
    * @throws InterruptedException
    *           if an interrupt occurs.
    */
-  public void upgrade(final String srcPath, final PropCacheId1 destId)
+  public void upgrade(final String srcPath, final PropCacheId destId)
       throws KeeperException, InterruptedException {
 
     log.info("ConfigurationUpgrade - src: {}, id: {}", srcPath, destId);
 
-    String destPath = String.format("%s/%s", destBasePath, destId.nodeName());
+    String destPath = destId.getPath();
 
     Stat srcStat = zooKeeper.exists(srcPath, false);
 
@@ -361,7 +361,7 @@ public class ConfigurationUpgrade {
       log.info("Verify system");
       // check system
       convertedCount++;
-      if (!verifyById(PropCacheId1.forSystem(context))) {
+      if (!verifyById(PropCacheId.forSystem(context))) {
         return false;
       }
 
@@ -373,7 +373,7 @@ public class ConfigurationUpgrade {
         var nid = NamespaceId.of(ns);
         var path = getSrcNsPath(nid);
         log.info("Looking for: {}", path);
-        if (!verifyById(PropCacheId1.forNamespace(context, nid))) {
+        if (!verifyById(PropCacheId.forNamespace(context, nid))) {
           return false;
         }
       }
@@ -387,7 +387,7 @@ public class ConfigurationUpgrade {
         var tid = TableId.of(t);
         var path = getSrcTablePath(tid);
         log.info("Looking for: {}", path);
-        if (!verifyById(PropCacheId1.forTable(context, tid))) {
+        if (!verifyById(PropCacheId.forTable(context, tid))) {
           return false;
         }
       }
@@ -405,8 +405,8 @@ public class ConfigurationUpgrade {
     }
   }
 
-  public boolean verifyById(final PropCacheId1 id) {
-    var idType = id.getType();
+  public boolean verifyById(final PropCacheId id) {
+    var idType = id.getIdType();
 
     switch (idType) {
       case SYSTEM:
@@ -426,20 +426,20 @@ public class ConfigurationUpgrade {
     }
   }
 
-  private boolean verifyNode(final PropCacheId1 id, final String srcPath) {
+  private boolean verifyNode(final PropCacheId id, final String srcPath) {
     log.info("verifyById {} converted to {}", srcPath, id);
     try {
 
       // check "empty" node - converted node does not exist,
       // fail if there are props that were not converted
-      Stat convertedNode = zooKeeper.exists(id.path(), false);
+      Stat convertedNode = zooKeeper.exists(id.getPath(), false);
       if (Objects.isNull(convertedNode)) {
         Stat p = zooKeeper.exists(srcPath, false);
         return Objects.isNull(p);
       }
 
       PropEncoding converted =
-          new PropEncodingV1(zooKeeper.getData(id.path(), false, convertedNode));
+          new PropEncodingV1(zooKeeper.getData(id.getPath(), false, convertedNode));
       log.info("Stat before: {}", ZooUtil.printStat(convertedNode));
       log.info("P:{}", converted.getAllProperties());
       List<String> originalNames = zooKeeper.getChildren(srcPath, false);
@@ -483,10 +483,10 @@ public class ConfigurationUpgrade {
    *          the path to the destination parent node (i.e
    *          /accumulo/[instance_id/[tables|namespace]/[id]/conf)
    */
-  public void downgrade(final PropCacheId1 srcId, final String destPath)
+  public void downgrade(final PropCacheId srcId, final String destPath)
       throws KeeperException, InterruptedException {
 
-    String srcPath = String.format("%s/%s", destBasePath, srcId.nodeName());
+    String srcPath = srcId.getPath();
 
     // read
     byte[] r = zooKeeper.getData(srcPath, false, null);

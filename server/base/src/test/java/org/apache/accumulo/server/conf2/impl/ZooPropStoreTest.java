@@ -39,7 +39,7 @@ import java.util.UUID;
 
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
@@ -127,7 +127,7 @@ public class ZooPropStoreTest {
 
     PropStore propStore = new PropStoreFactory().forInstance(instanceId).withZk(zooKeeper).build();
 
-    PropCacheId1 tid = PropCacheId1.forTable(instanceId, TableId.of("table1"));
+    PropCacheId tid = PropCacheId.forTable(instanceId, TableId.of("table1"));
 
     assertNotNull(propStore.get(tid));
 

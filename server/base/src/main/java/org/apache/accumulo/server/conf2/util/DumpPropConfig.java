@@ -22,7 +22,7 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.TreeSet;
 
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheIdOneNode;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -40,17 +40,17 @@ public class DumpPropConfig {
   public void print(PrintStream out) {
     try {
 
-      var configRoot = PropCacheId1.getConfigRoot(instanceId);
+      var configRoot = PropCacheIdOneNode.getConfigRoot(instanceId);
 
       List<String> propNodes = zooKeeper.getChildren(configRoot, false);
-      TreeSet<String> sorted = new TreeSet<>(new PropCacheId1.GroupByTypeNamesComparator());
+      TreeSet<String> sorted = new TreeSet<>(new PropCacheIdOneNode.GroupByTypeNamesComparator());
       sorted.addAll(propNodes);
 
       for (String cacheIdName : sorted) {
         var path = configRoot + "/" + cacheIdName;
         byte[] payload = zooKeeper.getData(path, null, null);
         PropEncodingV1 props = new PropEncodingV1(payload);
-        out.println(PropCacheId1.displayId(cacheIdName));
+        out.println(PropCacheIdOneNode.displayId(cacheIdName));
         out.println("zookeeper.bytes=" + payload.length);
         out.println(props.print(true));
       }

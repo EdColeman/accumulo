@@ -37,7 +37,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.MockServerContext;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
@@ -69,7 +69,7 @@ public class TableConfiguration2Test {
     context = MockServerContext.getWithZK(iid, ZOOKEEPERS, ZK_SESSION_TIMEOUT);
 
     propStore = mock(PropStore.class);
-    propStore.registerAsListener(isA(PropCacheId1.class), isA(PropChangeListener.class));
+    propStore.registerAsListener(isA(PropCacheId.class), isA(PropChangeListener.class));
     expectLastCall().anyTimes();
 
     expect(propStore.readFixed()).andReturn(getFixedProps()).anyTimes();

@@ -22,7 +22,7 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +32,7 @@ public class NamespaceConfiguration2 extends ZooBasedConfiguration {
 
   public NamespaceConfiguration2(NamespaceId namespaceId, ServerContext context,
       AccumuloConfiguration parent) {
-    super(log, context, PropCacheId1.forNamespace(context, namespaceId), parent);
+    super(log, context, PropCacheId.forNamespace(context, namespaceId), parent);
   }
 
   static boolean isIteratorOrConstraint(String key) {

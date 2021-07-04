@@ -46,7 +46,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.server.MockServerContext;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.apache.accumulo.server.conf2.PropStoreException;
@@ -73,7 +73,7 @@ public class ZooBasedConfigurationTest {
     PropStore propStore = mock(PropStore.class);
 
     expect(propStore.readFixed()).andReturn(getFixedProps());
-    propStore.registerAsListener(isA(PropCacheId1.class), isA(PropChangeListener.class));
+    propStore.registerAsListener(isA(PropCacheId.class), isA(PropChangeListener.class));
     expectLastCall().anyTimes();
 
     return propStore;
@@ -98,8 +98,8 @@ public class ZooBasedConfigurationTest {
     PropEncoding invalid = new PropEncodingV1();
     invalid.addProperty(TABLE_BLOOM_ENABLED.getKey(), "1234");
 
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(encoded);
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(invalid);
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(encoded);
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(invalid);
 
     ServerContext mockContext = getMockServerContext(instanceId, mockPropStore);
 
@@ -108,10 +108,10 @@ public class ZooBasedConfigurationTest {
 
     EasyMock.replay(mockContext, mockPropStore, parent);
 
-    PropCacheId1 propCacheId1 = PropCacheId1.forTable(instanceId, TableId.of("a"));
+    PropCacheId propCacheId = PropCacheId.forTable(instanceId, TableId.of("a"));
 
     ZooBasedConfiguration configuration =
-        new ZooBasedConfiguration(log, mockContext, propCacheId1, parent);
+        new ZooBasedConfiguration(log, mockContext, propCacheId, parent);
 
     assertEquals("true", configuration.get(TABLE_BLOOM_ENABLED));
 
@@ -130,7 +130,7 @@ public class ZooBasedConfigurationTest {
     String instanceId = UUID.randomUUID().toString();
 
     PropStore mockPropStore = getMockPropStore();
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(null);
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(null);
 
     ServerContext mockContext = getMockServerContext(instanceId, mockPropStore);
 
@@ -139,10 +139,10 @@ public class ZooBasedConfigurationTest {
 
     EasyMock.replay(mockContext, mockPropStore, parent);
 
-    PropCacheId1 propCacheId1 = PropCacheId1.forTable(instanceId, TableId.of("a"));
+    PropCacheId propCacheId = PropCacheId.forTable(instanceId, TableId.of("a"));
 
     ZooBasedConfiguration configuration =
-        new ZooBasedConfiguration(log, mockContext, propCacheId1, parent);
+        new ZooBasedConfiguration(log, mockContext, propCacheId, parent);
 
     String v = configuration.get(TABLE_BLOOM_ENABLED);
 
@@ -162,7 +162,7 @@ public class ZooBasedConfigurationTest {
     PropEncoding encoded = new PropEncodingV1();
     encoded.addProperty(TABLE_BLOOM_ENABLED.getKey(), "true");
 
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(encoded);
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(encoded);
 
     ServerContext mockContext = getMockServerContext(instanceId, mockPropStore);
 
@@ -177,10 +177,10 @@ public class ZooBasedConfigurationTest {
 
     EasyMock.replay(mockContext, mockPropStore, parent);
 
-    PropCacheId1 propCacheId1 = PropCacheId1.forTable(instanceId, TableId.of("a"));
+    PropCacheId propCacheId = PropCacheId.forTable(instanceId, TableId.of("a"));
 
     ZooBasedConfiguration configuration =
-        new ZooBasedConfiguration(log, mockContext, propCacheId1, parent);
+        new ZooBasedConfiguration(log, mockContext, propCacheId, parent);
 
     Map<String,String> props = new HashMap<>();
     configuration.getProperties(props, all);
@@ -205,7 +205,7 @@ public class ZooBasedConfigurationTest {
     encoded.addProperty(TABLE_BLOOM_ENABLED.getKey(), "true");
     // simulate write to ZooKeeper
     encoded.toBytes();
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(encoded).times(2);
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(encoded).times(2);
 
     // serialization round-trip will increment dataVersion.
     PropEncoding updated = new PropEncodingV1(encoded.toBytes());
@@ -215,7 +215,7 @@ public class ZooBasedConfigurationTest {
     log.info("Data Version: {}", encoded.getDataVersion());
     log.info("Data Version: {}", updated.getDataVersion());
 
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(updated).once();
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(updated).once();
 
     ServerContext mockContext = getMockServerContext(instanceId, mockPropStore);
 
@@ -230,10 +230,10 @@ public class ZooBasedConfigurationTest {
 
     EasyMock.replay(mockContext, mockPropStore, parent);
 
-    PropCacheId1 propCacheId1 = PropCacheId1.forTable(instanceId, TableId.of("a"));
+    PropCacheId propCacheId = PropCacheId.forTable(instanceId, TableId.of("a"));
 
     ZooBasedConfiguration configuration =
-        new ZooBasedConfiguration(log, mockContext, propCacheId1, parent);
+        new ZooBasedConfiguration(log, mockContext, propCacheId, parent);
 
     long updateCount1 = configuration.getUpdateCount();
     long updateCount2 = configuration.getUpdateCount();
@@ -249,7 +249,7 @@ public class ZooBasedConfigurationTest {
     log.info(String.format("U2: %016x, U3: %016x", updateCount2, updateCount3));
 
     assertTrue(updateCount2 != updateCount3);
-    configuration.changeEvent(propCacheId1);
+    configuration.changeEvent(propCacheId);
 
     assertNotEquals(updateCount2, updateCount3);
 
@@ -267,8 +267,8 @@ public class ZooBasedConfigurationTest {
     PropEncoding encoded2 = new PropEncodingV1();
     encoded2.addProperty(TABLE_BLOOM_ENABLED.getKey(), "true");
 
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(encoded).once();
-    expect(mockPropStore.get(isA(PropCacheId1.class))).andReturn(encoded2).once();
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(encoded).once();
+    expect(mockPropStore.get(isA(PropCacheId.class))).andReturn(encoded2).once();
 
     ServerContext mockContext = getMockServerContext(instanceId, mockPropStore);
 
@@ -277,10 +277,10 @@ public class ZooBasedConfigurationTest {
 
     EasyMock.replay(mockContext, mockPropStore, parent);
 
-    PropCacheId1 propCacheId1 = PropCacheId1.forTable(instanceId, TableId.of("a"));
+    PropCacheId propCacheId = PropCacheId.forTable(instanceId, TableId.of("a"));
 
     ZooBasedConfiguration configuration =
-        new ZooBasedConfiguration(log, mockContext, propCacheId1, parent);
+        new ZooBasedConfiguration(log, mockContext, propCacheId, parent);
 
     // not set
     assertFalse(configuration.isPropertySet(TABLE_BLOOM_ENABLED, false));

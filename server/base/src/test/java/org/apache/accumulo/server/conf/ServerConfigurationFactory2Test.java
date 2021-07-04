@@ -32,7 +32,7 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.server.MockServerContext;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.PropChangeListener;
 import org.apache.accumulo.server.conf2.PropStore;
 import org.junit.Before;
@@ -85,7 +85,7 @@ public class ServerConfigurationFactory2Test {
 
   @Test
   public void getSystemConfiguration() {
-    propStore.registerAsListener(isA(PropCacheId1.class), isA(PropChangeListener.class));
+    propStore.registerAsListener(isA(PropCacheId.class), isA(PropChangeListener.class));
     expectLastCall().anyTimes();
     replay(context, propStore);
     ServerConfiguration2 config = new ServerConfigurationFactory2(context);

@@ -35,7 +35,7 @@ import org.apache.accumulo.server.ServerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PropCacheId1 implements Comparable<PropCacheId1> {
+public class PropCacheIdOneNode implements Comparable<PropCacheIdOneNode> {
 
   public static final String NULL_ID = "-";
   public static final String SEPARATOR = "::";
@@ -45,14 +45,14 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
 
   // TODO - move to Constants
 
-  private static final Logger log = LoggerFactory.getLogger(PropCacheId1.class);
+  private static final Logger log = LoggerFactory.getLogger(PropCacheIdOneNode.class);
   private static final Pattern pathPattern = Pattern.compile(ZROOT + "/(?<uuid>[a-f0-9-]{36})"
       + Constants.ZENCODED_CONFIG_ROOT + "/(?<ns>\\S+)::(?<tid>\\S+)");
   private final String iid;
   private final TableId tid;
   private final NamespaceId nid;
 
-  public PropCacheId1(final String instanceId, final NamespaceId nid, final TableId tid) {
+  public PropCacheIdOneNode(final String instanceId, final NamespaceId nid, final TableId tid) {
     this.iid = requireNonNull(instanceId, "Instance ID cannot be null");
     validateInstanceId(instanceId);
     this.nid = nid;
@@ -79,32 +79,33 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
     return ZROOT + "/" + instanceId + Constants.ZENCODED_CONFIG_ROOT;
   }
 
-  public static PropCacheId1 forSystem(final ServerContext context) {
+  public static PropCacheIdOneNode forSystem(final ServerContext context) {
     return forSystem(context.getInstanceID());
   }
 
-  public static PropCacheId1 forSystem(final String instanceId) {
-    return new PropCacheId1(instanceId, null, null);
+  public static PropCacheIdOneNode forSystem(final String instanceId) {
+    return new PropCacheIdOneNode(instanceId, null, null);
   }
 
-  public static PropCacheId1 forNamespace(final ServerContext context,
+  public static PropCacheIdOneNode forNamespace(final ServerContext context,
       final NamespaceId namespaceId) {
     return forNamespace(context.getInstanceID(), namespaceId);
   }
 
-  public static PropCacheId1 forNamespace(final String instanceId, final NamespaceId namespaceId) {
-    return new PropCacheId1(instanceId, namespaceId, null);
+  public static PropCacheIdOneNode forNamespace(final String instanceId,
+      final NamespaceId namespaceId) {
+    return new PropCacheIdOneNode(instanceId, namespaceId, null);
   }
 
-  public static PropCacheId1 forTable(final ServerContext context, final TableId tableId) {
+  public static PropCacheIdOneNode forTable(final ServerContext context, final TableId tableId) {
     return forTable(context.getInstanceID(), tableId);
   }
 
-  public static PropCacheId1 forTable(final String instanceId, final TableId tableId) {
-    return new PropCacheId1(instanceId, null, tableId);
+  public static PropCacheIdOneNode forTable(final String instanceId, final TableId tableId) {
+    return new PropCacheIdOneNode(instanceId, null, tableId);
   }
 
-  public static Optional<PropCacheId1> fromPath(final String path) {
+  public static Optional<PropCacheIdOneNode> fromPath(final String path) {
     Objects.requireNonNull(path, "path must be provided");
 
     Matcher matcher = pathPattern.matcher(path);
@@ -118,7 +119,7 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
       var ns = parseNamespaceId(matcher.group("ns"));
       var tid = parseTableId(matcher.group("tid"));
 
-      return Optional.of(new PropCacheId1(iid, ns, tid));
+      return Optional.of(new PropCacheIdOneNode(iid, ns, tid));
     }
 
     return Optional.empty();
@@ -239,7 +240,7 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
       return true;
     if (o == null || getClass() != o.getClass())
       return false;
-    PropCacheId1 propCacheId1 = (PropCacheId1) o;
+    PropCacheIdOneNode propCacheId1 = (PropCacheIdOneNode) o;
     return Objects.equals(tid, propCacheId1.tid) && Objects.equals(nid, propCacheId1.nid)
         && Objects.equals(iid, propCacheId1.iid);
   }
@@ -250,13 +251,13 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
   }
 
   @Override
-  public int compareTo(PropCacheId1 other) {
+  public int compareTo(PropCacheIdOneNode other) {
     if (Objects.isNull(other)) {
       throw new IllegalArgumentException("Value to compare cannot be null");
     }
-    return Comparator.comparing(PropCacheId1::getIID)
-        .thenComparing(PropCacheId1::getTableIdCanonical)
-        .thenComparing(PropCacheId1::getNamespaceIdCanonical).compare(this, other);
+    return Comparator.comparing(PropCacheIdOneNode::getIID)
+        .thenComparing(PropCacheIdOneNode::getTableIdCanonical)
+        .thenComparing(PropCacheIdOneNode::getNamespaceIdCanonical).compare(this, other);
   }
 
   /**
@@ -270,11 +271,11 @@ public class PropCacheId1 implements Comparable<PropCacheId1> {
    * Sort by PropCacheId1 key with primary sort by system, namespace and then tables and then
    * alphabetically within each group.
    */
-  public static class GroupByTypeComparator implements Comparator<PropCacheId1> {
+  public static class GroupByTypeComparator implements Comparator<PropCacheIdOneNode> {
     Comparator<String> groupNames = new GroupByTypeNamesComparator();
 
     @Override
-    public int compare(PropCacheId1 o1, PropCacheId1 o2) {
+    public int compare(PropCacheIdOneNode o1, PropCacheIdOneNode o2) {
       return groupNames.compare(o1.asKey(), o2.asKey());
     }
   }

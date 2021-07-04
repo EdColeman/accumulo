@@ -43,7 +43,7 @@ import org.apache.accumulo.server.conf.ServerConfigurationFactory;
 import org.apache.accumulo.server.conf.ServerConfigurationFactory2;
 import org.apache.accumulo.server.conf.TableConfiguration;
 import org.apache.accumulo.server.conf.TableConfiguration2;
-import org.apache.accumulo.server.conf2.PropCacheId1;
+import org.apache.accumulo.server.conf2.PropCacheId;
 import org.apache.accumulo.server.conf2.codec.PropEncoding;
 import org.apache.accumulo.server.conf2.codec.PropEncodingV1;
 import org.apache.accumulo.test.functional.ConfigurableMacBase;
@@ -132,9 +132,10 @@ public class SystemConfigurationIT extends ConfigurableMacBase {
       c.namespaceOperations().create(ns1Id.canonical());
     }
 
-    PropCacheId1 ns1 = PropCacheId1.forNamespace(context.getInstanceID(), ns1Id);
+    PropCacheId ns1 = PropCacheId.forNamespace(context.getInstanceID(), ns1Id);
     PropEncoding defaultNsProps = new PropEncodingV1();
-    zooKeeper.create(ns1.path(), defaultNsProps.toBytes(), ZooUtil.PUBLIC, CreateMode.PERSISTENT);
+    zooKeeper.create(ns1.getPath(), defaultNsProps.toBytes(), ZooUtil.PUBLIC,
+        CreateMode.PERSISTENT);
 
     ServerConfiguration config1 =
         new ServerConfigurationFactory(context, context.getSiteConfiguration());
@@ -178,15 +179,16 @@ public class SystemConfigurationIT extends ConfigurableMacBase {
 
     }
 
-    PropCacheId1 nsDefaultId = PropCacheId1.forNamespace(context.getInstanceID(), namespaceId);
-    PropCacheId1 t1CID = PropCacheId1.forTable(context.getInstanceID(), tid1);
+    PropCacheId nsDefaultId = PropCacheId.forNamespace(context.getInstanceID(), namespaceId);
+    PropCacheId t1CID = PropCacheId.forTable(context.getInstanceID(), tid1);
 
     log.info("table config creating ids and nodes. ns: {}, t1 {}", nsDefaultId, t1CID);
 
     PropEncoding defaultProps = new PropEncodingV1();
-    zooKeeper.create(nsDefaultId.path(), defaultProps.toBytes(), ZooUtil.PUBLIC,
+    zooKeeper.create(nsDefaultId.getPath(), defaultProps.toBytes(), ZooUtil.PUBLIC,
         CreateMode.PERSISTENT);
-    zooKeeper.create(t1CID.path(), defaultProps.toBytes(), ZooUtil.PUBLIC, CreateMode.PERSISTENT);
+    zooKeeper.create(t1CID.getPath(), defaultProps.toBytes(), ZooUtil.PUBLIC,
+        CreateMode.PERSISTENT);
 
     ServerConfiguration config1 =
         new ServerConfigurationFactory(context, context.getSiteConfiguration());
