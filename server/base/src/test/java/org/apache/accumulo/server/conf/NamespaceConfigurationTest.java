@@ -19,14 +19,17 @@
 package org.apache.accumulo.server.conf;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -35,17 +38,27 @@ import java.util.function.Predicate;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
+import org.apache.accumulo.core.conf.ConfigurationCopy;
+import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
-import org.apache.accumulo.server.MockServerContext;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.conf2.PropStore;
+import org.apache.accumulo.server.conf2.impl.ZooPropStore;
+import org.apache.zookeeper.ZooKeeper;
+import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NamespaceConfigurationTest {
+
+  private static final Logger log = LoggerFactory.getLogger(NamespaceConfigurationTest.class);
+
   private static final NamespaceId NSID = NamespaceId.of("namespace");
   private static final String ZOOKEEPERS = "localhost";
   private static final int ZK_SESSION_TIMEOUT = 120000;
@@ -53,21 +66,45 @@ public class NamespaceConfigurationTest {
   private String iid;
   private ServerContext context;
   private AccumuloConfiguration parent;
+  private ZooKeeper zooKeeper;
   private ZooCacheFactory zcf;
   private ZooCache zc;
   private NamespaceConfiguration c;
 
+  private PropStore propStore;
+
+  static ServerContext mockSeverContext(final String instanceID) {
+    ServerContext sc = EasyMock.createMock(ServerContext.class);
+    ConfigurationCopy conf = new ConfigurationCopy(DefaultConfiguration.getInstance());
+    conf.set(Property.INSTANCE_VOLUMES, "file:///");
+    expect(sc.getZooKeeperRoot()).andReturn("/accumulo/" + instanceID).anyTimes();
+    expect(sc.getInstanceID()).andReturn(instanceID).anyTimes();
+    return sc;
+  }
+
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
+
     iid = UUID.randomUUID().toString();
 
-    context = MockServerContext.getWithZK(iid, ZOOKEEPERS, ZK_SESSION_TIMEOUT);
-    parent = createMock(AccumuloConfiguration.class);
-    replay(context);
+    context = mockSeverContext(iid); // MockServerContext.getWithZK(iid, ZOOKEEPERS,
+                                     // ZK_SESSION_TIMEOUT);
+
+    propStore = createMock(ZooPropStore.class);
+
+    propStore.registerAsListener(anyObject(), anyObject());
+    expectLastCall();
+    expect(propStore.readFixed()).andReturn(Collections.emptyMap()).anyTimes();
+
+    parent = createMock(SystemConfiguration2.class);
+
+    expect(context.getPropStore()).andReturn(propStore).anyTimes();
+
+    replay(context, parent, propStore);
 
     c = new NamespaceConfiguration(NSID, context, parent);
     zcf = createMock(ZooCacheFactory.class);
-    c.setZooCacheFactory(zcf);
+    // c.setZooCacheFactory(zcf);
 
     zc = createMock(ZooCache.class);
     expect(zcf.getZooCache(eq(ZOOKEEPERS), eq(ZK_SESSION_TIMEOUT))).andReturn(zc);
@@ -83,10 +120,16 @@ public class NamespaceConfigurationTest {
   @Test
   public void testGet_InZK() {
     Property p = Property.INSTANCE_SECRET;
+    SystemConfiguration2 sysConfig = createMock(SystemConfiguration2.class);
+    expect(sysConfig.get(Property.INSTANCE_SECRET)).andReturn("sekrit");
+    replay(sysConfig);
+
     expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + NSID
         + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn("sekrit".getBytes(UTF_8));
     replay(zc);
-    assertEquals("sekrit", c.get(Property.INSTANCE_SECRET));
+
+    String read = c.get(Property.INSTANCE_SECRET);
+    assertEquals("sekrit", read);
   }
 
   @Test
@@ -103,7 +146,7 @@ public class NamespaceConfigurationTest {
   @Test
   public void testGet_SkipParentIfAccumuloNS() {
     c = new NamespaceConfiguration(Namespace.ACCUMULO.id(), context, parent);
-    c.setZooCacheFactory(zcf);
+    // c.setZooCacheFactory(zcf);
     Property p = Property.INSTANCE_SECRET;
     expect(zc.get(ZooUtil.getRoot(iid) + Constants.ZNAMESPACES + "/" + Namespace.ACCUMULO.id()
         + Constants.ZNAMESPACE_CONF + "/" + p.getKey())).andReturn(null);

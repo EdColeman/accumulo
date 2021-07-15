@@ -29,11 +29,11 @@ import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.conf2.PropStore;
 
 /**
- * A factor for configurations used by a server process. Instance of this class are thread-safe.
+ * A factory for configurations used by a server process. Instance of this class are thread-safe.
  */
 public class ServerConfigurationFactory extends ServerConfiguration {
 
@@ -42,6 +42,23 @@ public class ServerConfigurationFactory extends ServerConfiguration {
       new HashMap<>(1);
   private static final Map<String,Map<TableId,NamespaceConfiguration>> tableParentConfigs =
       new HashMap<>(1);
+
+  private final ServerContext context;
+  private final SiteConfiguration siteConfig;
+  private final String instanceID;
+  private final PropStore propStore;
+  private DefaultConfiguration defaultConfig = null;
+  private SystemConfiguration2 systemConfig = null;
+
+  public ServerConfigurationFactory(final ServerContext context, SiteConfiguration siteConfig) {
+    this.context = context;
+    this.siteConfig = siteConfig;
+    propStore = context.getPropStore();
+    instanceID = context.getInstanceID();
+
+    addInstanceToCaches(instanceID);
+
+  }
 
   private static void addInstanceToCaches(String iid) {
     synchronized (tableConfigs) {
@@ -55,59 +72,43 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     }
   }
 
-  static void clearCachedConfigurations() {
-    synchronized (tableConfigs) {
-      tableConfigs.clear();
-    }
-    synchronized (namespaceConfigs) {
-      namespaceConfigs.clear();
-    }
-    synchronized (tableParentConfigs) {
-      tableParentConfigs.clear();
-    }
-  }
-
-  private final ServerContext context;
-  private final SiteConfiguration siteConfig;
-  private final String instanceID;
-  private ZooCacheFactory zcf = new ZooCacheFactory();
-
-  public ServerConfigurationFactory(ServerContext context, SiteConfiguration siteConfig) {
-    this.context = context;
-    this.siteConfig = siteConfig;
-    instanceID = context.getInstanceID();
-    addInstanceToCaches(instanceID);
-  }
-
   public ServerContext getServerContext() {
     return context;
   }
-
-  void setZooCacheFactory(ZooCacheFactory zcf) {
-    this.zcf = zcf;
-  }
-
-  private DefaultConfiguration defaultConfig = null;
-  private AccumuloConfiguration systemConfig = null;
 
   public SiteConfiguration getSiteConfiguration() {
     return siteConfig;
   }
 
-  public synchronized DefaultConfiguration getDefaultConfiguration() {
-    if (defaultConfig == null) {
-      defaultConfig = DefaultConfiguration.getInstance();
-    }
-    return defaultConfig;
-  }
-
-  @Override
   public synchronized AccumuloConfiguration getSystemConfiguration() {
     if (systemConfig == null) {
-      systemConfig =
-          new ZooConfigurationFactory().getInstance(context, zcf, getSiteConfiguration());
+      systemConfig = new SystemConfiguration2(context);
     }
     return systemConfig;
+  }
+
+  public NamespaceConfiguration getNamespaceConfigurationForTable(TableId tableId) {
+
+    NamespaceConfiguration conf;
+    synchronized (tableParentConfigs) {
+      conf = tableParentConfigs.get(instanceID).get(tableId);
+    }
+    // can't hold the lock during the construction and validation of the config,
+    // which may result in creating multiple objects for the same id, but that's ok.
+    if (conf == null) {
+      NamespaceId namespaceId;
+      try {
+        namespaceId = Tables.getNamespaceId(context, tableId);
+      } catch (TableNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+      conf = new NamespaceConfiguration(namespaceId, context, getSystemConfiguration());
+      ConfigSanityCheck.validate(conf);
+      synchronized (tableParentConfigs) {
+        tableParentConfigs.get(instanceID).put(tableId, conf);
+      }
+    }
+    return conf;
   }
 
   @Override
@@ -145,29 +146,6 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     return conf;
   }
 
-  public NamespaceConfiguration getNamespaceConfigurationForTable(TableId tableId) {
-    NamespaceConfiguration conf;
-    synchronized (tableParentConfigs) {
-      conf = tableParentConfigs.get(instanceID).get(tableId);
-    }
-    // can't hold the lock during the construction and validation of the config,
-    // which may result in creating multiple objects for the same id, but that's ok.
-    if (conf == null) {
-      NamespaceId namespaceId;
-      try {
-        namespaceId = Tables.getNamespaceId(context, tableId);
-      } catch (TableNotFoundException e) {
-        throw new RuntimeException(e);
-      }
-      conf = new NamespaceConfiguration(namespaceId, context, getSystemConfiguration());
-      ConfigSanityCheck.validate(conf);
-      synchronized (tableParentConfigs) {
-        tableParentConfigs.get(instanceID).put(tableId, conf);
-      }
-    }
-    return conf;
-  }
-
   @Override
   public NamespaceConfiguration getNamespaceConfiguration(NamespaceId namespaceId) {
     NamespaceConfiguration conf;
@@ -179,7 +157,6 @@ public class ServerConfigurationFactory extends ServerConfiguration {
     if (conf == null) {
       // changed - include instance in constructor call
       conf = new NamespaceConfiguration(namespaceId, context, getSystemConfiguration());
-      conf.setZooCacheFactory(zcf);
       ConfigSanityCheck.validate(conf);
       synchronized (namespaceConfigs) {
         namespaceConfigs.get(instanceID).put(namespaceId, conf);

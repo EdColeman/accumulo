@@ -63,7 +63,7 @@ public class TableConfigurationTest {
     parent = createMock(NamespaceConfiguration.class);
     c = new TableConfiguration(context, TID, parent);
     zcf = createMock(ZooCacheFactory.class);
-    c.setZooCacheFactory(zcf);
+    // c.setZooCacheFactory(zcf);
 
     zc = createMock(ZooCache.class);
     expect(zcf.getZooCache(eq(ZOOKEEPERS), eq(ZK_SESSION_TIMEOUT))).andReturn(zc);

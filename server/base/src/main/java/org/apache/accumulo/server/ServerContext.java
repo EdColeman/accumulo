@@ -21,6 +21,7 @@ package org.apache.accumulo.server;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.util.Objects;
 
 import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
@@ -35,12 +36,14 @@ import org.apache.accumulo.core.metadata.schema.Ample;
 import org.apache.accumulo.core.rpc.SslConnectionParams;
 import org.apache.accumulo.core.singletons.SingletonReservation;
 import org.apache.accumulo.core.spi.crypto.CryptoService;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.server.conf.NamespaceConfiguration;
 import org.apache.accumulo.server.conf.ServerConfigurationFactory;
 import org.apache.accumulo.server.conf.TableConfiguration;
-import org.apache.accumulo.server.conf.ZooConfiguration;
+import org.apache.accumulo.server.conf.ZooBasedConfiguration;
+import org.apache.accumulo.server.conf2.PropCacheId;
+import org.apache.accumulo.server.conf2.PropStore;
+import org.apache.accumulo.server.conf2.impl.PropStoreFactory;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.metadata.ServerAmpleImpl;
 import org.apache.accumulo.server.rpc.SaslServerConnectionParams;
@@ -50,6 +53,8 @@ import org.apache.accumulo.server.security.delegation.AuthenticationTokenSecretM
 import org.apache.accumulo.server.tables.TableManager;
 import org.apache.accumulo.server.tablets.UniqueNameAllocator;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides a server context for Accumulo server components that operate with the system credentials
@@ -57,8 +62,11 @@ import org.apache.hadoop.security.UserGroupInformation;
  */
 public class ServerContext extends ClientContext {
 
+  private final Logger log = LoggerFactory.getLogger(ServerContext.class);
+
   private final ServerInfo info;
   private final ZooReaderWriter zooReaderWriter;
+  private PropStore propStore;
   private TableManager tableManager;
   private UniqueNameAllocator nameAllocator;
   private ServerConfigurationFactory serverConfFactory = null;
@@ -126,8 +134,8 @@ public class ServerContext extends ClientContext {
   @Override
   public AccumuloConfiguration getConfiguration() {
     if (systemConfig == null) {
-      ZooCache propCache = new ZooCache(getZooKeepers(), getZooKeepersSessionTimeOut());
-      systemConfig = new ZooConfiguration(this, propCache, getSiteConfiguration());
+      systemConfig = new ZooBasedConfiguration(log, this, PropCacheId.forSystem(getInstanceID()),
+          getSiteConfiguration());
     }
     return systemConfig;
   }
@@ -223,12 +231,12 @@ public class ServerContext extends ClientContext {
     }
   }
 
-  public void setSecretManager(AuthenticationTokenSecretManager secretManager) {
-    this.secretManager = secretManager;
-  }
-
   public AuthenticationTokenSecretManager getSecretManager() {
     return secretManager;
+  }
+
+  public void setSecretManager(AuthenticationTokenSecretManager secretManager) {
+    this.secretManager = secretManager;
   }
 
   public synchronized TableManager getTableManager() {
@@ -257,4 +265,11 @@ public class ServerContext extends ClientContext {
     return new ServerAmpleImpl(this);
   }
 
+  public synchronized PropStore getPropStore() {
+    if (Objects.isNull(propStore)) {
+      propStore =
+          new PropStoreFactory().withZk(getZooReaderWriter()).forInstance(getInstanceID()).build();
+    }
+    return propStore;
+  }
 }

@@ -27,6 +27,7 @@ import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.manager.Manager;
 import org.apache.accumulo.manager.tableOps.ManagerRepo;
 import org.apache.accumulo.manager.tableOps.Utils;
+import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.tables.TableManager;
 import org.apache.accumulo.server.util.NamespacePropUtil;
 
@@ -54,9 +55,10 @@ class PopulateZookeeperWithNamespace extends ManagerRepo {
       Utils.checkNamespaceDoesNotExist(manager.getContext(), namespaceInfo.namespaceName,
           namespaceInfo.namespaceId, TableOperation.CREATE);
 
-      TableManager.prepareNewNamespaceState(manager.getContext().getZooReaderWriter(),
-          manager.getInstanceID(), namespaceInfo.namespaceId, namespaceInfo.namespaceName,
-          NodeExistsPolicy.OVERWRITE);
+      TableManager.prepareNewNamespaceState(manager.getContext(), namespaceInfo.namespaceId,
+          namespaceInfo.namespaceName, NodeExistsPolicy.OVERWRITE);
+
+      ServerContext c = manager.getContext();
 
       for (Entry<String,String> entry : namespaceInfo.props.entrySet())
         NamespacePropUtil.setNamespaceProperty(manager.getContext(), namespaceInfo.namespaceId,

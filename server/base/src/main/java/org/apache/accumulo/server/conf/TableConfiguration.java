@@ -18,19 +18,14 @@
  */
 package org.apache.accumulo.server.conf;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.classloader.ClassLoaderUtil;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.IterConfigUtil;
@@ -41,23 +36,15 @@ import org.apache.accumulo.core.iterators.IteratorUtil.IteratorScope;
 import org.apache.accumulo.core.spi.common.ServiceEnvironment;
 import org.apache.accumulo.core.spi.compaction.CompactionDispatcher;
 import org.apache.accumulo.core.spi.scan.ScanDispatcher;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
-import org.apache.accumulo.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.ServiceEnvironmentImpl;
-import org.apache.accumulo.server.conf.ZooCachePropertyAccessor.PropCacheKey;
+import org.apache.accumulo.server.conf2.PropCacheId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class TableConfiguration extends AccumuloConfiguration {
+public class TableConfiguration extends ZooBasedConfiguration {
 
-  private static final Map<PropCacheKey,ZooCache> propCaches = new java.util.HashMap<>();
-
-  private final AtomicReference<ZooCachePropertyAccessor> propCacheAccessor =
-      new AtomicReference<>();
-  private final ServerContext context;
-  private final NamespaceConfiguration parent;
-  private ZooCacheFactory zcf = new ZooCacheFactory();
-
-  private final TableId tableId;
+  private static final Logger log = LoggerFactory.getLogger(TableConfiguration.class);
 
   private final EnumMap<IteratorScope,Deriver<ParsedIteratorConfig>> iteratorConfig;
 
@@ -65,9 +52,7 @@ public class TableConfiguration extends AccumuloConfiguration {
   private final Deriver<CompactionDispatcher> compactionDispatchDeriver;
 
   public TableConfiguration(ServerContext context, TableId tableId, NamespaceConfiguration parent) {
-    this.context = requireNonNull(context);
-    this.tableId = requireNonNull(tableId);
-    this.parent = requireNonNull(parent);
+    super(log, context, PropCacheId.forTable(context, tableId), parent);
 
     iteratorConfig = new EnumMap<>(IteratorScope.class);
     for (IteratorScope scope : IteratorScope.values()) {
@@ -82,126 +67,6 @@ public class TableConfiguration extends AccumuloConfiguration {
     scanDispatchDeriver = newDeriver(conf -> createScanDispatcher(conf, context, tableId));
     compactionDispatchDeriver =
         newDeriver(conf -> createCompactionDispatcher(conf, context, tableId));
-  }
-
-  void setZooCacheFactory(ZooCacheFactory zcf) {
-    this.zcf = zcf;
-  }
-
-  private ZooCache getZooCache() {
-    synchronized (propCaches) {
-      PropCacheKey key = new PropCacheKey(context.getInstanceID(), tableId.canonical());
-      ZooCache propCache = propCaches.get(key);
-      if (propCache == null) {
-        propCache = zcf.getZooCache(context.getZooKeepers(), context.getZooKeepersSessionTimeOut());
-        propCaches.put(key, propCache);
-      }
-      return propCache;
-    }
-  }
-
-  private ZooCachePropertyAccessor getPropCacheAccessor() {
-    // updateAndGet below always calls compare and set, so avoid if not null
-    ZooCachePropertyAccessor zcpa = propCacheAccessor.get();
-    if (zcpa != null) {
-      return zcpa;
-    }
-
-    return propCacheAccessor
-        .updateAndGet(pca -> pca == null ? new ZooCachePropertyAccessor(getZooCache()) : pca);
-  }
-
-  private String getPath() {
-    return context.getZooKeeperRoot() + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_CONF;
-  }
-
-  @Override
-  public boolean isPropertySet(Property prop, boolean cacheAndWatch) {
-    if (!cacheAndWatch) {
-      throw new UnsupportedOperationException(
-          "Table configuration only supports checking if a property is set in cache.");
-    }
-
-    if (getPropCacheAccessor().isPropertySet(prop, getPath())) {
-      return true;
-    }
-
-    return parent.isPropertySet(prop, cacheAndWatch);
-  }
-
-  @Override
-  public String get(Property property) {
-    return getPropCacheAccessor().get(property, getPath(), parent);
-  }
-
-  @Override
-  public void getProperties(Map<String,String> props, Predicate<String> filter) {
-    getPropCacheAccessor().getProperties(props, getPath(), filter, parent, null);
-  }
-
-  public TableId getTableId() {
-    return tableId;
-  }
-
-  /**
-   * Gets the parent configuration of this configuration.
-   *
-   * @return parent configuration
-   */
-  public NamespaceConfiguration getParentConfiguration() {
-    return parent;
-  }
-
-  @Override
-  public synchronized void invalidateCache() {
-    ZooCachePropertyAccessor pca = propCacheAccessor.get();
-
-    if (pca != null) {
-      pca.invalidateCache();
-    }
-    // Else, if the accessor is null, we could lock and double-check
-    // to see if it happened to be created so we could invalidate its cache
-    // but I don't see much benefit coming from that extra check.
-  }
-
-  @Override
-  public String toString() {
-    return this.getClass().getSimpleName();
-  }
-
-  @Override
-  public long getUpdateCount() {
-    return parent.getUpdateCount() + getPropCacheAccessor().getZooCache().getUpdateCount();
-  }
-
-  public static class ParsedIteratorConfig {
-    private final List<IterInfo> tableIters;
-    private final Map<String,Map<String,String>> tableOpts;
-    private final String context;
-
-    private ParsedIteratorConfig(List<IterInfo> ii, Map<String,Map<String,String>> opts,
-        String context) {
-      this.tableIters = List.copyOf(ii);
-      tableOpts = opts.entrySet().stream()
-          .collect(Collectors.toUnmodifiableMap(Entry::getKey, e -> Map.copyOf(e.getValue())));
-      this.context = context;
-    }
-
-    public List<IterInfo> getIterInfo() {
-      return tableIters;
-    }
-
-    public Map<String,Map<String,String>> getOpts() {
-      return tableOpts;
-    }
-
-    public String getServiceEnv() {
-      return context;
-    }
-  }
-
-  public ParsedIteratorConfig getParsedIteratorConfig(IteratorScope scope) {
-    return iteratorConfig.get(scope).derive();
   }
 
   private static ScanDispatcher createScanDispatcher(AccumuloConfiguration conf,
@@ -266,11 +131,70 @@ public class TableConfiguration extends AccumuloConfiguration {
     return newDispatcher;
   }
 
+  public TableId getTableId() {
+    return getCacheId().getTableId().orElseThrow(
+        () -> new IllegalArgumentException("Invalid request fro table id on " + getCacheId()));
+  }
+
+  @Override
+  public String getValid(Property property) {
+    return super.getValid(property);
+  }
+
+  // @Override
+  // public void getProperties(Map<String,String> props, Predicate<String> filter) {
+  // getPropCacheAccessor().getProperties(props, getPath(), filter, parent, null);
+  // }
+
+  /**
+   * Gets the parent configuration of this configuration.
+   *
+   * @return parent configuration
+   */
+  public NamespaceConfiguration getParentConfiguration() {
+    return (NamespaceConfiguration) getParent();
+  }
+
+  @Override
+  public String toString() {
+    return this.getClass().getSimpleName();
+  }
+
+  public ParsedIteratorConfig getParsedIteratorConfig(IteratorScope scope) {
+    return iteratorConfig.get(scope).derive();
+  }
+
   public ScanDispatcher getScanDispatcher() {
     return scanDispatchDeriver.derive();
   }
 
   public CompactionDispatcher getCompactionDispatcher() {
     return compactionDispatchDeriver.derive();
+  }
+
+  public static class ParsedIteratorConfig {
+    private final List<IterInfo> tableIters;
+    private final Map<String,Map<String,String>> tableOpts;
+    private final String context;
+
+    private ParsedIteratorConfig(List<IterInfo> ii, Map<String,Map<String,String>> opts,
+        String context) {
+      this.tableIters = List.copyOf(ii);
+      tableOpts = opts.entrySet().stream()
+          .collect(Collectors.toUnmodifiableMap(Entry::getKey, e -> Map.copyOf(e.getValue())));
+      this.context = context;
+    }
+
+    public List<IterInfo> getIterInfo() {
+      return tableIters;
+    }
+
+    public Map<String,Map<String,String>> getOpts() {
+      return tableOpts;
+    }
+
+    public String getServiceEnv() {
+      return context;
+    }
   }
 }
