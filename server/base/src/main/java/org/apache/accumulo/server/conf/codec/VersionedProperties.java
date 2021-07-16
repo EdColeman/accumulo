@@ -21,7 +21,7 @@ package org.apache.accumulo.server.conf.codec;
 import java.time.Instant;
 import java.util.Map;
 
-public interface PropEncoding {
+public interface VersionedProperties {
 
   /**
    * Add a property. If the property already exists it is overwritten.
@@ -49,6 +49,13 @@ public interface PropEncoding {
    * @return the property value.
    */
   String getProperty(String key);
+
+  /**
+   * Get an unmodifiable map with all of the property, values.
+   *
+   * @return An unmodifiable view of the property key, values.
+   */
+  Map<String,String> getAllProperties();
 
   /**
    * Delete a property.
@@ -80,22 +87,15 @@ public interface PropEncoding {
   /**
    * The version is incremented with a call to toBytes() - this method returns the value that should
    * reflect the current version in the backing store. The expected usage is that the properties
-   * will be serialized into a byte array with a call {@link #toBytes()} - that will increment the
-   * data version - then, this method will reflect the value that is currently in zookeeper and is
-   * the value that needs to be passed to the zookeeper setData methods. If this version and the
+   * will be serialized into a byte array with a call to an encoder - that will increment the data
+   * version - then, this method will reflect the value that is currently in zookeeper and is the
+   * value that needs to be passed to the zookeeper setData methods. If this version and the
    * ZooKeeper version do not match, ZooKeeper will throw an exception because or unexpected
    * version.
    *
    * @return the expected version current in the backend store.
    */
   int getExpectedVersion();
-
-  /**
-   * Serialize the version information and the properties.
-   *
-   * @return an array of bytes for storage.
-   */
-  byte[] toBytes();
 
   /**
    * Provide user-friend display string.
@@ -106,17 +106,5 @@ public interface PropEncoding {
    */
   String print(boolean prettyPrint);
 
-  /**
-   * Get an unmodifiable map with all of the property, values.
-   *
-   * @return An unmodifiable view of the property key, values.
-   */
-  Map<String,String> getAllProperties();
-
-  /**
-   * Determine if the stage of the props is compressed or not.
-   *
-   * @return true if the underlying encoded props are compressed when stored.
-   */
-  boolean isCompressed();
+  void updateVersionInfo(VersionInfo versionInfo);
 }
