@@ -85,13 +85,17 @@ public class ErrorThrowingIterator extends WrappingIterator {
 
           switch (exType) {
             case "IllegalStateException":
+              log.info("testing: throwing a forced IllegalStateException");
               throw new IllegalStateException(exMsg + ": " + exType);
             case "IOException":
+              log.info("testing: throwing a forced IOException");
               throw new IOException(exMsg + ": " + exType);
             case "AccumuloException":
+              log.info("testing: throwing a forced AccumuloException as UnsupportedOperationException");
               throw new UnsupportedOperationException(
                   "AccumuloException not supported, message " + exMsg);
             default:
+              log.info("testing: throwing a forced Exception as an UnsupportedOperationException");
               throw new UnsupportedOperationException(
                   "unknown exception type requested: " + exType + " message: " + exMsg);
           }

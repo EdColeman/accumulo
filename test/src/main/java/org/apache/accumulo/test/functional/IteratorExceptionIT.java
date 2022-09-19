@@ -22,6 +22,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +38,7 @@ import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableExistsException;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.client.admin.CompactionConfig;
 import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.Key;
@@ -88,8 +90,14 @@ public class IteratorExceptionIT extends AccumuloClusterHarness {
   @Test
   public void cleanScan() throws Exception {
     String tableName = getUniqueNames(1)[0];
-    createData(tableName);
-    client.tableOperations().flush(tableName, null, null, false);
+    createData(tableName, "");
+
+    CompactionConfig compactConfig = new CompactionConfig();
+    compactConfig.setFlush(true);
+    compactConfig.setWait(true);
+    log.info("Compaction completed");
+    client.tableOperations().compact(tableName, compactConfig);
+
     sleepUninterruptibly(1, TimeUnit.SECONDS);
 
     IteratorSetting is = new IteratorSetting(30, ErrorThrowingIterator.class);
@@ -100,7 +108,28 @@ public class IteratorExceptionIT extends AccumuloClusterHarness {
     assertEquals(NUM_DATA_ROWS, scanCount(tableName));
   }
 
-  private void createData(final String tableName) throws AccumuloException, TableExistsException,
+  @Test
+  public void nextIOExceptionOnScan() throws Exception {
+    String tableName = getUniqueNames(1)[0];
+    String exStr =
+            ErrorThrowingIterator.Cmd.build(new IOException(), "next", " forced IOException for testing");
+    log.info("trigger data: {}",exStr);
+    createData(tableName, exStr);
+    CompactionConfig compactConfig = new CompactionConfig();
+    compactConfig.setFlush(true);
+    compactConfig.setWait(true);
+    log.info("Compaction completed");
+    client.tableOperations().compact(tableName, compactConfig);
+
+    sleepUninterruptibly(1, TimeUnit.SECONDS);
+
+    IteratorSetting is = new IteratorSetting(30, ErrorThrowingIterator.class);
+    client.tableOperations().attachIterator(tableName, is, EnumSet.of(IteratorUtil.IteratorScope.scan));
+
+    assertEquals(NUM_DATA_ROWS, scanCount(tableName));
+  }
+
+  private void createData(final String tableName, final String supplement) throws AccumuloException, TableExistsException,
       AccumuloSecurityException, TableNotFoundException {
     client.tableOperations().create(tableName);
     log.info("Created table id: {}, name \'{}\'",
@@ -110,6 +139,12 @@ public class IteratorExceptionIT extends AccumuloClusterHarness {
       for (int i = 0; i < NUM_DATA_ROWS; i++) {
         Mutation m = new Mutation(new Text(String.format("%05d", i)));
         m.put("col" + ((i % 3) + 1), "qual", i + ":junk");
+        bw.addMutation(m);
+      }
+      if(supplement != null && !supplement.isEmpty()){
+        int row = NUM_DATA_ROWS / 2;
+        Mutation m = new Mutation(new Text(String.format("%05d-added", row)));
+        m.put("col" + ((row % 3) + 1), "qual", supplement);
         bw.addMutation(m);
       }
     }
