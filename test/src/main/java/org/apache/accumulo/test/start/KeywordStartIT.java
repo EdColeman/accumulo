@@ -73,6 +73,7 @@ import org.apache.accumulo.start.spi.KeywordExecutable;
 import org.apache.accumulo.tserver.ScanServerExecutable;
 import org.apache.accumulo.tserver.TServerExecutable;
 import org.apache.accumulo.tserver.TabletServer;
+import org.apache.accumulo.tserver.logger.DumpWalTransaction;
 import org.apache.accumulo.tserver.logger.LogReader;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -155,6 +156,7 @@ public class KeywordStartIT {
     expectSet.put("tserver", TServerExecutable.class);
     expectSet.put("version", Version.class);
     expectSet.put("wal-info", LogReader.class);
+    expectSet.put("wal-transaction-info", DumpWalTransaction.class);
     expectSet.put("zoo-info-viewer", ZooInfoViewer.class);
     expectSet.put("zoo-prop-editor", ZooPropEditor.class);
     expectSet.put("zoo-zap", ZooZap.class);
