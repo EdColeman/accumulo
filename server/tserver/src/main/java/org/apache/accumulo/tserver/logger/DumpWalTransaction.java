@@ -18,10 +18,15 @@
  */
 package org.apache.accumulo.tserver.logger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.accumulo.core.Constants.ZROOT;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.cli.ConfigOpts;
@@ -29,9 +34,11 @@ import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.fate.zookeeper.ZooReader;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
@@ -42,6 +49,8 @@ import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.start.spi.KeywordExecutable;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.zookeeper.KeeperException;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +63,9 @@ public class DumpWalTransaction implements KeywordExecutable {
   private static final Logger LOG = LoggerFactory.getLogger(DumpWalTransaction.class);
 
   private final Opts opts = new Opts();
+
+  private InstanceId instanceId;
+  private ZooReader zooReader;
 
   static class Opts extends ConfigOpts {
     @Parameter(names = {"-a", "--archive-only"}, description = "copy wals for later analysis")
@@ -93,6 +105,9 @@ public class DumpWalTransaction implements KeywordExecutable {
 
     try (ServerContext context = new ServerContext(siteConfig)) {
 
+      instanceId = context.getInstanceID();
+      zooReader = context.getZooReader();
+
       VolumeManager vm = context.getVolumeManager();
       var chooserEnv = new VolumeChooserEnvironmentImpl(
           org.apache.accumulo.core.spi.fs.VolumeChooserEnvironment.Scope.LOGGER, context);
@@ -114,12 +129,20 @@ public class DumpWalTransaction implements KeywordExecutable {
 
       LOG.warn("options table names: {}", opts.tables);
 
-      metadataScanner(context.getProperties(), opts.tables.get(0));
+      List<Map.Entry<Key,Value>> locs =
+          metadataLocScanner(context.getProperties(), opts.tables.get(0));
+      locs.forEach(l -> LOG.info("K: {}, V: {}", l.getKey(), l.getValue()));
+      Set<String> zkPathBase = buildZkWalBase(locs);
+      Set<String> zkPaths = buildZkWalPaths(zkPathBase);
+      zkPaths.forEach(z -> LOG.info("zk: {}", z));
+      Set<String> walFiles = readWalsFromZk(zkPaths);
+      walFiles.forEach(wal -> LOG.warn("Hadoop wal file: {}", wal));
     }
   }
 
-  private void metadataScanner(final Properties props, final String tableName)
-      throws TableNotFoundException {
+  private List<Map.Entry<Key,Value>> metadataLocScanner(final Properties props,
+      final String tableName) throws TableNotFoundException {
+    List<Map.Entry<Key,Value>> locs = new ArrayList<>();
     LOG.info("METASCAN: Table name: {}", tableName);
     try (AccumuloClient client = Accumulo.newClient().from(props).build()) {
 
@@ -128,11 +151,56 @@ public class DumpWalTransaction implements KeywordExecutable {
         LOG.info("METASCAN: TABLE IF: {}", tableId);
         meta.setRange(new Range(new Text(tableId + ";"), new Text(tableId + "<")));
         meta.fetchColumnFamily(MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME);
-        for (Map.Entry<Key,Value> entry : meta) {
-          LOG.info("META: {}", entry);
-        }
+        meta.forEach(e -> locs.add(e));
       }
     }
+    return locs;
+  }
+
+  private Set<String> buildZkWalBase(@NonNull final List<Map.Entry<Key,Value>> locs) {
+    final String basePath = ZROOT + "/" + instanceId + "/wals";
+    Set<String> paths = new TreeSet<>();
+    locs.forEach(loc -> {
+      String host = loc.getValue().toString();
+      String id = loc.getKey().getColumnQualifier().toString();
+      String hostPath = basePath + "/" + host + "[" + id + "]";
+      LOG.info("adding path: {}", hostPath);
+      paths.add(hostPath);
+    });
+    return paths;
+  }
+
+  public Set<String> buildZkWalPaths(final Set<String> paths) {
+    Set<String> fullPaths = new TreeSet<>();
+    paths.forEach(base -> {
+      LOG.info("Lookup base in ZK: {}", base);
+      try {
+        List<String> uuids = zooReader.getChildren(base);
+        LOG.warn("READ: {}", uuids);
+        uuids.forEach(uuid -> fullPaths.add(base + "/" + uuid));
+      } catch (KeeperException.NoNodeException ex) {
+        LOG.info("Node removed during wal processing: {}", base);
+      } catch (KeeperException | InterruptedException ex) {
+        throw new IllegalStateException("Exception reading wal uuids for: " + base, ex);
+      }
+    });
+    return fullPaths;
+  }
+
+  private Set<String> readWalsFromZk(final Set<String> zkPaths) {
+    Set<String> files = new TreeSet<>();
+    zkPaths.forEach(zkPath -> {
+      try {
+        LOG.info("get file from zk node: {}", zkPath);
+        byte[] payload = zooReader.getData(zkPath);
+        files.add(new String(payload, UTF_8));
+      } catch (KeeperException.NoNodeException ex) {
+        LOG.info("Node removed reading wal file: {}", zkPath);
+      } catch (KeeperException | InterruptedException ex) {
+        throw new IllegalStateException("Exception reading wal uuids for: " + zkPath, ex);
+      }
+    });
+    return files;
   }
 
   private void rootScanner(final Properties props) throws TableNotFoundException {
