@@ -87,7 +87,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
  * A single garbage collection performed on a table (Root, MD) or all User tables.
  */
 public class GCRun implements GarbageCollectionEnvironment {
+  // loggers are not static to support unique naming by level
   private final Logger log;
+  private static final String fileActionPrefix = "FILE-ACTION:";
   private final Ample.DataLevel level;
   private final ServerContext context;
   private final AccumuloConfiguration config;
@@ -97,7 +99,7 @@ public class GCRun implements GarbageCollectionEnvironment {
   private long errors = 0;
 
   public GCRun(Ample.DataLevel level, ServerContext context) {
-    this.log = LoggerFactory.getLogger(level.name() + GCRun.class);
+    this.log = LoggerFactory.getLogger(GCRun.class.getName() + "." + level.name());
     this.level = level;
     this.context = context;
     this.config = context.getConfiguration();
@@ -160,6 +162,16 @@ public class GCRun implements GarbageCollectionEnvironment {
 
     // there is a lot going on in this "one line" so see below for more info
     var tabletReferences = tabletStream.flatMap(tm -> {
+
+      // verify that dir and prev row entries present for to check for complete row scan
+      log.trace("tablet metadata table id: {}, end row:{}, dir:{}, saw: {}, prev row: {}",
+          tm.getTableId(), tm.getEndRow(), tm.getDirName(), tm.sawPrevEndRow(), tm.getPrevEndRow());
+      if (tm.getDirName() == null || tm.getDirName().isEmpty() || !tm.sawPrevEndRow()) {
+        throw new IllegalStateException("possible incomplete metadata scan for table id: "
+            + tm.getTableId() + ", end row: " + tm.getEndRow() + ", dir: " + tm.getDirName()
+            + ", saw prev row: " + tm.sawPrevEndRow());
+      }
+
       // combine all the entries read from file and scan columns in the metadata table
       Stream<StoredTabletFile> fileStream = tm.getFiles().stream();
       // scans are normally empty, so only introduce a layer of indirection when needed
@@ -236,9 +248,9 @@ public class GCRun implements GarbageCollectionEnvironment {
       System.out.println("SAFEMODE: There are " + confirmedDeletes.size()
           + " data file candidates marked for deletion in " + metadataLocation + ".\n"
           + "          Examine the log files to identify them.\n");
-      log.info("SAFEMODE: Listing all data file candidates for deletion");
+      log.info("{} SAFEMODE: Listing all data file candidates for deletion", fileActionPrefix);
       for (String s : confirmedDeletes.values()) {
-        log.info("SAFEMODE: {}", s);
+        log.info("{} SAFEMODE: {}", fileActionPrefix, s);
       }
       log.info("SAFEMODE: End candidates for deletion");
       return;
@@ -278,7 +290,7 @@ public class GCRun implements GarbageCollectionEnvironment {
           }
 
           for (Path pathToDel : GcVolumeUtil.expandAllVolumesUri(fs, fullPath)) {
-            log.debug("Deleting {}", pathToDel);
+            log.debug("{} Deleting {}", fileActionPrefix, pathToDel);
 
             if (moveToTrash(pathToDel) || fs.deleteRecursively(pathToDel)) {
               // delete succeeded, still want to delete
@@ -288,7 +300,8 @@ public class GCRun implements GarbageCollectionEnvironment {
               // leave the entry in the metadata; we'll try again later
               removeFlag = false;
               errors++;
-              log.warn("File exists, but was not deleted for an unknown reason: {}", pathToDel);
+              log.warn("{} File exists, but was not deleted for an unknown reason: {}",
+                  fileActionPrefix, pathToDel);
               break;
             } else {
               // this failure, we still want to remove the metadata entry
@@ -303,11 +316,11 @@ public class GCRun implements GarbageCollectionEnvironment {
                 if (tableState != null && tableState != TableState.DELETING) {
                   // clone directories don't always exist
                   if (!tabletDir.startsWith(Constants.CLONE_PREFIX)) {
-                    log.debug("File doesn't exist: {}", pathToDel);
+                    log.debug("{} File doesn't exist: {}", fileActionPrefix, pathToDel);
                   }
                 }
               } else {
-                log.warn("Very strange path name: {}", delete);
+                log.warn("{} Invalid file path format: {}", fileActionPrefix, delete);
               }
             }
           }
@@ -318,7 +331,7 @@ public class GCRun implements GarbageCollectionEnvironment {
             processedDeletes.add(delete);
           }
         } catch (Exception e) {
-          log.error("{}", e.getMessage(), e);
+          log.error("{} Exception while deleting files ", fileActionPrefix, e);
         }
 
       };
@@ -353,7 +366,7 @@ public class GCRun implements GarbageCollectionEnvironment {
 
       if (tabletDirs.length == 0) {
         Path p = new Path(dir + "/" + tableID);
-        log.debug("Removing table dir {}", p);
+        log.debug("{} Removing table dir {}", fileActionPrefix, p);
         if (!moveToTrash(p)) {
           fs.delete(p);
         }
@@ -437,7 +450,8 @@ public class GCRun implements GarbageCollectionEnvironment {
           }
 
           if (sameVol) {
-            logger.info("Ignoring {} because {} exist", entry.getValue(), lastDirAbs);
+            logger.info("{} Ignoring {} because {} exist", fileActionPrefix, entry.getValue(),
+                lastDirAbs);
             processedDeletes.add(entry.getValue());
             cdIter.remove();
           }
