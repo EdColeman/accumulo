@@ -158,6 +158,7 @@ public class DumpWalTransaction implements KeywordExecutable {
       LOG.info("AMPLE R: LOC: {} LOG: {}", tm.getLocation(), tm.getLogs());
     });
 
+    // metadata
     var tabletsMetadata =
         TabletsMetadata.builder(context).scanTable(Ample.DataLevel.METADATA.metaTable())
             .checkConsistency().fetch(LOCATION, LOGS).build();
@@ -165,6 +166,16 @@ public class DumpWalTransaction implements KeywordExecutable {
 
     stream.forEach(tm -> {
       LOG.info("AMPLE M: LOC: {} LOG: {}", tm.getLocation(), tm.getLogs());
+    });
+
+    // user
+    tabletsMetadata =
+            TabletsMetadata.builder(context).scanTable(Ample.DataLevel.USER.metaTable())
+                    .checkConsistency().fetch(LOCATION, LOGS).build();
+    stream = tabletsMetadata.stream();
+
+    stream.forEach(tm -> {
+      LOG.info("AMPLE U: LOC: {} LOG: {}", tm.getLocation(), tm.getLogs());
     });
 
   }
