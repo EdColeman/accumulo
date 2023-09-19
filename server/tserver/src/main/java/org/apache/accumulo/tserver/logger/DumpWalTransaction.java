@@ -20,6 +20,8 @@ package org.apache.accumulo.tserver.logger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.accumulo.core.Constants.ZROOT;
+import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOCATION;
+import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOGS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.cli.ConfigOpts;
@@ -39,9 +42,10 @@ import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.fate.zookeeper.ZooReader;
-import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
+import org.apache.accumulo.core.metadata.schema.Ample;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
+import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.fs.VolumeChooserEnvironmentImpl;
@@ -105,6 +109,8 @@ public class DumpWalTransaction implements KeywordExecutable {
 
     try (ServerContext context = new ServerContext(siteConfig)) {
 
+      scanWithAmple(context);
+
       instanceId = context.getInstanceID();
       zooReader = context.getZooReader();
 
@@ -140,13 +146,48 @@ public class DumpWalTransaction implements KeywordExecutable {
     }
   }
 
+  private void scanWithAmple(final ServerContext context) {
+
+    Ample ample = context.getAmple();
+    LOG.warn("AMPLE SCAN");
+
+    // root
+    var stream = Stream.of(ample.readTablet(RootTable.EXTENT, LOCATION, LOGS));
+
+    stream.forEach(tm -> {
+      LOG.info("AMPLE R: LOC: {} LOG: {}", tm.getLocation(), tm.getLogs());
+    });
+
+    var tabletsMetadata =
+        TabletsMetadata.builder(context).scanTable(Ample.DataLevel.METADATA.metaTable())
+            .checkConsistency().fetch(LOCATION, LOGS).build();
+    stream = tabletsMetadata.stream();
+
+    stream.forEach(tm -> {
+      LOG.info("AMPLE M: LOC: {} LOG: {}", tm.getLocation(), tm.getLogs());
+    });
+
+  }
+
+  /**
+   * Read the loc id from the root data stored in ZooKeeper
+   */
+  private List<Map.Entry<Key,Value>> rootLocReader(final Properties props, final String tableName)
+      throws TableNotFoundException {
+
+    return List.of();
+  }
+
+  /**
+   * scan root table to get metadata loc id.
+   */
   private List<Map.Entry<Key,Value>> metadataLocScanner(final Properties props,
       final String tableName) throws TableNotFoundException {
     List<Map.Entry<Key,Value>> locs = new ArrayList<>();
     LOG.info("METASCAN: Table name: {}", tableName);
     try (AccumuloClient client = Accumulo.newClient().from(props).build()) {
 
-      try (Scanner meta = client.createScanner(MetadataTable.NAME, Authorizations.EMPTY)) {
+      try (Scanner meta = client.createScanner(RootTable.NAME, Authorizations.EMPTY)) {
         String tableId = client.tableOperations().tableIdMap().get(tableName);
         LOG.info("METASCAN: TABLE IF: {}", tableId);
         meta.setRange(new Range(new Text(tableId + ";"), new Text(tableId + "<")));
