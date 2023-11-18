@@ -31,9 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class UUIDv7 {
 
-  private static final byte ver = 0x07;
+  private static final int ver = 0x07000000; // 0x07;
   private static final byte var = 0x02;
 
+  private static final int MAX_COUNT = 4096;
   private volatile Instant timestamp = null;
   private AtomicInteger counter = new AtomicInteger();
   private byte[] rand = new byte[8];
