@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import org.apache.accumulo.core.classloader.ClassLoaderUtil;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.spi.metrics.MeterRegistryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +94,7 @@ public class MetricsUtil {
           ClassLoaderUtil.loadClass(factoryClass, MeterRegistryFactory.class);
       MeterRegistryFactory factory = clazz.getDeclaredConstructor().newInstance();
 
-      MeterRegistry registry = factory.create();
+      MeterRegistry registry = factory.create(null);
       registry.config().commonTags(commonTags);
       Metrics.addRegistry(registry);
 

@@ -30,7 +30,6 @@ import static org.apache.accumulo.core.util.threads.ThreadPools.watchNonCritical
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
@@ -110,6 +109,7 @@ import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.core.util.threads.Threads;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.ServiceMetrics;
 import org.apache.accumulo.server.TabletLevel;
 import org.apache.accumulo.server.client.ClientServiceHandler;
 import org.apache.accumulo.server.compaction.CompactionWatcher;
@@ -121,6 +121,7 @@ import org.apache.accumulo.server.log.SortedLogState;
 import org.apache.accumulo.server.log.WalStateManager;
 import org.apache.accumulo.server.log.WalStateManager.WalMarkerException;
 import org.apache.accumulo.server.manager.recovery.RecoveryPath;
+import org.apache.accumulo.server.metrics.MetricsServiceEnvironmentImpl;
 import org.apache.accumulo.server.rpc.ServerAddress;
 import org.apache.accumulo.server.rpc.TServerUtils;
 import org.apache.accumulo.server.rpc.ThriftProcessorTypes;
@@ -711,8 +712,13 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     }
 
     try {
-      MetricsUtil.initializeMetrics(context.getConfiguration(), this.applicationName, clientAddress,
-          getContext().getInstanceName());
+      MetricsServiceEnvironmentImpl env = new MetricsServiceEnvironmentImpl(context,
+          this.applicationName, clientAddress.toString());
+      ServiceMetrics sm = ServiceMetrics.getInstance(env);
+
+      // MetricsUtil.initializeMetrics(context.getConfiguration(), this.applicationName,
+      // clientAddress,
+      // getContext().getInstanceName());
 
       metrics = new TabletServerMetrics(this);
       updateMetrics = new TabletServerUpdateMetrics();
@@ -723,9 +729,7 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
       MetricsUtil.initializeProducers(this, metrics, updateMetrics, scanMetrics, mincMetrics,
           ceMetrics, pausedMetrics);
 
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+    } catch (IllegalArgumentException | SecurityException e1) {
       log.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 

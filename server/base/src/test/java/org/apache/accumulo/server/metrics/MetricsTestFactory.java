@@ -16,10 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.core.metrics;
+package org.apache.accumulo.server.metrics;
+
+import org.apache.accumulo.core.spi.metrics.MeterRegistryFactory;
+import org.apache.accumulo.core.spi.metrics.MetricsServiceEnvironment;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
-public interface MeterRegistryFactory {
-  MeterRegistry create();
+public class MetricsTestFactory implements MeterRegistryFactory {
+  boolean initCalled = false;
+
+  public MetricsTestFactory() {}
+
+  @Override
+  public MeterRegistry create(MetricsServiceEnvironment serviceEnv) {
+    initCalled = true;
+    return new SimpleMeterRegistry();
+  }
 }

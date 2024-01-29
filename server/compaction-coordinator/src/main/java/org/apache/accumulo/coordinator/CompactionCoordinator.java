@@ -20,7 +20,6 @@ package org.apache.accumulo.coordinator;
 
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -81,8 +80,10 @@ import org.apache.accumulo.core.util.compaction.RunningCompaction;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.ServerContext;
+import org.apache.accumulo.server.ServiceMetrics;
 import org.apache.accumulo.server.manager.LiveTServerSet;
 import org.apache.accumulo.server.manager.LiveTServerSet.TServerConnection;
+import org.apache.accumulo.server.metrics.MetricsServiceEnvironmentImpl;
 import org.apache.accumulo.server.rpc.ServerAddress;
 import org.apache.accumulo.server.rpc.TServerUtils;
 import org.apache.accumulo.server.rpc.ThriftProcessorTypes;
@@ -265,12 +266,14 @@ public class CompactionCoordinator extends AbstractServer
     }
 
     try {
-      MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
-          clientAddress, getContext().getInstanceName());
+      MetricsServiceEnvironmentImpl env = new MetricsServiceEnvironmentImpl(getContext(),
+          this.applicationName, clientAddress.toString());
+      ServiceMetrics sm = ServiceMetrics.getInstance(env);
+
+      // MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
+      // clientAddress, getContext().getInstanceName());
       MetricsUtil.initializeProducers(this);
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+    } catch (IllegalArgumentException | SecurityException e1) {
       LOG.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 
