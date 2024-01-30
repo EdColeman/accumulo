@@ -47,6 +47,7 @@ import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.thrift.TException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class ExternalCompactionUtil {
     private final HostAndPort compactor;
     private final Future<TExternalCompactionJob> future;
 
-    public RunningCompactionFuture(String queue, HostAndPort compactor,
+    public RunningCompactionFuture(String queue, @NonNull HostAndPort compactor,
         Future<TExternalCompactionJob> future) {
       this.queue = queue;
       this.compactor = compactor;
@@ -234,8 +235,7 @@ public class ExternalCompactionUtil {
       try {
         TExternalCompactionJob job = rcf.getFuture().get();
         if (null != job && null != job.getExternalCompactionId()) {
-          var compactorAddress = getHostPortString(rcf.getCompactor());
-          results.add(new RunningCompaction(job, compactorAddress, rcf.getQueue()));
+          results.add(new RunningCompaction(job, rcf.getCompactor(), rcf.getQueue()));
         }
       } catch (InterruptedException | ExecutionException e) {
         throw new IllegalStateException(e);

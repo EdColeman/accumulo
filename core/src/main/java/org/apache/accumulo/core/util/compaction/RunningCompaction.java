@@ -25,21 +25,24 @@ import org.apache.accumulo.core.compaction.thrift.TCompactionStatusUpdate;
 import org.apache.accumulo.core.compaction.thrift.TExternalCompaction;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
 
+import com.google.common.net.HostAndPort;
+
 public class RunningCompaction {
 
   private final TExternalCompactionJob job;
-  private final String compactorAddress;
+  private final HostAndPort compactorAddress;
   private final String queueName;
   private final Map<Long,TCompactionStatusUpdate> updates = new TreeMap<>();
 
-  public RunningCompaction(TExternalCompactionJob job, String compactorAddress, String queueName) {
+  public RunningCompaction(TExternalCompactionJob job, HostAndPort compactorAddress,
+      String queueName) {
     this.job = job;
     this.compactorAddress = compactorAddress;
     this.queueName = queueName;
   }
 
   public RunningCompaction(TExternalCompaction tEC) {
-    this(tEC.getJob(), tEC.getCompactor(), tEC.getQueueName());
+    this(tEC.getJob(), HostAndPort.fromString(tEC.getCompactor()), tEC.getQueueName());
   }
 
   public Map<Long,TCompactionStatusUpdate> getUpdates() {
@@ -54,7 +57,7 @@ public class RunningCompaction {
     return job;
   }
 
-  public String getCompactorAddress() {
+  public HostAndPort getCompactorAddress() {
     return compactorAddress;
   }
 

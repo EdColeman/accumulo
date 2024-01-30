@@ -412,15 +412,15 @@ public class CompactionCoordinator extends AbstractServer
    * Return the next compaction job from the queue to a Compactor
    *
    * @param queueName queue
-   * @param compactorAddress compactor address
+   * @param hostAddrString compactor address
    * @throws ThriftSecurityException when permission error
    * @return compaction job
    */
   @Override
   public TExternalCompactionJob getCompactionJob(TInfo tinfo, TCredentials credentials,
-      String queueName, String compactorAddress, String externalCompactionId)
+      String queueName, String hostAddrString, String externalCompactionId)
       throws ThriftSecurityException {
-
+    HostAndPort compactorAddress = HostAndPort.fromString(hostAddrString);
     // do not expect users to call this directly, expect compactors to call this method
     if (!security.canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
@@ -442,9 +442,8 @@ public class CompactionCoordinator extends AbstractServer
       TabletServerClientService.Client client = null;
       try {
         client = getTabletServerConnection(tserver);
-        TExternalCompactionJob job =
-            client.reserveCompactionJob(TraceUtil.traceInfo(), getContext().rpcCreds(), queue,
-                prioTserver.prio, compactorAddress, externalCompactionId);
+        TExternalCompactionJob job = client.reserveCompactionJob(TraceUtil.traceInfo(),
+            getContext().rpcCreds(), queue, prioTserver.prio, hostAddrString, externalCompactionId);
         if (null == job.getExternalCompactionId()) {
           LOG.trace("No compactions found for queue {} on tserver {}, trying next tserver", queue,
               tserver.getHostAndPort());
@@ -632,7 +631,7 @@ public class CompactionCoordinator extends AbstractServer
     RUNNING_CACHE.forEach((ecid, rc) -> {
       TExternalCompaction trc = new TExternalCompaction();
       trc.setQueueName(rc.getQueueName());
-      trc.setCompactor(rc.getCompactorAddress());
+      trc.setCompactor(rc.getCompactorAddress().toString());
       trc.setUpdates(rc.getUpdates());
       trc.setJob(rc.getJob());
       result.putToCompactions(ecid.canonical(), trc);
@@ -660,7 +659,7 @@ public class CompactionCoordinator extends AbstractServer
     COMPLETED.asMap().forEach((ecid, rc) -> {
       TExternalCompaction trc = new TExternalCompaction();
       trc.setQueueName(rc.getQueueName());
-      trc.setCompactor(rc.getCompactorAddress());
+      trc.setCompactor(rc.getCompactorAddress().toString());
       trc.setJob(rc.getJob());
       trc.setUpdates(rc.getUpdates());
       result.putToCompactions(ecid.canonical(), trc);
@@ -684,7 +683,7 @@ public class CompactionCoordinator extends AbstractServer
           TableOperation.COMPACT_CANCEL, TableOperationExceptionType.NOTFOUND, e.getMessage());
     }
 
-    HostAndPort address = HostAndPort.fromString(runningCompaction.getCompactorAddress());
+    HostAndPort address = runningCompaction.getCompactorAddress();
     ExternalCompactionUtil.cancelCompaction(getContext(), address, externalCompactionId);
   }
 
