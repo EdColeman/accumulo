@@ -29,6 +29,8 @@ import jakarta.ws.rs.core.MediaType;
 import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
 import org.apache.accumulo.monitor.Monitor;
 
+import com.google.common.net.HostAndPort;
+
 /**
  * Generates the status for manager, gc, and tservers as well as log and problem reports
  *
@@ -67,7 +69,7 @@ public class StatusResource {
         gcStatus = Status.ERROR;
       }
 
-      List<String> managers = monitor.getContext().getManagerLocations();
+      List<HostAndPort> managers = monitor.getContext().getManagerLocations();
       managerStatus = managers.isEmpty() ? Status.ERROR : Status.OK;
 
       int tServerUp = mmi.getTServerInfoSize();

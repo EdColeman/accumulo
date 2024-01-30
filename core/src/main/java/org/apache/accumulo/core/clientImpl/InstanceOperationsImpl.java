@@ -40,6 +40,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloException;
@@ -214,7 +215,14 @@ public class InstanceOperationsImpl implements InstanceOperations {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public List<String> getManagerLocations() {
+    return getManagerHosts().stream().map(HostAndPort::toString)
+        .collect(Collectors.toUnmodifiableList());
+  }
+
+  @Override
+  public List<HostAndPort> getManagerHosts() {
     return context.getManagerLocations();
   }
 

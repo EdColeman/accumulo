@@ -547,11 +547,11 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
 
   private HostAndPort getManagerAddress() {
     try {
-      List<String> locations = getContext().getManagerLocations();
+      List<HostAndPort> locations = getContext().getManagerLocations();
       if (locations.isEmpty()) {
         return null;
       }
-      return HostAndPort.fromString(locations.get(0));
+      return locations.get(0);
     } catch (Exception e) {
       log.warn("Failed to obtain manager host " + e);
     }

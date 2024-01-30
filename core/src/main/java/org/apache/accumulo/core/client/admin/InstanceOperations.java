@@ -27,6 +27,8 @@ import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.data.InstanceId;
 
+import com.google.common.net.HostAndPort;
+
 public interface InstanceOperations {
 
   /**
@@ -181,8 +183,18 @@ public interface InstanceOperations {
    *
    * @return a list of locations in <code>hostname:port</code> form.
    * @since 2.1.0
+   * @deprecated use {@link #getManagerHosts()} instead.
    */
+  @Deprecated(since = "3.1")
   List<String> getManagerLocations();
+
+  /**
+   * Returns the location(s) of the accumulo manager and any redundant servers.
+   *
+   * @return a list of locations in <code>hostname:port</code> form.
+   * @since 3.1
+   */
+  List<HostAndPort> getManagerHosts();
 
   /**
    * Returns the locations of the active scan servers

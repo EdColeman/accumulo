@@ -99,6 +99,7 @@ import org.apache.accumulo.core.singletons.SingletonReservation;
 import org.apache.accumulo.core.spi.common.ServiceEnvironment;
 import org.apache.accumulo.core.spi.scan.ScanServerInfo;
 import org.apache.accumulo.core.spi.scan.ScanServerSelector;
+import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.core.util.OpTimer;
 import org.apache.accumulo.core.util.Pair;
 import org.apache.accumulo.core.util.tables.TableZooHelper;
@@ -109,6 +110,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Suppliers;
+import com.google.common.net.HostAndPort;
 
 /**
  * This class represents any essential configuration and credentials needed to initiate RPC
@@ -506,7 +508,7 @@ public class ClientContext implements AccumuloClient {
    *
    * @return a list of locations in "hostname:port" form
    */
-  public List<String> getManagerLocations() {
+  public List<HostAndPort> getManagerLocations() {
     ensureOpen();
     var zLockManagerPath =
         ServiceLock.path(Constants.ZROOT + "/" + getInstanceID() + Constants.ZMANAGER_LOCK);
@@ -535,7 +537,7 @@ public class ClientContext implements AccumuloClient {
       return Collections.emptyList();
     }
 
-    return Collections.singletonList(location);
+    return Collections.singletonList(AddressUtil.parseAddress(location));
   }
 
   /**

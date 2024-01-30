@@ -34,7 +34,6 @@ import org.apache.accumulo.core.gc.thrift.GCStatus;
 import org.apache.accumulo.core.manager.thrift.DeadServer;
 import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
 import org.apache.accumulo.core.manager.thrift.TabletServerStatus;
-import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.rest.logs.DeadLoggerInformation;
 import org.apache.accumulo.monitor.rest.logs.DeadLoggerList;
@@ -45,6 +44,8 @@ import org.apache.accumulo.monitor.rest.tservers.DeadServerList;
 import org.apache.accumulo.monitor.rest.tservers.ServerShuttingDownInformation;
 import org.apache.accumulo.monitor.rest.tservers.ServersShuttingDown;
 import org.apache.accumulo.server.manager.state.TabletServerState;
+
+import com.google.common.net.HostAndPort;
 
 /**
  * Responsible for generating a new Manager information JSON object
@@ -99,10 +100,9 @@ public class ManagerResource {
       for (DeadServer down : mmi.deadTabletServers) {
         tservers.add(down.server);
       }
-      List<String> managers = monitor.getContext().getManagerLocations();
+      List<HostAndPort> managers = monitor.getContext().getManagerLocations();
 
-      String manager =
-          managers.isEmpty() ? "Down" : AddressUtil.parseAddress(managers.get(0)).getHost();
+      String manager = managers.isEmpty() ? "Down" : managers.get(0).getHost();
       int onlineTabletServers = mmi.tServerInfo.size();
       int totalTabletServers = tservers.size();
       int tablets = monitor.getTotalTabletCount();
