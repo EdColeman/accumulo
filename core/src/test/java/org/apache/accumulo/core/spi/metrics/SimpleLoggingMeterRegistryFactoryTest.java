@@ -20,6 +20,9 @@ package org.apache.accumulo.core.spi.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
+import java.util.Map;
+
+import org.apache.accumulo.core.spi.common.ServiceEnvironment;
 import org.junit.jupiter.api.Test;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -29,6 +32,20 @@ class SimpleLoggingMeterRegistryFactoryTest {
   @Test
   public void createTest() {
     SimpleLoggingMeterRegistryFactory factory = new SimpleLoggingMeterRegistryFactory();
+    factory.init(new LoggingMetricsParams());
     assertInstanceOf(MeterRegistry.class, factory.create());
+  }
+
+  private static class LoggingMetricsParams implements MeterRegistryFactory.InitParameters {
+
+    @Override
+    public Map<String,String> getOptions() {
+      return Map.of();
+    }
+
+    @Override
+    public ServiceEnvironment getServiceEnv() {
+      return null;
+    }
   }
 }

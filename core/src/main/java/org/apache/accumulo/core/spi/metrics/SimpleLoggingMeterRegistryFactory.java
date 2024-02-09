@@ -18,6 +18,10 @@
  */
 package org.apache.accumulo.core.spi.metrics;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -36,6 +40,9 @@ import io.micrometer.core.instrument.logging.LoggingRegistryConfig;
  * The metrics will appear in the normal service logs with a named logger of
  * {@code org.apache.accumulo.METRICS} at the INFO level. The metrics output can be directed to a
  * file using standard logging configuration properties.
+ * <p>
+ * The update frequency can be adjusted by setting {@code general.custom.metrics.opts.logging.step}
+ * in the Accumulo configuration. The default is 60 sec.
  */
 public class SimpleLoggingMeterRegistryFactory implements MeterRegistryFactory {
 
@@ -46,18 +53,36 @@ public class SimpleLoggingMeterRegistryFactory implements MeterRegistryFactory {
   private static final Logger METRICS = LoggerFactory.getLogger("org.apache.accumulo.METRICS");
 
   private final Consumer<String> metricConsumer = METRICS::info;
-
+  private final Map<String,String> metricsProps = new HashMap<>();
   // defines the metrics update period, default is 60 seconds.
   private final LoggingRegistryConfig lconf = c -> {
     if (c.equals("logging.step")) {
-      return "60s";
+      return metricsProps.getOrDefault("logging.step", "60s");
     }
     return null;
   };
 
+  private final AtomicBoolean initCalled = new AtomicBoolean(false);
+
   @Override
-  public MeterRegistry create() {
+  public synchronized void init(final InitParameters params) {
+    Objects.requireNonNull(params, "InitParams not provided");
+    initCalled.set(true);
+    Map<String,String> options = params.getOptions();
+    options.forEach((k, v) -> {
+      if (k.startsWith(METRICS_PROP_SUBSTRING)) {
+        String name = k.substring(METRICS_PROP_SUBSTRING.length());
+        metricsProps.put(name, v);
+      }
+    });
+  }
+
+  @Override
+  public synchronized MeterRegistry create() {
     LOG.info("starting metrics registration.");
+    if (!initCalled.get()) {
+      throw new IllegalStateException("init() not called");
+    }
     return LoggingMeterRegistry.builder(lconf).loggingSink(metricConsumer).build();
   }
 }

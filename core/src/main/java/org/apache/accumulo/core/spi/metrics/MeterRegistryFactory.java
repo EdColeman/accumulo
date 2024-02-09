@@ -37,7 +37,10 @@ import io.micrometer.core.instrument.MeterRegistry;
  * Property.GENERAL_MICROMETER_FACTORY = [implementation].class.getName()
  */
 public interface MeterRegistryFactory {
-  public interface InitParameters {
+  // full form in property file is "general.custom.metrics.opts"
+  String METRICS_PROP_SUBSTRING = "metrics.opts";
+
+  interface InitParameters {
     /**
      *
      * @return The configured options. For example properties

@@ -21,6 +21,10 @@ package org.apache.accumulo.core.metrics;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Map;
+
+import org.apache.accumulo.core.spi.common.ServiceEnvironment;
+import org.apache.accumulo.core.spi.metrics.MeterRegistryFactory;
 import org.junit.jupiter.api.Test;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -30,13 +34,29 @@ public class MetricsUtilTest {
   @Test
   public void factoryTest() throws Exception {
 
-    assertNotNull(MetricsUtil.getRegistryFromFactory(SPIFactory.class.getName()));
+    assertNotNull(MetricsUtil.getRegistryFromFactory(SPIFactory.class.getName(), emptyParameters));
 
-    assertNotNull(MetricsUtil.getRegistryFromFactory(DeprecatedFactory.class.getName()));
+    assertNotNull(
+        MetricsUtil.getRegistryFromFactory(DeprecatedFactory.class.getName(), emptyParameters));
 
     assertThrows(ClassNotFoundException.class,
-        () -> MetricsUtil.getRegistryFromFactory(String.class.getName()));
+        () -> MetricsUtil.getRegistryFromFactory(String.class.getName(), emptyParameters));
   }
+
+  MeterRegistryFactory.InitParameters emptyParameters = new MeterRegistryFactory.InitParameters() {
+
+    private final ServiceEnvironment senv = null; // new ServiceEnvironmentImpl(context);
+
+    @Override
+    public Map<String,String> getOptions() {
+      return Map.of();
+    }
+
+    @Override
+    public ServiceEnvironment getServiceEnv() {
+      return senv;
+    }
+  };
 
   @SuppressWarnings({"deprecation",
       "support for org.apache.accumulo.core.metrics.MeterRegistryFactory can be removed in 3.1"})

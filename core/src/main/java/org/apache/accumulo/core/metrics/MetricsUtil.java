@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.core.metrics;
 
+import static org.apache.accumulo.core.conf.Property.GENERAL_ARBITRARY_PROP_PREFIX;
+import static org.apache.accumulo.core.spi.metrics.MeterRegistryFactory.METRICS_PROP_SUBSTRING;
 import static org.apache.hadoop.util.StringUtils.getTrimmedStrings;
 
 import java.lang.reflect.InvocationTargetException;
@@ -25,11 +27,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import org.apache.accumulo.core.classloader.ClassLoaderUtil;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.core.spi.common.ServiceEnvironment;
 import org.apache.accumulo.core.spi.metrics.MeterRegistryFactory;
 import org.apache.accumulo.core.util.HostAndPort;
 import org.slf4j.Logger;
@@ -60,18 +65,34 @@ public class MetricsUtil {
   public static void initializeMetrics(final AccumuloConfiguration conf, final String appName,
       final HostAndPort address, final String instanceName) throws ClassNotFoundException,
       InstantiationException, IllegalAccessException, IllegalArgumentException,
-      InvocationTargetException, NoSuchMethodException, SecurityException {
-    initializeMetrics(conf.getBoolean(Property.GENERAL_MICROMETER_ENABLED),
-        conf.getBoolean(Property.GENERAL_MICROMETER_JVM_METRICS_ENABLED),
-        conf.get(Property.GENERAL_MICROMETER_FACTORY), appName, address, instanceName);
-  }
+      IllegalStateException, InvocationTargetException, NoSuchMethodException, SecurityException {
 
-  private static void initializeMetrics(boolean enabled, boolean jvmMetricsEnabled,
-      String factoryClasses, String appName, HostAndPort address, String instanceName)
-      throws ClassNotFoundException, InstantiationException, IllegalAccessException,
-      IllegalArgumentException, InvocationTargetException, NoSuchMethodException,
-      SecurityException {
+    final boolean enabled = conf.getBoolean(Property.GENERAL_MICROMETER_ENABLED);
+    final boolean jvmMetricsEnabled =
+        conf.getBoolean(Property.GENERAL_MICROMETER_JVM_METRICS_ENABLED);
+    final String factoryClasses = conf.get(Property.GENERAL_MICROMETER_FACTORY);
 
+    // todo - start
+    Map<String,
+        String> opts = conf.getAllPropertiesWithPrefixStripped(GENERAL_ARBITRARY_PROP_PREFIX)
+            .entrySet().stream().filter(entry -> entry.getKey().startsWith(METRICS_PROP_SUBSTRING))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    MeterRegistryFactory.InitParameters initParameters = new MeterRegistryFactory.InitParameters() {
+
+      private final ServiceEnvironment senv = null; // new ServiceEnvironmentImpl(context);
+
+      @Override
+      public Map<String,String> getOptions() {
+        return opts;
+      }
+
+      @Override
+      public ServiceEnvironment getServiceEnv() {
+        return senv;
+      }
+    };
+
+    // todo - end
     LOG.info("initializing metrics, enabled:{}, class:{}", enabled, factoryClasses);
 
     if (enabled && factoryClasses != null && !factoryClasses.isEmpty()) {
@@ -111,7 +132,7 @@ public class MetricsUtil {
       };
 
       for (String factoryName : getTrimmedStrings(factoryClasses)) {
-        MeterRegistry registry = getRegistryFromFactory(factoryName);
+        MeterRegistry registry = getRegistryFromFactory(factoryName, initParameters);
         registry.config().commonTags(commonTags);
         registry.config().meterFilter(replicationFilter);
         Metrics.addRegistry(registry);
@@ -131,13 +152,15 @@ public class MetricsUtil {
   @VisibleForTesting
   @SuppressWarnings({"deprecation",
       "support for org.apache.accumulo.core.metrics.MeterRegistryFactory can be removed in 3.1"})
-  static MeterRegistry getRegistryFromFactory(String factoryName)
+  static MeterRegistry getRegistryFromFactory(String factoryName,
+      final MeterRegistryFactory.InitParameters initParameters)
       throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
       InstantiationException, IllegalAccessException {
     try {
       Class<? extends MeterRegistryFactory> clazz =
           ClassLoaderUtil.loadClass(factoryName, MeterRegistryFactory.class);
       MeterRegistryFactory factory = clazz.getDeclaredConstructor().newInstance();
+      factory.init(initParameters);
       return factory.create();
     } catch (ClassCastException ex) {
       // empty. On exception try deprecated version

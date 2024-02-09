@@ -766,8 +766,8 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
       MetricsUtil.initializeMetrics(context.getConfiguration(), this.applicationName, clientAddress,
           getContext().getInstanceName());
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+        | IllegalArgumentException | IllegalStateException | InvocationTargetException
+        | NoSuchMethodException | SecurityException e1) {
       log.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 

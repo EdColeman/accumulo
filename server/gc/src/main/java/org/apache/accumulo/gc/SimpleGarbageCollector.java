@@ -172,8 +172,8 @@ public class SimpleGarbageCollector extends AbstractServer implements Iface {
           getContext().getInstanceName());
       MetricsUtil.initializeProducers(new GcMetrics(this));
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+        | IllegalArgumentException | IllegalStateException | InvocationTargetException
+        | NoSuchMethodException | SecurityException e1) {
       log.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 

@@ -620,8 +620,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
       MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
           clientAddress, getContext().getInstanceName());
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+        | IllegalArgumentException | IllegalStateException | InvocationTargetException
+        | NoSuchMethodException | SecurityException e1) {
       LOG.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
     MetricsUtil.initializeProducers(this);

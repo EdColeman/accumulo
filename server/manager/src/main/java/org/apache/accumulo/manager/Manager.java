@@ -1102,8 +1102,8 @@ public class Manager extends AbstractServer
           sa.getAddress(), getContext().getInstanceName());
       ManagerMetrics.init(getConfiguration(), this);
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
+        | IllegalArgumentException | IllegalStateException | InvocationTargetException
+        | NoSuchMethodException | SecurityException e1) {
       log.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 
