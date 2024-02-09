@@ -18,6 +18,12 @@
  */
 package org.apache.accumulo.core.spi.metrics;
 
+import java.util.Map;
+
+import org.apache.accumulo.core.spi.common.ServiceEnvironment;
+
+import com.google.common.base.Preconditions;
+
 import io.micrometer.core.instrument.MeterRegistry;
 
 /**
@@ -31,6 +37,23 @@ import io.micrometer.core.instrument.MeterRegistry;
  * Property.GENERAL_MICROMETER_FACTORY = [implementation].class.getName()
  */
 public interface MeterRegistryFactory {
+  public interface InitParameters {
+    /**
+     *
+     * @return The configured options. For example properties
+     *         {@code general.custom.metrics.opts.prop1=abc} and
+     *         {@code general.custom.metrics.opts.prop9=123} were set, then this map would contain
+     *         {@code prop1=abc} and {@code prop9=123}.
+     */
+    Map<String,String> getOptions();
+
+    ServiceEnvironment getServiceEnv();
+  }
+
+  default void init(InitParameters params) {
+    Preconditions.checkArgument(params.getOptions().isEmpty(), "No options expected");
+  }
+
   /**
    * Called on metrics initialization.
    *
