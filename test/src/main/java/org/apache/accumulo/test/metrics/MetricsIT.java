@@ -97,9 +97,7 @@ public class MetricsIT extends ConfigurableMacBase implements MetricsProducer {
 
     Set<String> unexpectedMetrics = Set.of(METRICS_SCAN_YIELDS, METRICS_UPDATE_ERRORS,
         METRICS_REPLICATION_QUEUE, METRICS_COMPACTOR_MAJC_STUCK, METRICS_SCAN_BUSY_TIMEOUT);
-    Set<String> flakyMetrics = Set.of(METRICS_GC_WAL_ERRORS, METRICS_FATE_TYPE_IN_PROGRESS,
-        METRICS_PROPSTORE_EVICTION_COUNT, METRICS_PROPSTORE_REFRESH_COUNT,
-        METRICS_PROPSTORE_REFRESH_LOAD_COUNT, METRICS_PROPSTORE_ZK_ERROR_COUNT);
+    Set<String> flakyMetrics = Set.of(METRICS_GC_WAL_ERRORS, METRICS_FATE_TYPE_IN_PROGRESS);
 
     Map<String,String> expectedMetricNames = this.getMetricFields();
     flakyMetrics.forEach(expectedMetricNames::remove); // might not see these
@@ -112,6 +110,10 @@ public class MetricsIT extends ConfigurableMacBase implements MetricsProducer {
 
     // loop until we run out of lines or until we see all expected metrics
     while (!(statsDMetrics = sink.getLines()).isEmpty() && !expectedMetricNames.isEmpty()) {
+
+      // TODO - development only
+      statsDMetrics.stream().forEach(line -> LOG.info("METRICS line: {}", line));
+
       // for each metric name not yet seen, check if it is expected, flaky, or unknown
       statsDMetrics.stream().filter(line -> line.startsWith("accumulo"))
           .map(TestStatsDSink::parseStatsDMetric).map(Metric::getName)

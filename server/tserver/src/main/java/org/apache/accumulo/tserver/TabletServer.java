@@ -30,7 +30,6 @@ import static org.apache.accumulo.core.util.threads.ThreadPools.watchNonCritical
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -89,7 +88,8 @@ import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
-import org.apache.accumulo.core.metrics.MetricsUtil;
+import org.apache.accumulo.core.metrics.MetricsInfo;
+import org.apache.accumulo.core.metrics.MetricsProducer;
 import org.apache.accumulo.core.rpc.ThriftUtil;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.spi.fs.VolumeChooserEnvironment;
@@ -168,6 +168,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 
+import io.micrometer.core.instrument.Tag;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 
@@ -760,21 +761,20 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
       throw new RuntimeException("Failed to start the tablet client service", e1);
     }
 
-    try {
-      MetricsUtil.initializeMetrics(context.getConfiguration(), this.applicationName, clientAddress,
-          getContext().getInstanceName());
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
-      log.error("Error initializing metrics, metrics will not be emitted.", e1);
-    }
+    List<Tag> tags = MetricsInfo.serviceTags(getContext().getInstanceName(), getApplicationName(),
+        clientAddress);
+
+    MetricsInfo metricsInfo = getContext().getMetricsInfo();
+    metricsInfo.addProcessTags(tags);
 
     metrics = new TabletServerMetrics(this);
     updateMetrics = new TabletServerUpdateMetrics();
     scanMetrics = new TabletServerScanMetrics();
     mincMetrics = new TabletServerMinCMetrics();
     ceMetrics = new CompactionExecutorsMetrics();
-    MetricsUtil.initializeProducers(metrics, updateMetrics, scanMetrics, mincMetrics, ceMetrics);
+    MetricsProducer[] producers = {metrics, updateMetrics, scanMetrics, mincMetrics, ceMetrics};
+    metricsInfo.addMetricsProducers(producers);
+    metricsInfo.init();
 
     this.compactionManager = new CompactionManager(() -> Iterators
         .transform(onlineTablets.snapshot().values().iterator(), Tablet::asCompactable),

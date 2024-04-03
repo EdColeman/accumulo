@@ -45,6 +45,7 @@ import org.apache.accumulo.core.dataImpl.thrift.TKeyExtent;
 import org.apache.accumulo.core.fate.zookeeper.ZooCache;
 import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.core.metadata.schema.ExternalCompactionId;
+import org.apache.accumulo.core.metrics.MetricsInfo;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionStats;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
 import org.apache.accumulo.core.util.Halt;
@@ -254,6 +255,11 @@ public class CompactorTest {
       return failedCalled;
     }
 
+    @Override
+    public String getApplicationName() {
+      return "test-compactor";
+    }
+
   }
 
   public class FailedCompactor extends SuccessfulCompactor {
@@ -323,6 +329,9 @@ public class CompactorTest {
 
     ServerContext context = PowerMock.createNiceMock(ServerContext.class);
     expect(context.getConfiguration()).andReturn(conf).anyTimes();
+    MetricsInfo metricsInfo = PowerMock.createNiceMock(MetricsInfo.class);
+    expect(context.getMetricsInfo()).andReturn(metricsInfo).anyTimes();
+
     ZooReaderWriter zrw = PowerMock.createNiceMock(ZooReaderWriter.class);
     ZooKeeper zk = PowerMock.createNiceMock(ZooKeeper.class);
     expect(context.getZooReaderWriter()).andReturn(zrw).anyTimes();
@@ -370,6 +379,9 @@ public class CompactorTest {
 
     ServerContext context = PowerMock.createNiceMock(ServerContext.class);
     expect(context.getConfiguration()).andReturn(conf).anyTimes();
+    MetricsInfo metricsInfo = PowerMock.createNiceMock(MetricsInfo.class);
+    expect(context.getMetricsInfo()).andReturn(metricsInfo).anyTimes();
+
     ZooReaderWriter zrw = PowerMock.createNiceMock(ZooReaderWriter.class);
     ZooKeeper zk = PowerMock.createNiceMock(ZooKeeper.class);
     expect(context.getZooReaderWriter()).andReturn(zrw).anyTimes();
@@ -418,6 +430,10 @@ public class CompactorTest {
 
     ServerContext context = PowerMock.createNiceMock(ServerContext.class);
     expect(context.getConfiguration()).andReturn(conf).anyTimes();
+    expect(context.getInstanceName()).andReturn("mock-test").anyTimes();
+    MetricsInfo metricsInfo = PowerMock.createNiceMock(MetricsInfo.class);
+    expect(context.getMetricsInfo()).andReturn(metricsInfo).anyTimes();
+
     ZooReaderWriter zrw = PowerMock.createNiceMock(ZooReaderWriter.class);
     ZooKeeper zk = PowerMock.createNiceMock(ZooKeeper.class);
     expect(context.getZooReaderWriter()).andReturn(zrw).anyTimes();

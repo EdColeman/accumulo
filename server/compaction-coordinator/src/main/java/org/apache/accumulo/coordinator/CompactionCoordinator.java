@@ -21,7 +21,6 @@ package org.apache.accumulo.coordinator;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.List;
@@ -50,7 +49,6 @@ import org.apache.accumulo.core.compaction.thrift.TCompactionState;
 import org.apache.accumulo.core.compaction.thrift.TCompactionStatusUpdate;
 import org.apache.accumulo.core.compaction.thrift.TExternalCompaction;
 import org.apache.accumulo.core.compaction.thrift.TExternalCompactionList;
-import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
@@ -61,7 +59,7 @@ import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.metadata.schema.Ample;
 import org.apache.accumulo.core.metadata.schema.ExternalCompactionId;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
-import org.apache.accumulo.core.metrics.MetricsUtil;
+import org.apache.accumulo.core.metrics.MetricsInfo;
 import org.apache.accumulo.core.rpc.ThriftUtil;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
@@ -85,7 +83,6 @@ import org.apache.accumulo.server.manager.LiveTServerSet.TServerConnection;
 import org.apache.accumulo.server.rpc.ServerAddress;
 import org.apache.accumulo.server.rpc.TServerUtils;
 import org.apache.accumulo.server.rpc.ThriftProcessorTypes;
-import org.apache.accumulo.server.security.SecurityOperation;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
@@ -96,6 +93,8 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
+
+import io.micrometer.core.instrument.Tag;
 
 public class CompactionCoordinator extends AbstractServer
     implements CompactionCoordinatorService.Iface, LiveTServerSet.Listener {
@@ -121,8 +120,6 @@ public class CompactionCoordinator extends AbstractServer
   private static final Map<String,Long> TIME_COMPACTOR_LAST_CHECKED = new ConcurrentHashMap<>();
 
   private final GarbageCollectionLogger gcLogger = new GarbageCollectionLogger();
-  protected SecurityOperation security;
-  protected final AccumuloConfiguration aconf;
   protected CompactionFinalizer compactionFinalizer;
   protected LiveTServerSet tserverSet;
 
@@ -134,25 +131,9 @@ public class CompactionCoordinator extends AbstractServer
   private ScheduledThreadPoolExecutor schedExecutor;
 
   protected CompactionCoordinator(ServerOpts opts, String[] args) {
-    this(opts, args, null);
-  }
-
-  protected CompactionCoordinator(ServerOpts opts, String[] args, AccumuloConfiguration conf) {
     super("compaction-coordinator", opts, args);
-    aconf = conf == null ? super.getConfiguration() : conf;
-    schedExecutor = ThreadPools.getServerThreadPools().createGeneralScheduledExecutorService(aconf);
-    compactionFinalizer = createCompactionFinalizer(schedExecutor);
-    tserverSet = createLiveTServerSet();
-    setupSecurity();
-    startGCLogger(schedExecutor);
-    printStartupMsg();
-    startCompactionCleaner(schedExecutor);
-    startRunningCleaner(schedExecutor);
-  }
-
-  @Override
-  public AccumuloConfiguration getConfiguration() {
-    return aconf;
+    // TODO confirm this is in constructor
+    // setupSecurity();
   }
 
   protected CompactionFinalizer
@@ -162,10 +143,6 @@ public class CompactionCoordinator extends AbstractServer
 
   protected LiveTServerSet createLiveTServerSet() {
     return new LiveTServerSet(getContext(), this);
-  }
-
-  protected void setupSecurity() {
-    security = getContext().getSecurityOperation();
   }
 
   protected void startGCLogger(ScheduledThreadPoolExecutor schedExecutor) {
@@ -185,11 +162,6 @@ public class CompactionCoordinator extends AbstractServer
     ScheduledFuture<?> future =
         schedExecutor.scheduleWithFixedDelay(this::cleanUpRunning, 0, 5, TimeUnit.MINUTES);
     ThreadPools.watchNonCriticalScheduledTask(future);
-  }
-
-  protected void printStartupMsg() {
-    LOG.info("Version " + Constants.VERSION);
-    LOG.info("Instance " + getContext().getInstanceID());
   }
 
   /**
@@ -248,8 +220,21 @@ public class CompactionCoordinator extends AbstractServer
     return sp;
   }
 
+  private void init() {
+    tserverSet = createLiveTServerSet();
+
+    schedExecutor = ThreadPools.getServerThreadPools()
+        .createGeneralScheduledExecutorService(getConfiguration());
+    compactionFinalizer = createCompactionFinalizer(schedExecutor);
+    startGCLogger(schedExecutor);
+    startCompactionCleaner(schedExecutor);
+    startRunningCleaner(schedExecutor);
+  }
+
   @Override
   public void run() {
+
+    init();
 
     ServerAddress coordinatorAddress = null;
     try {
@@ -264,15 +249,12 @@ public class CompactionCoordinator extends AbstractServer
     } catch (KeeperException | InterruptedException e) {
       throw new IllegalStateException("Exception getting Coordinator lock", e);
     }
+    List<Tag> tags = MetricsInfo.serviceTags(getContext().getInstanceName(), getApplicationName(),
+        clientAddress);
 
-    try {
-      MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
-          clientAddress, getContext().getInstanceName());
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
-      LOG.error("Error initializing metrics, metrics will not be emitted.", e1);
-    }
+    MetricsInfo metricsInfo = getContext().getMetricsInfo();
+    metricsInfo.addProcessTags(tags);
+    metricsInfo.init();
 
     // On a re-start of the coordinator it's possible that external compactions are in-progress.
     // Attempt to get the running compactions on the compactors and then resolve which tserver
@@ -447,7 +429,7 @@ public class CompactionCoordinator extends AbstractServer
       throws ThriftSecurityException {
 
     // do not expect users to call this directly, expect compactors to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -537,7 +519,7 @@ public class CompactionCoordinator extends AbstractServer
       String externalCompactionId, TKeyExtent textent, TCompactionStats stats)
       throws ThriftSecurityException {
     // do not expect users to call this directly, expect other tservers to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -557,7 +539,7 @@ public class CompactionCoordinator extends AbstractServer
   public void compactionFailed(TInfo tinfo, TCredentials credentials, String externalCompactionId,
       TKeyExtent extent) throws ThriftSecurityException {
     // do not expect users to call this directly, expect other tservers to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -587,7 +569,7 @@ public class CompactionCoordinator extends AbstractServer
       String externalCompactionId, TCompactionStatusUpdate update, long timestamp)
       throws ThriftSecurityException {
     // do not expect users to call this directly, expect other tservers to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -631,7 +613,7 @@ public class CompactionCoordinator extends AbstractServer
     // remove ids that are in the running set but not in the metadata table
     idsToRemove.forEach(ecid -> recordCompletion(ecid));
 
-    if (idsToRemove.size() > 0) {
+    if (!idsToRemove.isEmpty()) {
       LOG.debug("Removed stale entries from RUNNING_CACHE : {}", idsToRemove);
     }
   }
@@ -648,7 +630,7 @@ public class CompactionCoordinator extends AbstractServer
   public TExternalCompactionList getRunningCompactions(TInfo tinfo, TCredentials credentials)
       throws ThriftSecurityException {
     // do not expect users to call this directly, expect other tservers to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -677,7 +659,7 @@ public class CompactionCoordinator extends AbstractServer
   public TExternalCompactionList getCompletedCompactions(TInfo tinfo, TCredentials credentials)
       throws ThriftSecurityException {
     // do not expect users to call this directly, expect other tservers to call this method
-    if (!security.canPerformSystemActions(credentials)) {
+    if (!getContext().getSecurityOperation().canPerformSystemActions(credentials)) {
       throw new AccumuloSecurityException(credentials.getPrincipal(),
           SecurityErrorCode.PERMISSION_DENIED).asThriftException();
     }
@@ -700,7 +682,7 @@ public class CompactionCoordinator extends AbstractServer
     var extent = KeyExtent.fromThrift(runningCompaction.getJob().getExtent());
     try {
       NamespaceId nsId = getContext().getNamespaceId(extent.tableId());
-      if (!security.canCompact(credentials, extent.tableId(), nsId)) {
+      if (!getContext().getSecurityOperation().canCompact(credentials, extent.tableId(), nsId)) {
         throw new AccumuloSecurityException(credentials.getPrincipal(),
             SecurityErrorCode.PERMISSION_DENIED).asThriftException();
       }

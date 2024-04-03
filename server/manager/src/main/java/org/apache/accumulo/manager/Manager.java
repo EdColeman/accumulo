@@ -28,7 +28,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -96,7 +95,8 @@ import org.apache.accumulo.core.metadata.TabletLocationState;
 import org.apache.accumulo.core.metadata.TabletState;
 import org.apache.accumulo.core.metadata.schema.Ample.DataLevel;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.TabletColumnFamily;
-import org.apache.accumulo.core.metrics.MetricsUtil;
+import org.apache.accumulo.core.metrics.MetricsInfo;
+import org.apache.accumulo.core.metrics.MetricsProducer;
 import org.apache.accumulo.core.replication.thrift.ReplicationCoordinator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.spi.balancer.BalancerEnvironment;
@@ -159,6 +159,7 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.util.concurrent.RateLimiter;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.micrometer.core.instrument.Tag;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 
@@ -1096,15 +1097,14 @@ public class Manager extends AbstractServer
       managerUpgrading.set(true);
     }
 
-    try {
-      MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
-          sa.getAddress(), getContext().getInstanceName());
-      ManagerMetrics.init(getConfiguration(), this);
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
-      log.error("Error initializing metrics, metrics will not be emitted.", e1);
-    }
+    List<Tag> tags = MetricsInfo.serviceTags(getContext().getInstanceName(), getApplicationName(),
+        sa.getAddress());
+
+    MetricsInfo metricsInfo = getContext().getMetricsInfo();
+    metricsInfo.addProcessTags(tags);
+    var producers = ManagerMetrics.getProducers(getConfiguration(), this);
+    metricsInfo.addMetricsProducers(producers.toArray(new MetricsProducer[0]));
+    metricsInfo.init();
 
     recoveryManager = new RecoveryManager(this, timeToCacheRecoveryWalExistence);
 

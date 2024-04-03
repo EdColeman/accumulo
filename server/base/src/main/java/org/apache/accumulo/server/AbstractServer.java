@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractServer implements AutoCloseable, Runnable {
 
   private final ServerContext context;
-  protected final String applicationName;
+  private final String applicationName;
   private final String hostname;
   private final Logger log;
 
@@ -87,6 +87,10 @@ public abstract class AbstractServer implements AutoCloseable, Runnable {
 
   public AccumuloConfiguration getConfiguration() {
     return getContext().getConfiguration();
+  }
+
+  public String getApplicationName() {
+    return applicationName;
   }
 
   @Override

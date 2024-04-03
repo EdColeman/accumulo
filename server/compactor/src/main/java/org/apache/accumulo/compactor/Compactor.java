@@ -23,7 +23,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -73,8 +72,8 @@ import org.apache.accumulo.core.metadata.schema.DataFileValue;
 import org.apache.accumulo.core.metadata.schema.ExternalCompactionId;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType;
+import org.apache.accumulo.core.metrics.MetricsInfo;
 import org.apache.accumulo.core.metrics.MetricsProducer;
-import org.apache.accumulo.core.metrics.MetricsUtil;
 import org.apache.accumulo.core.rpc.ThriftUtil;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
@@ -117,6 +116,7 @@ import com.google.common.base.Preconditions;
 
 import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 
 public class Compactor extends AbstractServer implements MetricsProducer, CompactorService.Iface {
 
@@ -593,15 +593,13 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
       throw new RuntimeException("Error registering compactor in ZooKeeper", e);
     }
 
-    try {
-      MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
-          clientAddress, getContext().getInstanceName());
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
-        | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-        | SecurityException e1) {
-      LOG.error("Error initializing metrics, metrics will not be emitted.", e1);
-    }
-    MetricsUtil.initializeProducers(this);
+    List<Tag> tags = MetricsInfo.serviceTags(getContext().getInstanceName(), getApplicationName(),
+        clientAddress);
+
+    MetricsInfo metricsInfo = getContext().getMetricsInfo();
+    metricsInfo.addProcessTags(tags);
+    metricsInfo.addMetricsProducers(this);
+    metricsInfo.init();
 
     var watcher = new CompactionWatcher(getConfiguration());
     var schedExecutor = ThreadPools.getServerThreadPools()
@@ -843,7 +841,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
     // method is called by a coordinator starting up to determine what is currently running on all
     // compactors.
 
-    TExternalCompactionJob job = null;
+    TExternalCompactionJob job;
     synchronized (JOB_HOLDER) {
       job = JOB_HOLDER.getJob();
     }
