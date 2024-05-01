@@ -22,7 +22,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import org.apache.accumulo.core.fate.zookeeper.ZooCache.ZcStat;
@@ -39,6 +42,8 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 public class ServiceLock implements Watcher {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceLock.class);
@@ -80,6 +85,28 @@ public class ServiceLock implements Watcher {
     LOCK_DELETED, SESSION_EXPIRED
   }
 
+  public static class ServiceLockMetadata {
+
+    private final static Gson GSON = new Gson();
+    private final Map<String,String> metadata;
+
+    public ServiceLockMetadata(final Map<String,String> metadata) {
+      this.metadata = new TreeMap<>(metadata);
+    }
+
+    public Map<String,String> getLockMetadata() {
+      return Collections.unmodifiableMap(metadata);
+    }
+
+    public static ServiceLockMetadata deserialize(String json) {
+      return GSON.fromJson(json, ServiceLockMetadata.class);
+    }
+
+    public String serialize() {
+      return GSON.toJson(this);
+    }
+  }
+
   public interface LockWatcher {
     void lostLock(LockLossReason reason);
 
@@ -96,6 +123,7 @@ public class ServiceLock implements Watcher {
   }
 
   private final ServiceLockPath path;
+  private final ServiceLockMetadata lockMetadata;
   protected final ZooKeeper zooKeeper;
   private final Prefix vmLockPrefix;
 
@@ -108,8 +136,14 @@ public class ServiceLock implements Watcher {
   private String watchingNodeName;
 
   public ServiceLock(ZooKeeper zookeeper, ServiceLockPath path, UUID uuid) {
+    this(zookeeper, path, uuid, Map.of());
+  }
+
+  public ServiceLock(ZooKeeper zookeeper, ServiceLockPath path, UUID uuid,
+      Map<String,String> lockMetadata) {
     this.zooKeeper = requireNonNull(zookeeper);
     this.path = requireNonNull(path);
+    this.lockMetadata = new ServiceLockMetadata(lockMetadata);
     try {
       zooKeeper.exists(path.toString(), this);
       watchingParent = true;

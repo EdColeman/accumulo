@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -102,5 +103,15 @@ public class ServiceLockTest {
     String candidate = validChildren.get(0);
     assertTrue(candidate.contains(uuid));
     assertTrue(candidate.contains(seq));
+  }
+
+  @Test
+  void metadataTest() {
+    Map<String,String> input = Map.of("a", "v1", "b", "v2");
+    ServiceLock.ServiceLockMetadata metadata = new ServiceLock.ServiceLockMetadata(input);
+    String json = metadata.serialize();
+    ServiceLock.ServiceLockMetadata metadata2 = ServiceLock.ServiceLockMetadata.deserialize(json);
+    Map<String,String> outMap = metadata2.getLockMetadata();
+    assertEquals(input, outMap);
   }
 }
