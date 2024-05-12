@@ -19,13 +19,19 @@
 
 package org.apache.accumulo.annotations;
 
-import java.io.FileOutputStream;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
@@ -37,38 +43,76 @@ import javax.lang.model.element.TypeElement;
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class MetricsDocProcessor extends AbstractProcessor {
 
-  private final AtomicInteger index = new AtomicInteger(0);
+  private static final SecureRandom rand = new SecureRandom();
+
+  private PrintWriter pw;
+
+  public MetricsDocProcessor() {
+    super();
+
+    String filename = "/tmp/ann_" + String.format("%04x", rand.nextInt() & 0xffff) + ".txt";
+
+    System.out.println("MetricsDocProcessor::ctor filer: " + filename);
+
+    try {
+      FileWriter fw = new FileWriter(filename, UTF_8, true);
+      BufferedWriter bw = new BufferedWriter(fw);
+      pw = new PrintWriter(bw);
+    } catch (IOException ex) {
+      System.err.println(Arrays.toString(ex.getStackTrace()));
+    }
+  }
+
+  @Override
+  public synchronized void init(ProcessingEnvironment processingEnv) {
+    super.init(processingEnv);
+    System.out.println("MetricsDocProcessor::init filer: " + processingEnv.getFiler());
+    System.out.println("MetricsDocProcessor::init messager: " + processingEnv.getMessager());
+  }
+
+  @Override
+  public Set<String> getSupportedAnnotationTypes() {
+    Set<String> annotations = new HashSet<>();
+    annotations.add(MetricsDocProperty.class.getCanonicalName());
+    return annotations;
+  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    try (PrintWriter pw =
-        new PrintWriter(new FileOutputStream("/tmp/ann_" + index.incrementAndGet() + ".txt"))) {
 
-      pw.println("ANNOTATION:" + annotations.toString() + ", roundEnv: " + roundEnv);
+    System.out.println("MetricsDocProcessor: processing " + annotations.size() + " annotations");
 
-      for (TypeElement annotation : annotations) {
-        pw.println("ANNOTATION:" + annotation);
-        Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
+    pw.println("process():" + annotations + ", roundEnv: " + roundEnv);
 
-        for (Element element : annotatedElements) {
-          pw.println("ANNOTATED ELEMENTS:" + element);
-          var mods = element.getModifiers();
-          mods.forEach(m -> pw.println("  " + m.toString()));
+    for (TypeElement annotation : annotations) {
+      pw.println("ANNOTATION:" + annotation);
+      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
 
-          var a = element.getAnnotation(MetricsDocProperty.class);
-          pw.println("  " + a.name());
-          pw.println("  " + a.description());
+      for (Element element : annotatedElements) {
+        pw.println("ANNOTATED ELEMENTS:" + element);
+        var mods = element.getModifiers();
+        mods.forEach(m -> pw.println("  " + m.toString()));
 
-          var v = a.versions();
-          Arrays.stream(v).forEach(ver -> {
-            pw.println("  " + ver.version());
-            pw.println("  " + ver.prevName());
-          });
-        }
+        printRecord(pw, element);
+
       }
-    } catch (Exception ex) {
-      ex.printStackTrace();
     }
-    return true;
+    pw.flush();
+    return false;
+  }
+
+  private void printRecord(PrintWriter pw, Element element) {
+
+    System.out.println("ANNOTATION - printRecord:" + element);
+
+    var a = element.getAnnotation(MetricsDocProperty.class);
+    pw.println("  " + a.name());
+    pw.println("  " + a.description());
+
+    var v = a.versions();
+    Arrays.stream(v).forEach(ver -> {
+      pw.println("  " + ver.version());
+      pw.println("  " + ver.prevName());
+    });
   }
 }

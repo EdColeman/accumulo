@@ -18,26 +18,38 @@
  */
 package org.apache.accumulo.server.metrics;
 
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.accumulo.annotations.MetricsDocProperty;
 import org.apache.accumulo.annotations.VersionMapping;
 import org.apache.accumulo.core.metrics.MetricsProducer;
 
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
 
 public class ThriftMetrics implements MetricsProducer {
+
+  @MetricsDocProperty(name = "metrics init", description = "show things",
+      versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
+          @VersionMapping(version = "2.0.1", prevName = "another name")})
+  private AtomicInteger counter = new AtomicInteger();
 
   @MetricsDocProperty(name = METRICS_THRIFT_IDLE, description = "show things",
       versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
           @VersionMapping(version = "2.0.1", prevName = "another name")})
-  private DistributionSummary idle = new NoOpDistributionSummary();
+  private DistributionSummary idle;
 
   @MetricsDocProperty(name = METRICS_THRIFT_EXECUTE, description = "show things",
       versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
           @VersionMapping(version = "2.0.1", prevName = "another name")})
   private DistributionSummary execute = new NoOpDistributionSummary();
 
-  public ThriftMetrics() {}
+  public ThriftMetrics() {
+    idle = new NoOpDistributionSummary();
+    counter.incrementAndGet();
+  }
 
   public void addIdle(long time) {
     idle.record(time);
@@ -51,6 +63,8 @@ public class ThriftMetrics implements MetricsProducer {
   public void registerMetrics(MeterRegistry registry) {
     idle = DistributionSummary.builder(METRICS_THRIFT_IDLE).baseUnit("ms").register(registry);
     execute = DistributionSummary.builder(METRICS_THRIFT_EXECUTE).baseUnit("ms").register(registry);
+    counter =
+        registry.gauge("thrift-counter", List.of(Tag.of("state", "tag")), new AtomicInteger(0));
   }
 
 }
