@@ -18,6 +18,8 @@
  */
 package org.apache.accumulo.server.metrics;
 
+import org.apache.accumulo.annotations.MetricsDocProperty;
+import org.apache.accumulo.annotations.VersionMapping;
 import org.apache.accumulo.core.metrics.MetricsProducer;
 
 import io.micrometer.core.instrument.DistributionSummary;
@@ -25,7 +27,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 public class ThriftMetrics implements MetricsProducer {
 
+  @MetricsDocProperty(name = METRICS_THRIFT_IDLE, description = "show things",
+      versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
+          @VersionMapping(version = "2.0.1", prevName = "another name")})
   private DistributionSummary idle = new NoOpDistributionSummary();
+
+  @MetricsDocProperty(name = METRICS_THRIFT_EXECUTE, description = "show things",
+      versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
+          @VersionMapping(version = "2.0.1", prevName = "another name")})
   private DistributionSummary execute = new NoOpDistributionSummary();
 
   public ThriftMetrics() {}

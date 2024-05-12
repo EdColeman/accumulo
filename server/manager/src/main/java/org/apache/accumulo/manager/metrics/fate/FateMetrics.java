@@ -25,6 +25,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.accumulo.annotations.MetricsDocProperty;
+import org.apache.accumulo.annotations.VersionMapping;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.fate.ReadOnlyTStore;
 import org.apache.accumulo.core.fate.ZooStore;
@@ -54,6 +56,9 @@ public class FateMetrics implements MetricsProducer {
   private final String fateRootPath;
   private final long refreshDelay;
 
+  @MetricsDocProperty(name = "total.fate.ops", description = "show things",
+      versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
+          @VersionMapping(version = "2.0.1", prevName = "another name")})
   private AtomicLong totalCurrentOpsGauge;
   private AtomicLong totalOpsGauge;
   private AtomicLong fateErrorsGauge;

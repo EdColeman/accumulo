@@ -79,6 +79,7 @@
     </mailingList>
   </mailingLists>
   <modules>
+    <module>annotations</module>
     <module>assemble</module>
     <module>core</module>
     <module>hadoop-mapreduce</module>
@@ -326,6 +327,11 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.13.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.accumulo</groupId>
+        <artifactId>accumulo-annotations</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.accumulo</groupId>
@@ -982,6 +988,8 @@
                 <unused>com.github.spotbugs:spotbugs-annotations:jar:*</unused>
                 <!-- ignore unused native; analysis isn't possible with tar.gz dependency -->
                 <unused>org.apache.accumulo:accumulo-native:tar.gz:*</unused>
+                <!-- metrics annotations are only used during preprocessing -->
+                <unused>org.apache.accumulo:accumulo-annotations:jar</unused>
                 <!-- ignore runtime log4j dependencies at test scope -->
                 <unused>org.apache.logging.log4j:log4j-1.2-api:jar:*</unused>
                 <unused>org.apache.logging.log4j:log4j-slf4j2-impl:jar:*</unused>
@@ -1700,6 +1708,33 @@
                   <version>${version.errorprone}</version>
                 </path>
               </annotationProcessorPaths>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>gen-metrics-docs</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <source>1.8</source>
+              <target>1.8</target>
+              <encoding>UTF-8</encoding>
+              <generatedSourcesDirectory>${project.build.directory}/generated-sources/</generatedSourcesDirectory>
+              <annotationProcessorPaths>
+                <path>
+                  <groupId>org.apache.accumulo</groupId>
+                  <artifactId>accumulo-annotations</artifactId>
+                  <version>${project.version}</version>
+                </path>
+              </annotationProcessorPaths>
+              <annotationProcessors>
+                <annotationProcessor>org.apache.accumulo.annotations.MetricsDocProcessor</annotationProcessor>
+              </annotationProcessors>
             </configuration>
           </plugin>
         </plugins>
