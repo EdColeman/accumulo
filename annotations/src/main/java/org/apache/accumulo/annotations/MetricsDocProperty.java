@@ -30,7 +30,7 @@ public @interface MetricsDocProperty {
 
   String description() default "";
 
-  String metricType() default "";
+  String type() default "";
 
   boolean hasProperty() default false;
 

@@ -57,7 +57,7 @@ public class FateMetrics implements MetricsProducer {
   private final long refreshDelay;
 
   @MetricsDocProperty(name = "total.fate.ops", description = "show things",
-      versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
+      type = "gauge", versions = {@VersionMapping(version = "1.9.0", prevName = "old name 1"),
           @VersionMapping(version = "2.0.1", prevName = "another name")})
   private AtomicLong totalCurrentOpsGauge;
   private AtomicLong totalOpsGauge;
