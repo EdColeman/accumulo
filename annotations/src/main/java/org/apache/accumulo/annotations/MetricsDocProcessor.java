@@ -25,7 +25,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.security.SecureRandom;
+// import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -43,14 +43,15 @@ import javax.lang.model.element.TypeElement;
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 public class MetricsDocProcessor extends AbstractProcessor {
 
-  private static final SecureRandom rand = new SecureRandom();
+  // private static final SecureRandom rand = new SecureRandom();
 
   private PrintWriter pw;
 
   public MetricsDocProcessor() {
     super();
 
-    String filename = "/tmp/ann_" + String.format("%04x", rand.nextInt() & 0xffff) + ".txt";
+    // String filename = "/tmp/ann_" + String.format("%04x", rand.nextInt() & 0xffff) + ".txt";
+    String filename = "/tmp/ann_x.txt";
 
     System.out.println("MetricsDocProcessor::ctor filer: " + filename);
 
