@@ -25,35 +25,54 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-// import java.security.SecureRandom;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 
 @SupportedAnnotationTypes("org.apache.accumulo.annotations.MetricsDocProperty")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedOptions({"output.dir"})
 public class MetricsDocProcessor extends AbstractProcessor {
-
-  // private static final SecureRandom rand = new SecureRandom();
 
   private PrintWriter pw;
 
+  private Elements elementUtils;
+
   public MetricsDocProcessor() {
     super();
+  }
 
-    // String filename = "/tmp/ann_" + String.format("%04x", rand.nextInt() & 0xffff) + ".txt";
-    String filename = "/tmp/ann_x.txt";
+  @Override
+  public synchronized void init(ProcessingEnvironment processingEnv) {
+    super.init(processingEnv);
+    this.elementUtils = processingEnv.getElementUtils();
 
-    System.out.println("MetricsDocProcessor::ctor filer: " + filename);
+    String dir = super.processingEnv.getOptions().getOrDefault("output.dir",
+        System.getProperty("java.io.tmpdir"));
+    if (!Files.exists(Path.of(dir))) {
+      try {
+        Files.createDirectory(Path.of(dir));
+      } catch (IOException ex) {
+        throw new IllegalStateException(ex);
+      }
+    }
+
+    String filename = dir + "/accumulo_metrics.md";
 
     try {
       FileWriter fw = new FileWriter(filename, UTF_8, true);
@@ -65,17 +84,11 @@ public class MetricsDocProcessor extends AbstractProcessor {
   }
 
   @Override
-  public synchronized void init(ProcessingEnvironment processingEnv) {
-    super.init(processingEnv);
-    System.out.println("MetricsDocProcessor::init filer: " + processingEnv.getFiler());
-    System.out.println("MetricsDocProcessor::init messager: " + processingEnv.getMessager());
-  }
-
-  @Override
   public Set<String> getSupportedAnnotationTypes() {
-    Set<String> annotations = new HashSet<>();
-    annotations.add(MetricsDocProperty.class.getCanonicalName());
-    return annotations;
+    Set<String> result = super.getSupportedAnnotationTypes();
+    result = new TreeSet<>(result);
+    result.add(MetricsDocProperty.class.getCanonicalName());
+    return result;
   }
 
   @Override
@@ -83,16 +96,22 @@ public class MetricsDocProcessor extends AbstractProcessor {
 
     System.out.println("MetricsDocProcessor: processing " + annotations.size() + " annotations");
 
-    pw.println("process():" + annotations + ", roundEnv: " + roundEnv);
-
     for (TypeElement annotation : annotations) {
       pw.println("ANNOTATION:" + annotation);
       Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
 
       for (Element element : annotatedElements) {
-        pw.println("ANNOTATED ELEMENTS:" + element);
+
+        Element enclosing = element;
+        while (enclosing.getKind() != ElementKind.PACKAGE) {
+          enclosing = enclosing.getEnclosingElement();
+        }
+
+        PackageElement packageElement = (PackageElement) enclosing;
+        pw.println("Package: " + packageElement);
+
         var mods = element.getModifiers();
-        mods.forEach(m -> pw.println("  " + m.toString()));
+        mods.forEach(m -> pw.println("  " + element.getSimpleName() + " -> " + m.toString()));
 
         printRecord(pw, element);
 
@@ -103,17 +122,15 @@ public class MetricsDocProcessor extends AbstractProcessor {
   }
 
   private void printRecord(PrintWriter pw, Element element) {
-
-    System.out.println("ANNOTATION - printRecord:" + element);
-
     var a = element.getAnnotation(MetricsDocProperty.class);
-    pw.println("  " + a.name());
-    pw.println("  " + a.description());
+
+    pw.println("  N:" + a.name());
+    pw.println("  D: " + a.description());
 
     var v = a.versions();
     Arrays.stream(v).forEach(ver -> {
-      pw.println("  " + ver.version());
-      pw.println("  " + ver.prevName());
+      pw.println("  V:" + ver.version());
+      pw.println("  P:" + ver.prevName());
     });
   }
 }

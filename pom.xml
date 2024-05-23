@@ -1724,6 +1724,7 @@
               <source>1.8</source>
               <target>1.8</target>
               <encoding>UTF-8</encoding>
+              <failOnWarning>false</failOnWarning>
               <generatedSourcesDirectory>${project.build.directory}/generated-sources/</generatedSourcesDirectory>
               <annotationProcessorPaths>
                 <path>
@@ -1735,6 +1736,11 @@
               <annotationProcessors>
                 <annotationProcessor>org.apache.accumulo.annotations.MetricsDocProcessor</annotationProcessor>
               </annotationProcessors>
+              <compilerArgs>
+                <compilerArg>-Afoo=bar</compilerArg>
+                <compilerArg>-Aoutput.dir=${session.executionRootDirectory}/target/generated-docs/</compilerArg>
+                --&gt;
+              </compilerArgs>
             </configuration>
           </plugin>
         </plugins>
